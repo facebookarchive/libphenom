@@ -18,6 +18,7 @@
 #define PHENOM_SYSUTIL_H
 
 #include "phenom/defs.h"
+#include "phenom/memory.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -47,6 +48,16 @@ void phenom_freedtoa(char *s);
 char *phenom_dtoa(double _d, int mode, int ndigits,
     int *decpt, int *sign, char **rve);
 double phenom_strtod(const char *s00, const char **se);
+
+static inline uint32_t phenom_power_2(uint32_t n)
+{
+  n |= (n >> 16);
+  n |= (n >> 8);
+  n |= (n >> 4);
+  n |= (n >> 2);
+  n |= (n >> 1);
+  return n + 1;
+}
 
 struct phenom_vprintf_funcs {
   bool (*print)(void *arg, const char *buf, size_t len);
@@ -99,6 +110,27 @@ int phenom_vfdprintf(int fd, const char *fmt, va_list ap);
 int phenom_fdprintf(int fd, const char *fmt, ...)
 #ifdef __GNUC__
   __attribute__((format(printf, 2, 3)))
+#endif
+  ;
+
+/** Like asprintf, except that it uses phenom_vprintf_core().
+ * On error, returns -1 and sets strp to NULL */
+int phenom_vasprintf(char **strp, const char *fmt, va_list ap);
+int phenom_asprintf(char **strp, const char *fmt, ...)
+#ifdef __GNUC__
+  __attribute__((format(printf, 2, 3)))
+#endif
+  ;
+
+/** Like phenom_asprintf, except that it uses the specified
+ * memtype for the memory it allocates.
+ * On error, returns -1 and sets strp to NULL */
+int phenom_vmtsprintf(phenom_memtype_t memtype, char **strp,
+    const char *fmt, va_list ap);
+int phenom_mtsprintf(phenom_memtype_t memtype, char **strp,
+    const char *fmt, ...)
+#ifdef __GNUC__
+  __attribute__((format(printf, 3, 4)))
 #endif
   ;
 

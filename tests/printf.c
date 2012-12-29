@@ -33,11 +33,15 @@ int main(int argc, char **argv)
 {
   char buf[128];
   char verify[128];
+  char bigbuf[132];
   int len;
+  char *strp;
+  int i;
+
   unused_parameter(argc);
   unused_parameter(argv);
 
-  plan_tests(10);
+  plan_tests(15);
 
   len = phenom_snprintf(buf, 10, "12345678901");
   // Returns the length required
@@ -72,6 +76,24 @@ int main(int argc, char **argv)
   ok(len == (int)strlen(buf), "got len=%d buflen=%d expected=%d",
       len, strlen(buf), strlen(EXPECTED));
   ok(len == (int)strlen(EXPECTED), "got len=%d", len);
+
+
+  len = phenom_asprintf(&strp, "testing %s", "basic");
+  is(len, 13);
+  is_string(strp, "testing basic");
+  free(strp);
+
+  /* test buffer boundary for realloc case */
+  for (i = 0; i < (int)sizeof(bigbuf) - 1; i++) {
+    bigbuf[i] = i + 1;
+  }
+  bigbuf[sizeof(bigbuf)-1] = '\0';
+  len = phenom_asprintf(&strp, "prefix: %s", bigbuf);
+  is(len, 8 + sizeof(bigbuf) - 1);
+  ok(!strncmp(strp, "prefix: ", 8), "got prefix %.*s", 8, strp);
+  ok(!strcmp(strp + 8, bigbuf), "bigbuf compared ok");
+  free(strp);
+
 
   /* uncomment this to check against your system supplied
    * snprintf.  Note that some snprintfs have broken return

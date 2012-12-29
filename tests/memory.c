@@ -16,6 +16,7 @@
 
 #include "phenom/memory.h"
 #include "phenom/counter.h"
+#include "phenom/sysutil.h"
 #include "tap.h"
 
 static void dump_mem_stats(void)
@@ -55,7 +56,7 @@ int main(int argc, char** argv)
   unused_parameter(argc);
   unused_parameter(argv);
 
-  plan_tests(37);
+  plan_tests(46);
 
   phenom_memtype_def_t defs[] = {
     { "memtest1", "widget", sizeof(struct widget), PHENOM_MEM_FLAGS_ZERO },
@@ -136,6 +137,24 @@ int main(int argc, char** argv)
   is(2, st.allocs);
   is(0, st.bytes);
   is(2, st.frees);
+  is(1, st.reallocs);
+
+  char *strp;
+  phenom_mtsprintf(types[1], &strp, "testing %s", "format");
+  is_string(strp, "testing format");
+
+  phenom_mem_stat(types[1], &st);
+  is(3, st.allocs);
+  is(128, st.bytes);
+  is(2, st.frees);
+  is(1, st.reallocs);
+
+  phenom_mem_free(types[1], strp);
+
+  phenom_mem_stat(types[1], &st);
+  is(3, st.allocs);
+  is(0, st.bytes);
+  is(3, st.frees);
   is(1, st.reallocs);
 
   dump_mem_stats();

@@ -159,6 +159,132 @@ int phenom_fdprintf(int fd, const char *fmt, ...)
   return res;
 }
 
+struct print_n_grow {
+  phenom_memtype_t mt;
+  uint32_t allocd;
+  uint32_t used;
+  char *mem;
+};
+
+static bool grow_print(void *arg, const char *src, size_t len)
+{
+  struct print_n_grow *grow = arg;
+  uint32_t avail = grow->allocd - grow->used;
+
+  if (avail < len) {
+    uint32_t target = phenom_power_2(grow->used + len + 1);
+    char *revised;
+
+    if (target < 128) {
+      target = 128;
+    }
+
+    if (grow->mt == PHENOM_MEMTYPE_INVALID) {
+      revised = realloc(grow->mem, target);
+    } else {
+      revised = phenom_mem_realloc(grow->mt, grow->mem, target);
+    }
+
+    if (!revised) {
+      return false;
+    }
+
+    // under report to make the unsigned avail math easier.
+    // This reserves us room for the NUL byte
+    grow->allocd = target - 1;
+    grow->mem = revised;
+  }
+
+  memcpy(grow->mem + grow->used, src, len);
+  grow->used += len;
+
+  return true;
+}
+
+static bool grow_flush(void *arg)
+{
+  struct print_n_grow *grow = arg;
+
+  grow->mem[grow->used] = '\0';
+  return true;
+}
+
+static struct phenom_vprintf_funcs grow_buf_funcs = {
+  grow_print,
+  grow_flush
+};
+
+int phenom_vasprintf(char **strp, const char *fmt, va_list ap)
+{
+  struct print_n_grow grow = {
+    PHENOM_MEMTYPE_INVALID, 0, 0, 0
+  };
+  int ret;
+
+  ret = phenom_vprintf_core(&grow, &grow_buf_funcs, fmt, ap);
+
+  if (ret == -1) {
+    if (grow.mem) {
+      free(grow.mem);
+      grow.mem = NULL;
+    }
+  }
+  *strp = grow.mem;
+  return ret;
+}
+
+int phenom_asprintf(char **strp, const char *fmt, ...)
+{
+  va_list ap;
+  int ret;
+
+  va_start(ap, fmt);
+  ret = phenom_vasprintf(strp, fmt, ap);
+  va_end(ap);
+
+  return ret;
+}
+
+
+int phenom_vmtsprintf(phenom_memtype_t memtype, char **strp,
+    const char *fmt, va_list ap)
+{
+  struct print_n_grow grow = {
+    memtype, 0, 0, 0
+  };
+  int ret;
+
+  if (memtype == PHENOM_MEMTYPE_INVALID) {
+    errno = EINVAL;
+    return -1;
+  }
+
+  ret = phenom_vprintf_core(&grow, &grow_buf_funcs, fmt, ap);
+
+  if (ret == -1) {
+    if (grow.mem) {
+      phenom_mem_free(memtype, grow.mem);
+      grow.mem = NULL;
+    }
+  }
+  *strp = grow.mem;
+  return ret;
+}
+
+int phenom_mtsprintf(phenom_memtype_t memtype, char **strp,
+    const char *fmt, ...)
+{
+  va_list ap;
+  int ret;
+
+  va_start(ap, fmt);
+  ret = phenom_vmtsprintf(memtype, strp, fmt, ap);
+  va_end(ap);
+
+  return ret;
+}
+
+
 
 /* vim:ts=2:sw=2:et:
  */
