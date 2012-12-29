@@ -17,6 +17,18 @@
 #include "phenom/sysutil.h"
 #include "tap.h"
 
+static int test_va_list(char *buf, size_t len, const char *fmt, ...)
+{
+  va_list ap;
+  int ret;
+
+  va_start(ap, fmt);
+  ret = phenom_snprintf(buf, len, "prefix: %s `Pv%s%p suffix: %s",
+          "PREFIX", fmt, (void*)&ap, "SUFFIX");
+  va_end(ap);
+  return ret;
+}
+
 int main(int argc, char **argv)
 {
   char buf[128];
@@ -25,7 +37,7 @@ int main(int argc, char **argv)
   unused_parameter(argc);
   unused_parameter(argv);
 
-  plan_tests(7);
+  plan_tests(10);
 
   len = phenom_snprintf(buf, 10, "12345678901");
   // Returns the length required
@@ -52,6 +64,14 @@ int main(int argc, char **argv)
 
   phenom_snprintf(buf, sizeof(buf), "``Pboo");
   ok(!strcmp(buf, "`Pboo"), "got %s", buf);
+
+  len = test_va_list(buf, sizeof(buf), "inside %d %d", 42, 1);
+
+#define EXPECTED "prefix: PREFIX inside 42 1 suffix: SUFFIX"
+  ok(!strcmp(buf, EXPECTED), "got %s", buf);
+  ok(len == (int)strlen(buf), "got len=%d buflen=%d expected=%d",
+      len, strlen(buf), strlen(EXPECTED));
+  ok(len == (int)strlen(EXPECTED), "got len=%d", len);
 
   /* uncomment this to check against your system supplied
    * snprintf.  Note that some snprintfs have broken return

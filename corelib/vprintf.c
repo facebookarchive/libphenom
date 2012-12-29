@@ -460,6 +460,30 @@ phenom_vprintf_core(void *print_arg,
             size = strlen(cp);
             fmt += 5;
             PRINT(cp, size);
+            ret += size;
+            continue;
+          }
+          break;
+        case 'v':
+          if (!memcmp("%s%p", fmt + 3, 4)) {
+            const char *rfmt = GETARG(char *);
+            va_list *vp = GETARG(void*);
+            va_list vcopy;
+            int res;
+
+            va_copy(vcopy, *vp);
+
+            res = phenom_vprintf_core(print_arg, print_funcs,
+                  rfmt, vcopy);
+
+            va_end(vcopy);
+
+            if (res == -1) {
+              print_error = true;
+              goto error;
+            }
+            ret += res;
+            fmt += 7;
             continue;
           }
       }

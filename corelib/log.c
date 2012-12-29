@@ -36,26 +36,13 @@ uint8_t phenom_log_level_get(void)
 
 void phenom_logv(uint8_t level, const char *fmt, va_list ap)
 {
-  char buf[1024];
-  int len;
-  int plen;
-
   if (level > log_level) {
     return;
   }
 
-  plen = snprintf(buf, sizeof(buf), "%" PRIi64 " %u:",
-    phenom_time_now(), level);
-
-  len = phenom_vsnprintf(buf + plen, (sizeof(buf) - 1) - plen, fmt, ap);
-  len += plen;
-
-  /* ensure it ends with a newline */
-  if (buf[len - 1] != '\n') {
-    buf[len++] = '\n';
-  }
-
-  len = write(STDERR_FILENO, buf, len);
+  phenom_fdprintf(STDERR_FILENO,
+      "%" PRIi64 " %u: `Pv%s%p\n",
+      phenom_time_now(), level, fmt, (void*)&ap);
 }
 
 void phenom_log(uint8_t level, const char *fmt, ...)

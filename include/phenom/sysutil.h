@@ -72,9 +72,11 @@ const char *phenom_strerror_r(int errval, char *buf, size_t len);
  * For instance, "`Pe%d" is seen as "%d" by GCC's checker
  * but the entire "`Pe%d" is replaced by the strerror expansion.
  *
- *  `Pe%d` - replaced by the return from strerror(arg), using
- *           strerror_r() when present, where arg is an errno
- *           argument supplied by you.
+ *  `Pe%d -   replaced by the return from strerror(arg), using
+ *            strerror_r() when present, where arg is an errno
+ *            argument supplied by you.
+ *  `Pv%s%p - recursively expands a format string and a va_list.
+ *            Arguments are a char* and va_list*
  */
 int phenom_vprintf_core(void *print_arg,
     const struct phenom_vprintf_funcs *print_funcs,
