@@ -1,0 +1,8 @@
+{
+  "project_id"  : "phenom",
+  "lint_engine" : "PhenomLintEngine",
+  "unit_engine" : "PhenomUnitEngine",
+  "load"        : ["arcanist"],
+  "copyright_holder" : "Facebook, Inc.",
+  "conduit_uri" : "https://phabricator.fb.com/api/"
+}
