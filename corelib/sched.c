@@ -480,10 +480,15 @@ static void *sched_loop(void *arg)
 
   for (i = 0; i < num_schedulers; i++) {
     if (scheduler_threads[i] == me) {
+      char name[32];
+
       if (!set_affinity(me, i)) {
         printf("failed to set thread %p affinity to CPU %d\n",
             (void*)me, i);
       }
+
+      phenom_snprintf(name, sizeof(name), "sched-%d", i);
+      phenom_thread_set_name(name);
       break;
     }
   }
