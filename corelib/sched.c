@@ -313,11 +313,20 @@ static void trig_dispatch(phenom_work_item_t *work, uint32_t trigger,
   if (phenom_pingfd_consume_one(&pingfd)) {
     dispatch_trigger_queue(phenom_thread_self(), &trig_fifo, now);
   }
+
+  phenom_work_io_event_mask_set(work, work->fd, PHENOM_IO_MASK_READ);
 }
 
 phenom_time_t phenom_time_now(void)
 {
   phenom_thread_t *me = phenom_thread_self();
+
+  if (unlikely(me->now == 0)) {
+    struct timeval now;
+
+    gettimeofday(&now, NULL);
+    return phenom_timeval_to_time_t(&now);
+  }
 
   return me->now;
 }
@@ -344,6 +353,8 @@ static void epoll_tick(phenom_work_item_t *work, uint32_t trigger,
       phenom_timerwheel_tick(&wheel, now, dispatch_timer, phenom_thread_self());
     }
   }
+
+  phenom_work_io_event_mask_set(work, work->fd, PHENOM_IO_MASK_READ);
 }
 
 static void epoll_emitter(phenom_thread_t *thread)
@@ -571,13 +582,16 @@ phenom_result_t phenom_work_io_event_mask_set(
     phenom_socket_t fd,
     phenom_io_mask_t mask)
 {
-  /* should do magic to see if we're ok to poke this here */
+  /* TODO: should do magic to see if we're ok to poke this here */
+
+  item->fd = fd;
+
 #ifdef HAVE_EPOLL_CREATE
   {
     struct epoll_event evt;
     int res;
 
-    evt.events = EPOLLHUP|EPOLLERR;
+    evt.events = EPOLLHUP|EPOLLERR|EPOLLONESHOT;
     evt.data.ptr = item;
 
     if (mask & PHENOM_IO_MASK_READ) {
@@ -594,11 +608,11 @@ phenom_result_t phenom_work_io_event_mask_set(
         res = 0;
       }
     } else {
-      /* assume that we're going to modify an existing
-       * item more often than we add one */
-      res = epoll_ctl(ep_fd, EPOLL_CTL_MOD, fd, &evt);
-      if (res < 0 && errno == ENOENT) {
-        res = epoll_ctl(ep_fd, EPOLL_CTL_ADD, fd, &evt);
+      res = epoll_ctl(ep_fd, EPOLL_CTL_ADD, fd, &evt);
+      if (res < 0 && errno == EEXIST) {
+        /* assume that we're going to add an existing
+         * item more often than we modify one */
+        res = epoll_ctl(ep_fd, EPOLL_CTL_MOD, fd, &evt);
       }
     }
     if (res != 0) {
@@ -614,11 +628,11 @@ phenom_result_t phenom_work_io_event_mask_set(
     int n = 0;
 
     if (mask & PHENOM_IO_MASK_READ) {
-      EV_SET(&ev[n], fd, EVFILT_READ, EV_ADD, 0, 0, item);
+      EV_SET(&ev[n], fd, EVFILT_READ, EV_ADD|EV_ONESHOT, 0, 0, item);
       n++;
     }
     if (mask & PHENOM_IO_MASK_WRITE) {
-      EV_SET(&ev[n], fd, EVFILT_WRITE, EV_ADD, 0, 0, item);
+      EV_SET(&ev[n], fd, EVFILT_WRITE, EV_ADD|EV_ONESHOT, 0, 0, item);
       n++;
     }
     if (mask == PHENOM_IO_MASK_NONE) {
@@ -741,6 +755,7 @@ phenom_result_t phenom_sched_init(uint32_t sched_cores, uint32_t fd_hint)
   phenom_work_io_event_mask_set(&trig_item,
       phenom_pingfd_get_fd(&pingfd),
       PHENOM_IO_MASK_READ);
+  phenom_work_trigger_enable(&trig_item);
 
   return PHENOM_OK;
 }
