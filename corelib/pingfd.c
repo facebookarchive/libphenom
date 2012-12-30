@@ -15,6 +15,7 @@
  */
 
 #include "phenom/sysutil.h"
+#include "phenom/log.h"
 
 /* We create the pingfd using non-blocking descriptors.
  * The rationale is that if the fd is too busy to take on
@@ -31,12 +32,12 @@ phenom_result_t phenom_pingfd_init(phenom_pingfd_t *pfd)
   pfd->fds[0] = eventfd(0, EFD_CLOEXEC|EFD_SEMAPHORE|EFD_NONBLOCK);
 
   if (pfd->fds[0] == -1) {
-    perror("pingfd_init: eventfd");
+    phenom_log(PH_LOG_ERR, "pingfd_init: eventfd `Pe%d", errno);
     return PHENOM_ERR;
   }
 #else
   if (phenom_pipe(pfd->fds, PH_PIPE_NONBLOCK|PH_PIPE_CLOEXEC)) {
-    perror("pingfd_init: pipe2");
+    phenom_log(PH_LOG_ERR, "pingfd_init: pipe `Pe%d", errno);
     return PHENOM_ERR;
   }
 #endif
@@ -66,7 +67,7 @@ phenom_result_t phenom_pingfd_ping(phenom_pingfd_t *pfd)
     if (errno == EINTR) {
       continue;
     }
-    perror("pingfd_ping");
+    phenom_log(PH_LOG_ERR, "pingfd_ping `Pe%d", errno);
     return PHENOM_ERR;
   }
 }
