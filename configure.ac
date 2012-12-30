@@ -153,6 +153,7 @@ case "$CFLAGS" in
     CFLAGS="$CFLAGS -O2"
     ;;
 esac
+CFLAGS="$CFLAGS -g"
 
 IRONMANCFLAGS=""
 if test -n "$GCC" -a "$lenient" == "no" ; then
