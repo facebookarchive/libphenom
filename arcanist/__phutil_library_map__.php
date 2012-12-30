@@ -10,6 +10,8 @@ phutil_register_library_map(array(
   '__library_version__' => 2,
   'class' =>
   array(
+    'PhenomCallgrindFile' => 'lib/cov/PhenomCallgrindFile.php',
+    'PhenomDwarfLineInfo' => 'lib/cov/PhenomDwarfLineInfo.php',
     'PhenomLicenseLinter' => 'lib/PhenomLicenseLinter.php',
     'PhenomLintEngine' => 'lib/PhenomLintEngine.php',
     'PhenomUnitEngine' => 'lib/PhenomUnitEngine.php',
