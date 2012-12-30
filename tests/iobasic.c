@@ -58,7 +58,7 @@ static void pipe_dispatch(phenom_work_item_t *work, uint32_t trigger,
   unused_parameter(trigger);
 
   diff = now - start_time;
-  ok(diff >= 90 && diff <= 110, "time diff is %" PRIi64, diff);
+  ok(diff >= 80 && diff <= 120, "time diff is %" PRIi64, diff);
 
   is(1, read(pipe_fd[0], &buf, sizeof(buf)));
 

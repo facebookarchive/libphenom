@@ -42,6 +42,15 @@
 # error unsupported target platform
 #endif
 
+#ifdef __FreeBSD__
+/* need this to get u_short so we can include sys/event.h.
+ * This has to happen before we include sys/types.h */
+# include <sys/cdefs.h>
+# define __BSD_VISIBLE 1
+#endif
+
+#include <sys/types.h>
+
 #ifdef HAVE_ALLOCA_H
 # include <alloca.h>
 #endif
@@ -83,7 +92,6 @@
 #include <errno.h>
 #include <signal.h>
 #include <fcntl.h>
-#include <sys/types.h>
 
 #ifdef HAVE_SYS_CPUSET_H
 # include <sys/cpuset.h>

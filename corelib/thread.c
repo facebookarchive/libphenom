@@ -183,6 +183,40 @@ void phenom_thread_set_name(const char *name)
 #endif
 }
 
+bool phenom_thread_set_affinity(phenom_thread_t *me, int affinity)
+{
+#ifdef HAVE_PTHREAD_SETAFFINITY_NP
+# ifdef __linux__
+  cpu_set_t set;
+# else /* FreeBSD */
+  cpuset_t set;
+#endif
+
+  CPU_ZERO(&set);
+  CPU_SET(affinity, &set);
+
+  return pthread_setaffinity_np(me->thr, sizeof(set), &set) == 0;
+#elif defined(__APPLE__)
+  thread_affinity_policy_data_t data;
+
+  data.affinity_tag = affinity + 1;
+  return thread_policy_set(pthread_mach_thread_np(me->thr),
+      THREAD_AFFINITY_POLICY,
+      (thread_policy_t)&data, THREAD_AFFINITY_POLICY_COUNT) == 0;
+#elif defined(HAVE_CPUSET_SETAFFINITY)
+  /* untested bsdish */
+  cpuset_t set;
+
+  CPU_ZERO(&set);
+  CPU_SET(affinity, &set);
+  cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1, sizeof(set), set);
+#elif defined(HAVE_PROCESSOR_BIND)
+  return processor_bind(P_LWPID, me->lwpid, affinity, NULL) == 0;
+#endif
+  return true;
+}
+
+
 /* vim:ts=2:sw=2:et:
  */
 

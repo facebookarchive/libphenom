@@ -2294,7 +2294,7 @@ bigcomp
 #endif
 {
   Bigint *b, *d;
-  int b2, bbits, d2, dd, dig, dsign, i, j, nd, nd0, p2, p5, speccase;
+  int b2, bbits, d2, dd = 0, dig, dsign, i, j, nd, nd0, p2, p5, speccase;
 
   dsign = bc->dsign;
   nd = bc->nd;
@@ -2509,7 +2509,7 @@ phenom_strtod
   U aadj2, adj, rv, rv0 = {0};
   ULong y, z;
   BCinfo bc;
-  Bigint *bb, *bb1, *bd, *bd0, *bs, *delta;
+  Bigint *bb = 0, *bb1 = 0, *bd = 0, *bd0 = 0, *bs = 0, *delta = 0;
 #ifdef Avoid_Underflow
   ULong Lsb, Lsb1;
 #endif

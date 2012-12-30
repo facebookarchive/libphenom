@@ -108,6 +108,9 @@ static inline phenom_thread_t *phenom_thread_self(void)
  * need to call it */
 void phenom_thread_set_name(const char *name);
 
+/* Set the affinity of a thread */
+bool phenom_thread_set_affinity(phenom_thread_t *thr, int affinity);
+
 #ifdef __cplusplus
 }
 #endif

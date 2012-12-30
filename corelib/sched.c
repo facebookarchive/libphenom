@@ -540,40 +540,6 @@ static void kqueue_emitter(phenom_thread_t *thread)
 }
 #endif
 
-static bool set_affinity(phenom_thread_t *me, int affinity)
-{
-#ifdef HAVE_PTHREAD_SETAFFINITY_NP
-  /* Linux */
-  cpu_set_t cpuset;
-
-  CPU_ZERO(&cpuset);
-  CPU_SET(affinity, &cpuset);
-
-  return pthread_setaffinity_np(me->thr, sizeof(cpuset), &cpuset) == 0;
-#endif
-#ifdef __APPLE__
-  thread_affinity_policy_data_t data;
-
-  data.affinity_tag = affinity + 1;
-  return thread_policy_set(pthread_mach_thread_np(me->thr),
-      THREAD_AFFINITY_POLICY,
-      (thread_policy_t)&data, THREAD_AFFINITY_POLICY_COUNT) == 0;
-#endif
-#ifdef HAVE_CPUSET_SETAFFINITY
-  /* untested fbsd 7ish */
-  cpuset_t cpuset;
-
-  CPU_ZERO(&cpuset);
-  CPU_SET(affinity, &cpuset);
-  cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1,
-      sizeof(cpuset), cpuset);
-#endif
-#ifdef HAVE_PROCESSOR_BIND
-  return processor_bind(P_LWPID, me->lwpid, affinity, NULL) == 0;
-#endif
-  return true;
-}
-
 static void *sched_loop(void *arg)
 {
   phenom_thread_t *me = phenom_thread_self();
@@ -583,7 +549,7 @@ static void *sched_loop(void *arg)
     if (scheduler_threads[i] == me) {
       char name[32];
 
-      if (!set_affinity(me, i)) {
+      if (!phenom_thread_set_affinity(me, i)) {
         phenom_log(PH_LOG_ERR,
             "failed to set thread %p affinity to CPU %d\n",
             (void*)me, i);
@@ -893,8 +859,7 @@ phenom_result_t phenom_sched_init(uint32_t sched_cores, uint32_t fd_hint)
     kq_fd = kqueue();
 
     // Set up the timer
-    EV_SET(&ev, 0, EVFILT_TIMER, EV_ADD, NOTE_USECONDS,
-        WHEEL_INTERVAL_MS * 1000, &kq_fd);
+    EV_SET(&ev, 0, EVFILT_TIMER, EV_ADD, 0, WHEEL_INTERVAL_MS, &kq_fd);
 
     kevent(kq_fd, &ev, 1, NULL, 0, NULL);
   }
