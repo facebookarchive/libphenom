@@ -42,9 +42,11 @@ static phenom_timerwheel_t wheel;
 static int num_schedulers;
 static int run_loop = 1;
 static phenom_thread_t **scheduler_threads;
+#ifndef HAVE_PORT_CREATE
 static phenom_pingfd_t pingfd;
 static phenom_work_item_t trig_item;
 static ck_fifo_mpmc_t trig_fifo;
+#endif
 
 ck_epoch_t __phenom_trigger_epoch;
 
@@ -127,8 +129,13 @@ static phenom_result_t enqueue_trigger(
   } else {
     /* if there is no affinity, then we want to wake up any
      * of our scheduler threads and let them find this guy. */
+#ifdef HAVE_PORT_CREATE
+    // Arrives at our port with source = PORT_SOURCE_USER
+    port_send(port_fd, 0, tt);
+#else
     ck_fifo_mpmc_enqueue(&trig_fifo, &tt->entry, tt);
     phenom_pingfd_ping(&pingfd);
+#endif
   }
 
   ck_epoch_end(&__phenom_trigger_epoch, thr->trigger_record);
@@ -307,6 +314,7 @@ static void dispatch_trigger_queue(phenom_thread_t *thread,
   ck_epoch_end(&__phenom_trigger_epoch, thread->trigger_record);
 }
 
+#ifndef HAVE_PORT_CREATE
 static void trig_dispatch(phenom_work_item_t *work, uint32_t trigger,
     phenom_time_t now, void *workdata, intptr_t triggerdata)
 {
@@ -321,6 +329,7 @@ static void trig_dispatch(phenom_work_item_t *work, uint32_t trigger,
 
   phenom_work_io_event_mask_set(work, work->fd, PHENOM_IO_MASK_READ);
 }
+#endif
 
 phenom_time_t phenom_time_now(void)
 {
@@ -370,22 +379,38 @@ static void port_emitter(phenom_thread_t *thread)
     }
 
     for (i = 0; i < n; i++) {
-      if (events[i].portev_source == PORT_SOURCE_TIMER) {
-        phenom_timerwheel_tick(&wheel, nowt, dispatch_timer, thread);
-      } else {
-        phenom_work_item_t *work = events[i].portev_user;
-        phenom_io_mask_t mask = 0;
+      switch (events[i].portev_source) {
+        case PORT_SOURCE_TIMER:
+          phenom_timerwheel_tick(&wheel, nowt, dispatch_timer, thread);
+          break;
 
-        if (events[i].portev_events & POLLIN) {
-          mask |= PHENOM_IO_MASK_READ;
+        case PORT_SOURCE_USER:
+        {
+          struct phenom_thread_trigger *t;
+
+          t = events[i].portev_user;
+          dispatch_work_triggers(thread, nowt, t->work);
+          phenom_mem_free(mt.thread_trigger, t);
+
+          break;
         }
-        if (events[i].portev_events & POLLOUT) {
-          mask |= PHENOM_IO_MASK_WRITE;
-        }
-        if (events[i].portev_events & (POLLERR|POLLHUP)) {
-          mask |= PHENOM_IO_MASK_ERR;
-        }
-        trigger_now(thread, nowt, work, PHENOM_TRIGGER_IO, mask);
+        case PORT_SOURCE_FD:
+          {
+            phenom_work_item_t *work = events[i].portev_user;
+            phenom_io_mask_t mask = 0;
+
+            if (events[i].portev_events & POLLIN) {
+              mask |= PHENOM_IO_MASK_READ;
+            }
+            if (events[i].portev_events & POLLOUT) {
+              mask |= PHENOM_IO_MASK_WRITE;
+            }
+            if (events[i].portev_events & (POLLERR|POLLHUP)) {
+              mask |= PHENOM_IO_MASK_ERR;
+            }
+            trigger_now(thread, nowt, work, PHENOM_TRIGGER_IO, mask);
+          }
+          break;
       }
     }
     if (n > 0) {
@@ -795,7 +820,9 @@ phenom_result_t phenom_sched_init(uint32_t sched_cores, uint32_t fd_hint)
   }
 
   ck_epoch_init(&__phenom_trigger_epoch);
+#ifndef HAVE_PORT_CREATE
   ck_fifo_mpmc_init(&trig_fifo, phenom_mem_alloc(mt.thread_trigger));
+#endif
 
   phenom_thread_init();
   me = phenom_thread_self();
@@ -873,6 +900,7 @@ phenom_result_t phenom_sched_init(uint32_t sched_cores, uint32_t fd_hint)
   }
 #endif
 
+#ifndef HAVE_PORT_CREATE
   /* channel for arbitrary triggers */
   if (phenom_pingfd_init(&pingfd) != PHENOM_OK) {
     phenom_panic("phenom_sched_init: unable to init pingfd");
@@ -883,6 +911,7 @@ phenom_result_t phenom_sched_init(uint32_t sched_cores, uint32_t fd_hint)
       phenom_pingfd_get_fd(&pingfd),
       PHENOM_IO_MASK_READ);
   phenom_work_trigger_enable(&trig_item);
+#endif
 
   return PHENOM_OK;
 }
