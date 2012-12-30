@@ -85,6 +85,9 @@ static ck_spinlock_t scope_map_lock = CK_SPINLOCK_INITIALIZER;
 /** key to TLS for finding counter block instances */
 static pthread_key_t tls_key;
 static pthread_once_t done_tls_init = PTHREAD_ONCE_INIT;
+#ifdef HAVE___THREAD
+static __thread struct phenom_counter_head *myhead = NULL;
+#endif
 static ck_stack_t all_heads = CK_STACK_INITIALIZER;
 
 /** atomic scope identifier */
@@ -372,6 +375,9 @@ static struct phenom_counter_head *init_head(void)
   ck_stack_push_upmc(&all_heads, &head->stack_entry);
 
   pthread_setspecific(tls_key, head);
+#ifdef HAVE___THREAD
+  myhead = head;
+#endif
 
   return head;
 }
@@ -384,8 +390,13 @@ static phenom_counter_block_t *get_block_for_scope(
   struct phenom_counter_block *block = NULL;
   struct ck_ht_entry entry;
 
+#ifdef HAVE___THREAD
+  head = myhead;
+#else
   head = pthread_getspecific(tls_key);
-  if (!head) {
+#endif
+
+  if (unlikely(!head)) {
     head = init_head();
     if (!head) {
       return NULL;
@@ -394,7 +405,7 @@ static phenom_counter_block_t *get_block_for_scope(
 
   /* locate my counter block */
   ck_ht_entry_key_set_direct(&entry, scope->scope_id);
-  if (ck_ht_get_spmc(&head->ht, scope->hash, &entry)) {
+  if (likely(ck_ht_get_spmc(&head->ht, scope->hash, &entry))) {
     /* got it! */
     return (struct phenom_counter_block*)entry.value;
   }
@@ -402,7 +413,7 @@ static phenom_counter_block_t *get_block_for_scope(
   /* not present; we get to create it */
   block = calloc(1, sizeof(*block) +
       ((scope->num_slots - 1) * sizeof(int64_t)));
-  if (!block) {
+  if (unlikely(!block)) {
     return NULL;
   }
   /* the hash table owns this reference */
@@ -410,7 +421,7 @@ static phenom_counter_block_t *get_block_for_scope(
   ck_sequence_init(&block->seqlock);
   ck_ht_entry_set_direct(&entry, scope->hash,
       scope->scope_id, (uintptr_t)block);
-  if (!ck_ht_put_spmc(&head->ht, scope->hash, &entry)) {
+  if (unlikely(!ck_ht_put_spmc(&head->ht, scope->hash, &entry))) {
     free(block);
     return NULL;
   }
@@ -425,7 +436,7 @@ void phenom_counter_scope_add(
 {
   phenom_counter_block_t *block = get_block_for_scope(scope);
 
-  if (!block) return;
+  if (unlikely(!block)) return;
 
   /* now update the counter value */
   ck_sequence_write_begin(&block->seqlock);
