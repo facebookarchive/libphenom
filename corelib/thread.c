@@ -84,7 +84,9 @@ static void init_thread(phenom_thread_t *thr)
       phenom_mem_alloc(__phenom_sched_mt_thread_trigger));
 
   thr->thr = pthread_self();
+#ifdef __sun__
   thr->lwpid = _lwp_self();
+#endif
 }
 
 struct phenom_thread_boot_data {
