@@ -65,9 +65,8 @@ bool phenom_thread_init(void)
 
 static void init_thread(phenom_thread_t *thr)
 {
-  memset(thr, 0, sizeof(*thr));
-
 #ifdef HAVE___THREAD
+  memset(thr, 0, sizeof(*thr));
   thr->is_init = true;
 #endif
 
