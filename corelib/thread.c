@@ -16,6 +16,9 @@
 
 #include "phenom/work.h"
 #include "phenom/log.h"
+#ifdef __sun__
+# include <sys/lwp.h>
+#endif
 
 /* If the system supports the __thread extension, then __phenom_thread_self
  * is magically allocated and made to be a thread local version of the
@@ -42,9 +45,7 @@ static void destroy_thread(void *ptr)
   ck_epoch_unregister(&__phenom_trigger_epoch, thr->trigger_record);
 
 #ifndef HAVE___THREAD
-  if (thr->is_heap) {
-    phenom_mem_free(mt_thread, thr);
-  }
+  phenom_mem_free(mt_thread, thr);
 #endif
 }
 
@@ -62,15 +63,12 @@ bool phenom_thread_init(void)
   return true;
 }
 
-static void init_thread(phenom_thread_t *thr, bool is_heap)
+static void init_thread(phenom_thread_t *thr)
 {
   memset(thr, 0, sizeof(*thr));
 
 #ifdef HAVE___THREAD
-  unused_parameter(is_heap);
   thr->is_init = true;
-#else
-  thr->is_heap = is_heap;
 #endif
 
   thr->trigger_record = ck_epoch_recycle(&__phenom_trigger_epoch);
@@ -86,6 +84,7 @@ static void init_thread(phenom_thread_t *thr, bool is_heap)
       phenom_mem_alloc(__phenom_sched_mt_thread_trigger));
 
   thr->thr = pthread_self();
+  thr->lwpid = _lwp_self();
 }
 
 struct phenom_thread_boot_data {
@@ -108,7 +107,7 @@ static phenom_thread_t *phenom_thread_init_myself(void)
 #endif
 
   pthread_setspecific(__phenom_thread_key, me);
-  init_thread(me, true);
+  init_thread(me);
 
   return me;
 }
@@ -117,21 +116,11 @@ static void *phenom_thread_boot(void *arg)
 {
   struct phenom_thread_boot_data data;
   phenom_thread_t *me;
-#ifndef HAVE___THREAD
-  phenom_thread_t myself;
-#endif
-
-#ifdef HAVE___THREAD
-  me = &__phenom_thread_self;
-#else
-  me = &myself;
-#endif
 
   /* copy in the boot data from the stack of our creator */
   memcpy(&data, arg, sizeof(data));
 
-  pthread_setspecific(__phenom_thread_key, me);
-  init_thread(me, false);
+  me = phenom_thread_init_myself();
 
   /* this publishes that we're ready to run to
    * the thread that spawned us */
@@ -188,6 +177,8 @@ void phenom_thread_set_name(const char *name)
   pthread_setname_np(thr->thr, name);
 #elif defined(HAVE_PTHREAD_SETNAME_NP) && defined(__MACH__)
   pthread_setname_np(name);
+#else
+  unused_parameter(name);
 #endif
 }
 

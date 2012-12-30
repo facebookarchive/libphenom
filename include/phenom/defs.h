@@ -20,6 +20,13 @@
 #define PHENOM_TARGET_CPU_X86_64 1
 #define PHENOM_TARGET_CPU_X86    2
 
+#define __EXTENSIONS__ 1
+#define _XOPEN_SOURCE 600
+#define _BSD_SOURCE
+#define _POSIX_C_SOURCE 200809
+#define _GNU_SOURCE
+#define _DARWIN_C_SOURCE
+
 #include <phenom/config.h>
 
 /* This is working around eccentricities in the CK build system */
@@ -76,6 +83,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <fcntl.h>
+#include <sys/types.h>
 
 #ifdef HAVE_SYS_CPUSET_H
 # include <sys/cpuset.h>
@@ -83,9 +91,20 @@
 #ifdef HAVE_SYS_RESOURCE_H
 # include <sys/resource.h>
 #endif
+#ifdef HAVE_SYS_PROCESSOR_H
+# include <sys/processor.h>
+#endif
+#ifdef HAVE_SYS_PROCSET_H
+# include <sys/procset.h>
+#endif
 
 #ifdef HAVE_LOCALE_H
 # include <locale.h>
+#endif
+
+#ifdef HAVE_PORT_CREATE
+# include <port.h>
+# include <sys/poll.h>
 #endif
 
 #if defined(__APPLE__)

@@ -27,10 +27,10 @@ extern "C" {
 typedef int phenom_socket_t;
 void phenom_socket_set_nonblock(phenom_socket_t fd, bool enable);
 
-#ifndef HAVE_PIPE2
-// http://www.kernel.org/doc/man-pages/online/pages/man2/pipe.2.html
-int pipe2(int pipefd[2], int flags);
-#endif
+#define PH_PIPE_NONBLOCK 1
+#define PH_PIPE_CLOEXEC  2
+phenom_result_t phenom_pipe(phenom_socket_t fds[2], int flags);
+
 
 struct phenom_pingfd {
   phenom_socket_t fds[2];

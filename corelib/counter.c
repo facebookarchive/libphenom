@@ -16,6 +16,7 @@
 
 #include "phenom/counter.h"
 #include "phenom/refcnt.h"
+#include "phenom/sysutil.h"
 #include <ck_sequence.h>
 #include <ck_ht.h>
 #include <ck_stack.h>
@@ -279,7 +280,7 @@ phenom_counter_scope_t *phenom_counter_scope_resolve(
   phenom_counter_scope_t *scope = NULL;
 
   if (parent) {
-    len = asprintf(&full_name, "%s/%s",
+    len = phenom_asprintf(&full_name, "%s/%s",
         parent->full_scope_name, path);
   } else {
     full_name = (char*)path;

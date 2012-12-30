@@ -58,20 +58,16 @@ struct phenom_thread {
   // for safe reclamation of trigger structs
   ck_epoch_record_t *trigger_record;
 
-  // Whether this thread can be the target of calls
-  bool is_phenom;
+  phenom_time_t now;
 
   // OS level representation
   pthread_t thr;
-
-  phenom_time_t now;
+#ifdef __sun__
+  id_t lwpid;
+#endif
 
 #ifdef HAVE_STRERROR_R
   char strerror_buf[128];
-#endif
-#ifndef HAVE___THREAD
-  // Whether this needs to be free(3)'d
-  bool is_heap;
 #endif
 };
 

@@ -35,7 +35,7 @@ phenom_result_t phenom_pingfd_init(phenom_pingfd_t *pfd)
     return PHENOM_ERR;
   }
 #else
-  if (pipe2(pfd->fds, O_NONBLOCK|O_CLOEXEC)) {
+  if (phenom_pipe(pfd->fds, PH_PIPE_NONBLOCK|PH_PIPE_CLOEXEC)) {
     perror("pingfd_init: pipe2");
     return PHENOM_ERR;
   }

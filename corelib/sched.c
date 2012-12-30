@@ -15,6 +15,7 @@
  */
 
 #include "phenom/work.h"
+#include "phenom/log.h"
 #include "phenom/timerwheel.h"
 #include "phenom/sysutil.h"
 #include "phenom/memory.h"
@@ -54,6 +55,10 @@ static phenom_work_item_t timer_item;
 #endif
 #ifdef HAVE_KQUEUE
 static int kq_fd;
+#endif
+#ifdef HAVE_PORT_CREATE
+static int port_fd;
+static timer_t port_timer;
 #endif
 
 static inline phenom_time_t phenom_timeval_to_time_t(struct timeval *t)
@@ -336,6 +341,63 @@ void phenom_sched_stop(void)
   ck_pr_store_int(&run_loop, 0);
 }
 
+#ifdef HAVE_PORT_CREATE
+static void port_emitter(phenom_thread_t *thread)
+{
+  port_event_t events[128];
+  uint_t i, n;
+  struct timeval now;
+  phenom_time_t nowt;
+
+  while (ck_pr_load_int(&run_loop)) {
+    n = 1;
+    memset(&events[0], 0, sizeof(events[0]));
+    if (port_getn(port_fd, events,
+          sizeof(events) / sizeof(events[0]), &n, NULL)) {
+      if (errno != EINTR) {
+        phenom_panic("port_getn: `Pe%d", errno);
+      }
+      n = 0;
+    }
+
+    gettimeofday(&now, NULL);
+    nowt = phenom_timeval_to_time_t(&now);
+    thread->now = nowt;
+
+    if (n == 0) {
+      // Might have been a SIGIO, so we need to check our queue
+      dispatch_trigger_queue(thread, &thread->triggers, nowt);
+    }
+
+    for (i = 0; i < n; i++) {
+      if (events[i].portev_source == PORT_SOURCE_TIMER) {
+        phenom_timerwheel_tick(&wheel, nowt, dispatch_timer, thread);
+      } else {
+        phenom_work_item_t *work = events[i].portev_user;
+        phenom_io_mask_t mask = 0;
+
+        if (events[i].portev_events & POLLIN) {
+          mask |= PHENOM_IO_MASK_READ;
+        }
+        if (events[i].portev_events & POLLOUT) {
+          mask |= PHENOM_IO_MASK_WRITE;
+        }
+        if (events[i].portev_events & (POLLERR|POLLHUP)) {
+          mask |= PHENOM_IO_MASK_ERR;
+        }
+        trigger_now(thread, nowt, work, PHENOM_TRIGGER_IO, mask);
+      }
+    }
+    if (n > 0) {
+      // We may have triggered affine work for ourselves,
+      // check the queue again before we sleep
+      dispatch_trigger_queue(thread, &thread->triggers, nowt);
+    }
+
+  }
+}
+#endif
+
 #ifdef HAVE_EPOLL_CREATE
 static void epoll_tick(phenom_work_item_t *work, uint32_t trigger,
     phenom_time_t now, void *workdata, intptr_t triggerdata)
@@ -375,7 +437,7 @@ static void epoll_emitter(phenom_thread_t *thread)
         // Might have been a SIGIO, so we need to check our queue
         dispatch_trigger_queue(thread, &thread->triggers, nowt);
       } else {
-        perror("epoll_wait");
+        phenom_log(PH_LOG_ERR, "epoll_wait: `Pe%d", errno);
       }
     }
     for (i = 0; i < n; i++) {
@@ -422,7 +484,7 @@ static void kqueue_emitter(phenom_thread_t *thread)
         // Might have been a SIGIO, so we need to check our queue
         dispatch_trigger_queue(thread, &thread->triggers, nowt);
       } else {
-        perror("kevent");
+        phenom_log(PH_LOG_ERR, "kevent: `Pe%d", errno);
       }
     }
     for (i = 0; i < n; i++) {
@@ -470,7 +532,7 @@ static bool set_affinity(phenom_thread_t *me, int affinity)
   data.affinity_tag = affinity + 1;
   return thread_policy_set(pthread_mach_thread_np(me->thr),
       THREAD_AFFINITY_POLICY,
-      &data.affinity_tag, THREAD_AFFINITY_POLICY_COUNT) == 0;
+      (thread_policy_t)&data, THREAD_AFFINITY_POLICY_COUNT) == 0;
 #endif
 #ifdef HAVE_CPUSET_SETAFFINITY
   /* untested fbsd 7ish */
@@ -480,6 +542,9 @@ static bool set_affinity(phenom_thread_t *me, int affinity)
   CPU_SET(affinity, &cpuset);
   cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1,
       sizeof(cpuset), cpuset);
+#endif
+#ifdef HAVE_PROCESSOR_BIND
+  return processor_bind(P_LWPID, me->lwpid, affinity, NULL) == 0;
 #endif
   return true;
 }
@@ -494,7 +559,8 @@ static void *sched_loop(void *arg)
       char name[32];
 
       if (!set_affinity(me, i)) {
-        printf("failed to set thread %p affinity to CPU %d\n",
+        phenom_log(PH_LOG_ERR,
+            "failed to set thread %p affinity to CPU %d\n",
             (void*)me, i);
       }
 
@@ -511,6 +577,9 @@ static void *sched_loop(void *arg)
 #endif
 #ifdef HAVE_EPOLL_CREATE
   epoll_emitter(me);
+#endif
+#ifdef HAVE_PORT_CREATE
+  port_emitter(me);
 #endif
   return NULL;
 }
@@ -616,8 +685,36 @@ phenom_result_t phenom_work_io_event_mask_set(
       }
     }
     if (res != 0) {
-      perror("epoll_ctl");
+      phenom_log(PH_LOG_ERR, "epoll_ctl: `Pe%d", errno);
       return errno; // FIXME: shitty error handling
+    }
+  }
+#endif
+#ifdef HAVE_PORT_CREATE
+  {
+    int events = POLLHUP|POLLHUP;
+    int res;
+
+    if (mask & PHENOM_IO_MASK_READ) {
+      events |= POLLIN;
+    }
+    if (mask & PHENOM_IO_MASK_WRITE) {
+      events |= POLLOUT;
+    }
+
+    if (mask == PHENOM_IO_MASK_NONE) {
+      res = port_dissociate(port_fd, PORT_SOURCE_FD, fd);
+      if (res != 0 && errno == ENOENT) {
+        res = 0;
+      }
+    } else {
+      res = port_associate(port_fd, PORT_SOURCE_FD, fd,
+          events, item);
+    }
+
+    if (res != 0 && errno != ENOENT) {
+      phenom_log(PH_LOG_ERR, "port_dissociate: `Pe%d", errno);
+      return errno; // FIXME: shitty
     }
   }
 #endif
@@ -643,7 +740,7 @@ phenom_result_t phenom_work_io_event_mask_set(
     }
     res = kevent(kq_fd, ev, n, NULL, 0, NULL);
     if (res != 0) {
-      perror("kevent");
+      phenom_log(PH_LOG_ERR, "kevent: `Pe%d", errno);
       return errno;
     }
   }
@@ -730,6 +827,36 @@ phenom_result_t phenom_sched_init(uint32_t sched_cores, uint32_t fd_hint)
     phenom_work_io_event_mask_set(&timer_item, timer_fd,
         PHENOM_IO_MASK_READ);
     phenom_work_trigger_enable(&timer_item);
+  }
+#endif
+#ifdef HAVE_PORT_CREATE
+  {
+    struct sigevent sev;
+    port_notify_t notify;
+    struct itimerspec ts;
+
+    port_fd = port_create();
+    if (port_fd == -1) {
+      phenom_panic("failed to create event port: `Pe%d", errno);
+    }
+
+    memset(&sev, 0, sizeof(sev));
+    memset(&notify, 0, sizeof(notify));
+
+    notify.portnfy_port = port_fd;
+    sev.sigev_notify = SIGEV_PORT;
+    sev.sigev_value.sival_ptr = &notify;
+
+    if (timer_create(CLOCK_REALTIME, &sev, &port_timer)) {
+      phenom_panic("failed to create timer: `Pe%d", errno);
+    }
+
+    memset(&ts, 0, sizeof(ts));
+    ts.it_interval.tv_nsec = WHEEL_INTERVAL_MS * 1000000;
+    ts.it_value.tv_nsec = ts.it_interval.tv_nsec;
+    if (timer_settime(port_timer, 0, &ts, NULL)) {
+      phenom_panic("failed to set timer: `Pe%d", errno);
+    }
   }
 #endif
 #ifdef HAVE_KQUEUE

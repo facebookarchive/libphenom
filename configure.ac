@@ -1,6 +1,10 @@
 AC_INIT([phenom], [1.0], [], [phenom])
+dnl we really want you to be using 64bit hardware and software
+CFLAGS="$CFLAGS -D_REENTRANT -m64"
+
 AC_CANONICAL_TARGET
 AM_INIT_AUTOMAKE([dist-bzip2 subdir-objects])
+
 AC_PROG_CC
 AC_C_BIGENDIAN
 AC_C_INLINE
@@ -26,18 +30,27 @@ AC_ARG_ENABLE(stack-protector, [
 ])
 
 AC_SEARCH_LIBS([pthread_create], [pthread])
+AC_SEARCH_LIBS([socket], [socket])
 
 have_thread=no
 AC_TRY_COMPILE([__thread int tls;],[tls;],
                [have_thread=yes])
 if test "$have_thread" == "yes" ; then
-  AC_DEFINE(HAVE___THREAD, [], [Have __thread TLS])
+  case "$target_os" in
+    solaris*)
+      dnl I get linker errors with this enabled; seems broken
+      ;;
+    *)
+      AC_DEFINE(HAVE___THREAD, [], [Have __thread TLS])
+      ;;
+  esac
 fi
 
 AC_CHECK_HEADERS(\
 alloca.h \
 inttypes.h \
 locale.h \
+port.h \
 pthread.h \
 pthread_np.h \
 stdbool.h \
@@ -49,6 +62,8 @@ sys/inotify.h \
 sys/epoll.h \
 sys/event.h \
 sys/eventfd.h \
+sys/processor.h \
+sys/procset.h \
 sys/resource.h \
 sys/timerfd.h \
 )
@@ -61,6 +76,8 @@ inotify_init \
 kqueue \
 localeconv \
 pipe2 \
+port_create \
+processor_bind \
 pthread_set_name_np \
 pthread_setname_np \
 pthread_setaffinity_np \
@@ -69,6 +86,13 @@ strerror_r \
 strtoll \
 thread_policy_set \
 )
+
+case "$target_os-$target_cpu" in
+  solaris*i386)
+    dnl force us to consider this a 64-bit system
+    target_cpu=x86_64
+    ;;
+esac
 
 case "$target_cpu" in
   x86_64|amd64)
@@ -88,7 +112,7 @@ case "$target_cpu" in
     esac
     ;;
   *)
-    AC_ERROR([too lazy to port CK for this platform])
+    AC_ERROR([too lazy to port CK for this platform $target_os-$target_cpu])
     ;;
 esac
 if test "$VMA" == "unknown" ; then
@@ -109,9 +133,7 @@ AC_SUBST(POINTER_PACK_ENABLE)
 
 # Do this after we've looked for functions
 if test -n "$GCC" ; then
-  CFLAGS="$CFLAGS -D_XOPEN_SOURCE=600 -D_BSD_SOURCE \
-    -D_POSIX_C_SOURCE=200809 -D_GNU_SOURCE -D_DARWIN_C_SOURCE \
-    -std=gnu99 \
+  CFLAGS="$CFLAGS -std=gnu99 \
     -pedantic -Wall -Wextra -Wno-declaration-after-statement \
     -W -Wundef -Wendif-labels -Wshadow -Wpointer-arith -Wcast-align \
     -Wwrite-strings -Wstrict-prototypes -Wmissing-prototypes \
@@ -123,6 +145,15 @@ if test -n "$GCC" -a "$stack_protect" == "yes" ; then
   CFLAGS="$CFLAGS -Wp,-D_FORTIFY_SOURCE=2 -fexceptions \
     -fstack-protector --param=ssp-buffer-size=4"
 fi
+
+case "$CFLAGS" in
+  *-O*)
+    ;;
+  *)
+    CFLAGS="$CFLAGS -O2"
+    ;;
+esac
+
 IRONMANCFLAGS=""
 if test -n "$GCC" -a "$lenient" == "no" ; then
   IRONMANCFLAGS="-Werror"

@@ -80,7 +80,7 @@ int main(int argc, char **argv)
   is(PHENOM_OK, phenom_sched_init(0, 0));
   is(PHENOM_OK, phenom_work_init(&pipe_work));
   pipe_work.callback = pipe_dispatch;
-  is(0, pipe2(pipe_fd, O_NONBLOCK));
+  is(0, phenom_pipe(pipe_fd, PH_PIPE_NONBLOCK));
   phenom_work_io_event_mask_set(&pipe_work,
       pipe_fd[0], PHENOM_IO_MASK_READ);
   phenom_work_trigger_enable(&pipe_work);

@@ -16,12 +16,23 @@
 
 #include "phenom/sysutil.h"
 
-#ifndef HAVE_PIPE2
-int pipe2(int pipefd[2], int flags)
+phenom_result_t phenom_pipe(phenom_socket_t fds[2], int flags)
 {
+#ifdef HAVE_PIPE2
+  int pflags = 0;
+
+  if (flags & PH_PIPE_NONBLOCK) {
+    pflags |= O_NONBLOCK;
+  }
+  if (flags & PH_PIPE_CLOEXEC) {
+    pflags |= O_CLOEXEC;
+  }
+
+  return pipe2(fds, pflags);
+#else
   int res;
 
-  res = pipe(pipefd);
+  res = pipe(fds);
   if (res != 0) {
     return res;
   }
@@ -30,18 +41,18 @@ int pipe2(int pipefd[2], int flags)
     return 0;
   }
 
-  if (flags & O_CLOEXEC) {
-    fcntl(pipefd[0], F_SETFD, FD_CLOEXEC);
-    fcntl(pipefd[1], F_SETFD, FD_CLOEXEC);
+  if (flags & PH_PIPE_CLOEXEC) {
+    fcntl(fds[0], F_SETFD, FD_CLOEXEC);
+    fcntl(fds[1], F_SETFD, FD_CLOEXEC);
   }
-  if (flags & O_NONBLOCK) {
-    phenom_socket_set_nonblock(pipefd[0], true);
-    phenom_socket_set_nonblock(pipefd[1], true);
+  if (flags & PH_PIPE_NONBLOCK) {
+    phenom_socket_set_nonblock(fds[0], true);
+    phenom_socket_set_nonblock(fds[1], true);
   }
 
   return 0;
-}
 #endif
+}
 
 
 /* vim:ts=2:sw=2:et:

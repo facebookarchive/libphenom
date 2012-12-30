@@ -33,7 +33,7 @@ static void record_tick(phenom_work_item_t *work, uint32_t trigger,
 
   // ~100ms resolution
   diff = now - last_tick;
-  ok(diff >= 90 && diff <= 110, "100ms resolution: diff=%d", diff);
+  ok(diff >= 80 && diff <= 120, "100ms resolution: diff=%d", diff);
   last_tick = now;
 
   if (ticks++ < 3) {
