@@ -18,6 +18,7 @@
 #include "phenom/refcnt.h"
 #include "phenom/sysutil.h"
 #include <ck_sequence.h>
+#include <ck_hs.h>
 #include <ck_ht.h>
 #include <ck_stack.h>
 #include <ck_spinlock.h>
@@ -37,6 +38,9 @@
  */
 
 struct phenom_counter_block {
+  /* must be first in the struct so that we can cast the return
+   * value from ck_hs_get() */
+  uint32_t scope_id;
   phenom_refcnt_t refcnt;
   ck_sequence_t seqlock;
 
@@ -48,7 +52,7 @@ struct phenom_counter_block {
 struct phenom_counter_scope {
   phenom_refcnt_t refcnt;
   uint32_t scope_id;
-  ck_ht_hash_t hash;
+  unsigned long hash;
 
   uint8_t num_slots, next_slot;
   /* points to just after slot_names */
@@ -67,7 +71,7 @@ struct phenom_counter_head {
   /* linkage so that a stat reader can find all blocks */
   ck_stack_entry_t stack_entry;
   /* maps counter_id to a block instance in this thread */
-  ck_ht_t ht;
+  ck_hs_t ht;
 };
 
 /* This defines a function called phenom_counter_head_from_stack_entry
@@ -76,7 +80,7 @@ CK_STACK_CONTAINER(struct phenom_counter_head,
     stack_entry, phenom_counter_head_from_stack_entry)
 
 /** map of fully qualified name to scope.
- * The CK hash table is single producer, multi-consumer,
+ * The CK hash set is single producer, multi-consumer,
  * meaning that we only need to serialize write operations
  * on the hash table; reads can proceed safely without a lock. */
 static ck_ht_t scope_map;
@@ -176,12 +180,19 @@ const char *phenom_counter_scope_get_name(
   return scope->full_scope_name;
 }
 
-static void scope_id_hash(ck_ht_hash_t *hash, const void *key,
-    size_t len, uint64_t seed)
+static bool scope_id_compare(const void *a, const void *b)
 {
-  unused_parameter(len);
+  uint32_t A = *(uint32_t*)a;
+  uint32_t B = *(uint32_t*)b;
+  return A == B;
+}
+
+static unsigned long scope_id_hash(const void *key,
+    unsigned long seed)
+{
   unused_parameter(seed);
-  hash->value = 1 + *(uint32_t*)key;
+
+  return 1 + *(uint32_t*)key;
 }
 
 phenom_counter_scope_t *phenom_counter_scope_define(
@@ -224,7 +235,7 @@ phenom_counter_scope_t *phenom_counter_scope_define(
     scope->scope_id = ck_pr_faa_32(&next_scope_id, 1);
   } while (scope->scope_id == 0);
   // pre-compute the hash value
-  scope_id_hash(&scope->hash, &scope->scope_id, sizeof(scope->scope_id), 0);
+  scope->hash = scope_id_hash(&scope->scope_id, 0);
 
   // caller owns this ref
   scope->refcnt = 1;
@@ -365,8 +376,8 @@ static struct phenom_counter_head *init_head(void)
     return NULL;
   }
 
-  if (!ck_ht_init(&head->ht, CK_HT_MODE_DIRECT, scope_id_hash,
-        &ht_allocator, 32, 0)) {
+  if (!ck_hs_init(&head->ht, CK_HS_MODE_SPMC|CK_HS_MODE_OBJECT,
+        scope_id_hash, scope_id_compare, &ht_allocator, 32, 0)) {
     free(head);
     return NULL;
   }
@@ -388,7 +399,6 @@ static phenom_counter_block_t *get_block_for_scope(
   /* locate my counter head */
   struct phenom_counter_head *head;
   struct phenom_counter_block *block = NULL;
-  struct ck_ht_entry entry;
 
 #ifdef HAVE___THREAD
   head = myhead;
@@ -404,10 +414,10 @@ static phenom_counter_block_t *get_block_for_scope(
   }
 
   /* locate my counter block */
-  ck_ht_entry_key_set_direct(&entry, scope->scope_id);
-  if (likely(ck_ht_get_spmc(&head->ht, scope->hash, &entry))) {
+  block = ck_hs_get(&head->ht, scope->hash, &scope->scope_id);
+  if (likely(block)) {
     /* got it! */
-    return (struct phenom_counter_block*)entry.value;
+    return block;
   }
 
   /* not present; we get to create it */
@@ -418,10 +428,9 @@ static phenom_counter_block_t *get_block_for_scope(
   }
   /* the hash table owns this reference */
   block->refcnt = 1;
+  block->scope_id = scope->scope_id;
   ck_sequence_init(&block->seqlock);
-  ck_ht_entry_set_direct(&entry, scope->hash,
-      scope->scope_id, (uintptr_t)block);
-  if (unlikely(!ck_ht_put_spmc(&head->ht, scope->hash, &entry))) {
+  if (unlikely(!ck_hs_put(&head->ht, scope->hash, &block->scope_id))) {
     free(block);
     return NULL;
   }
@@ -498,18 +507,16 @@ int64_t phenom_counter_scope_get(
   ck_stack_entry_t *stack_entry;
   struct phenom_counter_head *head;
   struct phenom_counter_block *block;
-  struct ck_ht_entry entry;
   unsigned int vers;
 
   CK_STACK_FOREACH(&all_heads, stack_entry) {
     head = phenom_counter_head_from_stack_entry(stack_entry);
     /* locate counter block */
-    ck_ht_entry_key_set_direct(&entry, scope->scope_id);
-    if (!ck_ht_get_spmc(&head->ht, scope->hash, &entry)) {
+    block = ck_hs_get(&head->ht, scope->hash, &scope->scope_id);
+    if (!block) {
       continue;
     }
 
-    block = (struct phenom_counter_block*)entry.value;
     do {
       vers = ck_sequence_read_begin(&block->seqlock);
       val = block->slots[offset];
@@ -531,7 +538,6 @@ uint8_t phenom_counter_scope_get_view(
   ck_stack_entry_t *stack_entry;
   struct phenom_counter_head *head;
   struct phenom_counter_block *block;
-  struct ck_ht_entry entry;
   unsigned int vers;
   int64_t *local_slots;
 
@@ -549,12 +555,11 @@ uint8_t phenom_counter_scope_get_view(
     head = phenom_counter_head_from_stack_entry(stack_entry);
 
     /* locate counter block */
-    ck_ht_entry_key_set_direct(&entry, scope->scope_id);
-    if (!ck_ht_get_spmc(&head->ht, scope->hash, &entry)) {
+    block = ck_hs_get(&head->ht, scope->hash, &scope->scope_id);
+    if (!block) {
       continue;
     }
 
-    block = (struct phenom_counter_block*)entry.value;
     do {
       vers = ck_sequence_read_begin(&block->seqlock);
       memcpy(local_slots, block->slots, num_slots * sizeof(int64_t));
