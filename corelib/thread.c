@@ -212,6 +212,9 @@ bool phenom_thread_set_affinity(phenom_thread_t *me, int affinity)
   cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1, sizeof(set), set);
 #elif defined(HAVE_PROCESSOR_BIND)
   return processor_bind(P_LWPID, me->lwpid, affinity, NULL) == 0;
+#else
+  unused_parameter(me);
+  unused_parameter(affinity);
 #endif
   return true;
 }

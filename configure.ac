@@ -1,8 +1,23 @@
 AC_INIT([phenom], [1.0], [], [phenom])
-dnl we really want you to be using 64bit hardware and software
-CFLAGS="$CFLAGS -D_REENTRANT -m64"
-
 AC_CANONICAL_TARGET
+
+case "$target_os-$target_cpu" in
+  solaris*i386)
+    dnl force us to consider this a 64-bit system.
+    dnl also: you'd have to be insane to run 32-bit intel solaris.
+    target_cpu=x86_64
+    ;;
+esac
+case "$target_cpu" in
+  x86_64|amd64)
+    CFLAGS="$CFLAGS -m64"
+    ;;
+	i*86|pentium*|athlon*|k5|k6|k6_2|k6_3)
+    target_cpu=i686
+    CFLAGS="$CFLAGS -m32 -march=i686 -msse -msse2"
+    ;;
+esac
+
 AM_INIT_AUTOMAKE([dist-bzip2 subdir-objects])
 
 AC_PROG_CC
@@ -52,21 +67,32 @@ inttypes.h \
 locale.h \
 port.h \
 pthread.h \
-pthread_np.h \
 stdbool.h \
 stddef.h \
 stdint.h \
 string.h \
-sys/cpuset.h \
 sys/inotify.h \
 sys/epoll.h \
 sys/event.h \
 sys/eventfd.h \
+sys/param.h \
 sys/processor.h \
 sys/procset.h \
 sys/resource.h \
 sys/timerfd.h \
 )
+
+dnl needs NBBY on FreeBSD
+AC_CHECK_HEADERS([sys/cpuset.h],[],[],[[
+#ifdef HAVE_SYS_PARAM_H
+#include <sys/param.h>
+#endif
+]])
+
+AC_CHECK_HEADERS([pthread_np.h],[],[],[[
+#include <pthread.h>
+]])
+
 AC_CHECK_FUNCS(\
 asprintf \
 cpuset_setaffinity \
@@ -87,13 +113,9 @@ strtoll \
 thread_policy_set \
 )
 
-case "$target_os-$target_cpu" in
-  solaris*i386)
-    dnl force us to consider this a 64-bit system
-    target_cpu=x86_64
-    ;;
-esac
-
+# Virtual memory address size in bits; CK uses this for
+# pointer-packing tricks
+VMA=unknown
 case "$target_cpu" in
   x86_64|amd64)
     MM=CK_MD_TSO
@@ -106,10 +128,11 @@ case "$target_cpu" in
       linux)
         VMA=`awk '/address sizes/ {print $7;exit}' /proc/cpuinfo`
         ;;
-      *)
-        VMA=unknown
-        ;;
     esac
+    ;;
+  i686)
+    MM=CK_MD_TSO
+    CPU=X86
     ;;
   *)
     AC_ERROR([too lazy to port CK for this platform $target_os-$target_cpu])
@@ -146,6 +169,9 @@ if test -n "$GCC" -a "$stack_protect" == "yes" ; then
     -fstack-protector --param=ssp-buffer-size=4"
 fi
 
+dnl CK needs optimization enabled otherwise it breaks.
+dnl So turn it on unless an optimization level was explicitly
+dnl specified in CFLAGS
 case "$CFLAGS" in
   *-O*)
     ;;
@@ -153,6 +179,7 @@ case "$CFLAGS" in
     CFLAGS="$CFLAGS -O2"
     ;;
 esac
+dnl always include debug info in what we build
 CFLAGS="$CFLAGS -g"
 
 IRONMANCFLAGS=""

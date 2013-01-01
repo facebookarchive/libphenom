@@ -20,6 +20,9 @@
 #define PHENOM_TARGET_CPU_X86_64 1
 #define PHENOM_TARGET_CPU_X86    2
 
+#ifndef _REENTRANT
+# define _REENTRANT
+#endif
 #define __EXTENSIONS__ 1
 #define _XOPEN_SOURCE 600
 #define _BSD_SOURCE
