@@ -3,6 +3,15 @@
 Phenom is an eventing framework for building high performance and high
 scalability systems in C
 
+## System Requirements
+
+Phenom is known to compile and pass its test suite on:
+
+ * Linux systems with `epoll`
+ * OS X and BSDish systems that have the `kqueue(2)` facility, including
+   FreeBSD 9.1 and OpenBSD 5.2
+ * Illumos and Solaris style systems that have `port_create(3C)`.
+
 ## Facilities
 
  * Memory management with counters - record how much of which kinds
