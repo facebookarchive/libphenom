@@ -32,6 +32,10 @@ libphenom_a_SOURCES = \
 	corelib/vprintf.c \
 	$(ck_SOURCES)
 
+# some automakes put include/phenom in here, which causes conflicts
+# with system includes so we turn off default includes by default.
+DEFAULT_INCLUDES =
+
 noinst_LIBRARIES = libtap.a
 libtap_a_CPPFLAGS = -Iinclude
 libtap_a_SOURCES = thirdparty/tap/tap.c
