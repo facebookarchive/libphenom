@@ -19,22 +19,22 @@
 #include <ck_pr.h>
 
 struct mem_type {
-  phenom_memtype_def_t def;
-  phenom_counter_scope_t *scope;
+  ph_memtype_def_t def;
+  ph_counter_scope_t *scope;
   uint8_t first_slot;
 };
 
 #define HEADER_RESERVATION 16
 struct sized_header {
-  phenom_memtype_t mt;
+  ph_memtype_t mt;
   uint64_t size;
 } CK_CC_ALIGN(HEADER_RESERVATION);
 
 static uint32_t memtypes_size = 0;
-static phenom_memtype_t next_memtype = 0;
+static ph_memtype_t next_memtype = 0;
 
 static struct mem_type *memtypes = NULL;
-static phenom_counter_scope_t *memory_scope = NULL;
+static ph_counter_scope_t *memory_scope = NULL;
 static pthread_once_t memory_once_init = PTHREAD_ONCE_INIT;
 
 static const char *sized_counter_names[] = {
@@ -68,28 +68,28 @@ static void memory_init(void)
     abort();
   }
 
-  memory_scope = phenom_counter_scope_define(NULL, "memory", 16);
+  memory_scope = ph_counter_scope_define(NULL, "memory", 16);
   if (!memory_scope) {
     abort();
   }
 }
 
-static phenom_counter_scope_t *resolve_facility(const char *fac)
+static ph_counter_scope_t *resolve_facility(const char *fac)
 {
-  phenom_counter_scope_t *scope;
+  ph_counter_scope_t *scope;
 
-  scope = phenom_counter_scope_resolve(memory_scope, fac);
+  scope = ph_counter_scope_resolve(memory_scope, fac);
   if (scope) {
     return scope;
   }
 
-  return phenom_counter_scope_define(memory_scope, fac, 0);
+  return ph_counter_scope_define(memory_scope, fac, 0);
 }
 
-phenom_memtype_t phenom_memtype_register(const phenom_memtype_def_t *def)
+ph_memtype_t ph_memtype_register(const ph_memtype_def_t *def)
 {
-  phenom_memtype_t mt;
-  phenom_counter_scope_t *scope, *fac_scope;
+  ph_memtype_t mt;
+  ph_counter_scope_t *scope, *fac_scope;
   struct mem_type *mem_type;
   const char **names;
   int num_slots;
@@ -98,19 +98,19 @@ phenom_memtype_t phenom_memtype_register(const phenom_memtype_def_t *def)
 
   fac_scope = resolve_facility(def->facility);
   if (!fac_scope) {
-    return PHENOM_MEMTYPE_INVALID;
+    return PH_MEMTYPE_INVALID;
   }
-  scope = phenom_counter_scope_define(fac_scope, def->name,
+  scope = ph_counter_scope_define(fac_scope, def->name,
       MEM_COUNTER_SLOTS);
-  phenom_counter_scope_delref(fac_scope);
+  ph_counter_scope_delref(fac_scope);
 
   if (!scope) {
-    return PHENOM_MEMTYPE_INVALID;
+    return PH_MEMTYPE_INVALID;
   }
 
   if ((uint32_t)next_memtype + 1 >= memtypes_size) {
     // TODO: grow the array
-    return PHENOM_MEMTYPE_INVALID;
+    return PH_MEMTYPE_INVALID;
   }
 
   mt = ck_pr_faa_int(&next_memtype, 1);
@@ -129,7 +129,7 @@ phenom_memtype_t phenom_memtype_register(const phenom_memtype_def_t *def)
     names = sized_counter_names;
     num_slots = MEM_COUNTER_SLOTS - 1;
   }
-  if (!phenom_counter_scope_register_counter_block(
+  if (!ph_counter_scope_register_counter_block(
       scope, num_slots, 0, names)) {
     abort();
   }
@@ -137,14 +137,14 @@ phenom_memtype_t phenom_memtype_register(const phenom_memtype_def_t *def)
   return mt;
 }
 
-phenom_memtype_t phenom_memtype_register_block(
+ph_memtype_t ph_memtype_register_block(
     uint8_t num_types,
-    const phenom_memtype_def_t *defs,
-    phenom_memtype_t *types)
+    const ph_memtype_def_t *defs,
+    ph_memtype_t *types)
 {
   int i;
-  phenom_counter_scope_t *fac_scope, *scope = NULL;
-  phenom_memtype_t mt;
+  ph_counter_scope_t *fac_scope, *scope = NULL;
+  ph_memtype_t mt;
   struct mem_type *mem_type;
   const char **names;
   uint32_t num_slots;
@@ -154,18 +154,18 @@ phenom_memtype_t phenom_memtype_register_block(
   /* must all be same facility */
   for (i = 0; i < num_types; i++) {
     if (strcmp(defs[0].facility, defs[i].facility)) {
-      return PHENOM_MEMTYPE_INVALID;
+      return PH_MEMTYPE_INVALID;
     }
   }
 
   if ((uint32_t)next_memtype + num_types >= memtypes_size) {
     // TODO: grow the array
-    return PHENOM_MEMTYPE_INVALID;
+    return PH_MEMTYPE_INVALID;
   }
 
   fac_scope = resolve_facility(defs[0].facility);
   if (!fac_scope) {
-    return PHENOM_MEMTYPE_INVALID;
+    return PH_MEMTYPE_INVALID;
   }
 
   mt = ck_pr_faa_int(&next_memtype, num_types);
@@ -182,11 +182,11 @@ phenom_memtype_t phenom_memtype_register_block(
     }
     mem_type->def.name = strdup(defs[i].name);
 
-    scope = phenom_counter_scope_define(fac_scope, mem_type->def.name,
+    scope = ph_counter_scope_define(fac_scope, mem_type->def.name,
         MEM_COUNTER_SLOTS);
     if (!scope) {
       // FIXME: cleaner error handling
-      return PHENOM_MEMTYPE_INVALID;
+      return PH_MEMTYPE_INVALID;
     }
     mem_type->scope = scope;
 
@@ -197,8 +197,8 @@ phenom_memtype_t phenom_memtype_register_block(
       names = sized_counter_names;
       num_slots = MEM_COUNTER_SLOTS - 1;
     }
-    mem_type->first_slot = phenom_counter_scope_get_num_slots(scope);
-    if (!phenom_counter_scope_register_counter_block(
+    mem_type->first_slot = ph_counter_scope_get_num_slots(scope);
+    if (!ph_counter_scope_register_counter_block(
           scope, num_slots, 0, names)) {
       abort();
     }
@@ -213,7 +213,7 @@ phenom_memtype_t phenom_memtype_register_block(
   return mt;
 }
 
-static inline struct mem_type *resolve_mt(phenom_memtype_t mt)
+static inline struct mem_type *resolve_mt(ph_memtype_t mt)
 {
   if (mt < 0 || mt >= next_memtype) {
     abort();
@@ -221,11 +221,11 @@ static inline struct mem_type *resolve_mt(phenom_memtype_t mt)
   return &memtypes[mt];
 }
 
-void *phenom_mem_alloc(phenom_memtype_t mt)
+void *ph_mem_alloc(ph_memtype_t mt)
 {
   struct mem_type *mem_type = resolve_mt(mt);
   void *ptr;
-  phenom_counter_block_t *block;
+  ph_counter_block_t *block;
   int64_t values[3];
   static const uint8_t slots[2] = {
     SLOT_BYTES, SLOT_ALLOCS
@@ -238,29 +238,29 @@ void *phenom_mem_alloc(phenom_memtype_t mt)
 
   ptr = malloc(mem_type->def.item_size);
   if (!ptr) {
-    phenom_counter_scope_add(mem_type->scope,
+    ph_counter_scope_add(mem_type->scope,
         mem_type->first_slot + SLOT_OOM, 1);
     return NULL;
   }
 
-  block = phenom_counter_block_open(mem_type->scope);
+  block = ph_counter_block_open(mem_type->scope);
   values[0] = mem_type->def.item_size;
   values[1] = 1;
-  phenom_counter_block_bulk_add(block, 2, slots, values);
-  phenom_counter_block_delref(block);
+  ph_counter_block_bulk_add(block, 2, slots, values);
+  ph_counter_block_delref(block);
 
-  if (mem_type->def.flags & PHENOM_MEM_FLAGS_ZERO) {
+  if (mem_type->def.flags & PH_MEM_FLAGS_ZERO) {
     memset(ptr, 0, mem_type->def.item_size);
   }
 
   return ptr;
 }
 
-void *phenom_mem_alloc_size(phenom_memtype_t mt, uint64_t size)
+void *ph_mem_alloc_size(ph_memtype_t mt, uint64_t size)
 {
   struct mem_type *mem_type = resolve_mt(mt);
   struct sized_header *ptr;
-  phenom_counter_block_t *block;
+  ph_counter_block_t *block;
   static const uint8_t slots[2] = { SLOT_BYTES, SLOT_ALLOCS };
   int64_t values[2];
 
@@ -276,7 +276,7 @@ void *phenom_mem_alloc_size(phenom_memtype_t mt, uint64_t size)
 
   ptr = malloc(size + HEADER_RESERVATION);
   if (!ptr) {
-    phenom_counter_scope_add(mem_type->scope,
+    ph_counter_scope_add(mem_type->scope,
         mem_type->first_slot + SLOT_OOM, 1);
     return NULL;
   }
@@ -285,23 +285,23 @@ void *phenom_mem_alloc_size(phenom_memtype_t mt, uint64_t size)
   ptr->mt = mt;
   ptr++;
 
-  block = phenom_counter_block_open(mem_type->scope);
+  block = ph_counter_block_open(mem_type->scope);
   values[0] = size;
   values[1] = 1;
-  phenom_counter_block_bulk_add(block, 2, slots, values);
-  phenom_counter_block_delref(block);
+  ph_counter_block_bulk_add(block, 2, slots, values);
+  ph_counter_block_delref(block);
 
-  if (mem_type->def.flags & PHENOM_MEM_FLAGS_ZERO) {
+  if (mem_type->def.flags & PH_MEM_FLAGS_ZERO) {
     memset(ptr, 0, size);
   }
 
   return ptr;
 }
 
-void phenom_mem_free(phenom_memtype_t mt, void *ptr)
+void ph_mem_free(ph_memtype_t mt, void *ptr)
 {
   struct mem_type *mem_type = resolve_mt(mt);
-  phenom_counter_block_t *block;
+  ph_counter_block_t *block;
   static const uint8_t slots[2] = { SLOT_BYTES, SLOT_FREES };
   int64_t values[2];
   uint64_t size;
@@ -322,17 +322,17 @@ void phenom_mem_free(phenom_memtype_t mt, void *ptr)
 
   free(ptr);
 
-  block = phenom_counter_block_open(mem_type->scope);
+  block = ph_counter_block_open(mem_type->scope);
   values[0] = -size;
   values[1] = 1;
-  phenom_counter_block_bulk_add(block, 2, slots, values);
-  phenom_counter_block_delref(block);
+  ph_counter_block_bulk_add(block, 2, slots, values);
+  ph_counter_block_delref(block);
 }
 
-void *phenom_mem_realloc(phenom_memtype_t mt, void *ptr, uint64_t size)
+void *ph_mem_realloc(ph_memtype_t mt, void *ptr, uint64_t size)
 {
   struct mem_type *mem_type;
-  phenom_counter_block_t *block;
+  ph_counter_block_t *block;
   static const uint8_t slots[2] = { SLOT_BYTES, SLOT_REALLOC };
   int64_t values[3];
   struct sized_header *hdr;
@@ -340,11 +340,11 @@ void *phenom_mem_realloc(phenom_memtype_t mt, void *ptr, uint64_t size)
   void *new_ptr;
 
   if (size == 0) {
-    phenom_mem_free(mt, ptr);
+    ph_mem_free(mt, ptr);
     return NULL;
   }
   if (ptr == NULL) {
-    return phenom_mem_alloc_size(mt, size);
+    return ph_mem_alloc_size(mt, size);
   }
   mem_type = resolve_mt(mt);
   if (mem_type->def.item_size) {
@@ -367,27 +367,27 @@ void *phenom_mem_realloc(phenom_memtype_t mt, void *ptr, uint64_t size)
 
   hdr = realloc(ptr, size + HEADER_RESERVATION);
   if (!hdr) {
-    phenom_counter_scope_add(mem_type->scope,
+    ph_counter_scope_add(mem_type->scope,
         mem_type->first_slot + SLOT_OOM, 1);
     return NULL;
   }
   new_ptr = hdr + 1;
   hdr->size = size;
 
-  block = phenom_counter_block_open(mem_type->scope);
+  block = ph_counter_block_open(mem_type->scope);
   values[0] = size - orig_size;
   values[1] = 1;
-  phenom_counter_block_bulk_add(block, 2, slots, values);
-  phenom_counter_block_delref(block);
+  ph_counter_block_bulk_add(block, 2, slots, values);
+  ph_counter_block_delref(block);
 
-  if (size > orig_size && mem_type->def.flags & PHENOM_MEM_FLAGS_ZERO) {
+  if (size > orig_size && mem_type->def.flags & PH_MEM_FLAGS_ZERO) {
     memset((char*)new_ptr + orig_size, 0, size - orig_size);
   }
 
   return new_ptr;
 }
 
-bool phenom_mem_stat(phenom_memtype_t mt, phenom_mem_stats_t *stats)
+bool ph_mem_stat(ph_memtype_t mt, ph_mem_stats_t *stats)
 {
   struct mem_type *mem_type;
   int64_t values[MEM_COUNTER_SLOTS];
@@ -400,7 +400,7 @@ bool phenom_mem_stat(phenom_memtype_t mt, phenom_mem_stats_t *stats)
 
   memset(stats, 0, sizeof(*stats));
   stats->def = &mem_type->def;
-  n = phenom_counter_scope_get_view(mem_type->scope,
+  n = ph_counter_scope_get_view(mem_type->scope,
       MEM_COUNTER_SLOTS, values, NULL);
   if (n == MEM_COUNTER_SLOTS) {
     stats->reallocs = values[SLOT_REALLOC];
@@ -413,8 +413,8 @@ bool phenom_mem_stat(phenom_memtype_t mt, phenom_mem_stats_t *stats)
   return true;
 }
 
-int phenom_mem_stat_facility(const char *facility,
-    int num_stats, phenom_mem_stats_t *stats)
+int ph_mem_stat_facility(const char *facility,
+    int num_stats, ph_mem_stats_t *stats)
 {
   int n_stats = 0;
   int i;
@@ -423,26 +423,26 @@ int phenom_mem_stat_facility(const char *facility,
     if (strcmp(facility, memtypes[i].def.facility)) {
       continue;
     }
-    phenom_mem_stat(i, &stats[n_stats++]);
+    ph_mem_stat(i, &stats[n_stats++]);
   }
 
   return n_stats;
 }
 
-int phenom_mem_stat_range(phenom_memtype_t start,
-    phenom_memtype_t end, phenom_mem_stats_t *stats)
+int ph_mem_stat_range(ph_memtype_t start,
+    ph_memtype_t end, ph_mem_stats_t *stats)
 {
   int n_stats = 0;
   int i;
 
   for (i = start; i < next_memtype && i < end; i++) {
-    phenom_mem_stat(i, &stats[n_stats++]);
+    ph_mem_stat(i, &stats[n_stats++]);
   }
 
   return n_stats;
 }
 
-phenom_memtype_t phenom_mem_type_by_name(const char *facility,
+ph_memtype_t ph_mem_type_by_name(const char *facility,
     const char *name)
 {
   int i;
@@ -453,7 +453,7 @@ phenom_memtype_t phenom_mem_type_by_name(const char *facility,
       return i;
     }
   }
-  return PHENOM_MEMTYPE_INVALID;
+  return PH_MEMTYPE_INVALID;
 }
 
 /* vim:ts=2:sw=2:et:

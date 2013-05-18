@@ -19,39 +19,39 @@
 #include "phenom/sysutil.h"
 #include "tap.h"
 
-static phenom_work_item_t pipe_work;
+static ph_work_item_t pipe_work;
 static int pipe_fd[2];
-static phenom_time_t start_time;
+static ph_time_t start_time;
 static int ticks = 0;
 
 static void *ping_thread(void *arg)
 {
-  phenom_time_t delay = (intptr_t)arg;
+  ph_time_t delay = (intptr_t)arg;
   struct timespec ts = { 0, 0 };
 
   ts.tv_sec = delay / 1000;
   ts.tv_nsec = (delay - (ts.tv_sec * 1000)) * 1000000;
 
-  ck_pr_store_64((uint64_t*)&start_time, phenom_time_now());
+  ck_pr_store_64((uint64_t*)&start_time, ph_time_now());
   nanosleep(&ts, NULL);
 
   ignore_result(write(pipe_fd[1], "a", 1));
   return NULL;
 }
 
-static bool ping_pipe_in(phenom_time_t delay)
+static bool ping_pipe_in(ph_time_t delay)
 {
-  phenom_thread_t *thr;
+  ph_thread_t *thr;
 
-  thr = phenom_spawn_thread(ping_thread, (void*)(intptr_t)delay);
+  thr = ph_spawn_thread(ping_thread, (void*)(intptr_t)delay);
   return thr != NULL;
 }
 
-static void pipe_dispatch(phenom_work_item_t *work, uint32_t trigger,
-    phenom_time_t now, void *workdata, intptr_t triggerdata)
+static void pipe_dispatch(ph_work_item_t *work, uint32_t trigger,
+    ph_time_t now, void *workdata, intptr_t triggerdata)
 {
   char buf;
-  phenom_time_t diff;
+  ph_time_t diff;
 
   unused_parameter(triggerdata);
   unused_parameter(workdata);
@@ -64,9 +64,9 @@ static void pipe_dispatch(phenom_work_item_t *work, uint32_t trigger,
 
   if (ticks++ < 3) {
     ping_pipe_in(100);
-    phenom_work_io_event_mask_set(work, pipe_fd[0], PHENOM_IO_MASK_READ);
+    ph_work_io_event_mask_set(work, pipe_fd[0], PH_IO_MASK_READ);
   } else {
-    phenom_sched_stop();
+    ph_sched_stop();
   }
 }
 
@@ -77,17 +77,17 @@ int main(int argc, char **argv)
 
   plan_tests(13);
 
-  is(PHENOM_OK, phenom_sched_init(0, 0));
-  is(PHENOM_OK, phenom_work_init(&pipe_work));
+  is(PH_OK, ph_sched_init(0, 0));
+  is(PH_OK, ph_work_init(&pipe_work));
   pipe_work.callback = pipe_dispatch;
-  is(0, phenom_pipe(pipe_fd, PH_PIPE_NONBLOCK));
-  phenom_work_io_event_mask_set(&pipe_work,
-      pipe_fd[0], PHENOM_IO_MASK_READ);
-  phenom_work_trigger_enable(&pipe_work);
+  is(0, ph_pipe(pipe_fd, PH_PIPE_NONBLOCK));
+  ph_work_io_event_mask_set(&pipe_work,
+      pipe_fd[0], PH_IO_MASK_READ);
+  ph_work_trigger_enable(&pipe_work);
 
   ok(ping_pipe_in(100), "set up ping");
 
-  is(PHENOM_OK, phenom_sched_run());
+  is(PH_OK, ph_sched_run());
 
   return exit_status();
 }

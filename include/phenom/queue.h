@@ -35,7 +35,7 @@ $FreeBSD: src/sys/sys/queue.h,v 1.72.2.3.2.1 2010/12/21 17:09:25 kensmith Exp $
 
 #include <phenom/defs.h>
 
-#define phenom_offsetof(type, field) ((size_t)(&((type *)0)->field))
+#define ph_offsetof(type, field) ((size_t)(&((type *)0)->field))
 
 /*
  * This file defines four types of data structures: singly-linked lists,
@@ -294,7 +294,7 @@ struct {                                                                \
                 NULL :                                                  \
                 ((struct type *)(void *)                                \
                 ((char *)((head)->stqh_last) - \
-                 phenom_offsetof(struct type, field))))
+                 ph_offsetof(struct type, field))))
 
 #define PH_STAILQ_NEXT(elm, field) ((elm)->field.stqe_next)
 

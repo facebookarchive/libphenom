@@ -28,65 +28,65 @@ extern "C" {
 
 // Triggered by being IO-ready.
 // triggerdata is the event mask
-#define PHENOM_TRIGGER_IO       1
+#define PH_TRIGGER_IO       1
 
 // Triggered by timeout
-#define PHENOM_TRIGGER_TIMEOUT  2
+#define PH_TRIGGER_TIMEOUT  2
 
 // Triggered by something generic
-#define PHENOM_TRIGGER_GENERIC  3
+#define PH_TRIGGER_GENERIC  3
 
 // IO event mask
-typedef uint32_t phenom_io_mask_t;
-#define PHENOM_IO_MASK_NONE    0
-#define PHENOM_IO_MASK_READ    1
-#define PHENOM_IO_MASK_WRITE   2
-#define PHENOM_IO_MASK_ERR     4
+typedef uint32_t ph_io_mask_t;
+#define PH_IO_MASK_NONE    0
+#define PH_IO_MASK_READ    1
+#define PH_IO_MASK_WRITE   2
+#define PH_IO_MASK_ERR     4
 
-typedef void (*phenom_work_func_t)(
-    phenom_work_item_t *work,
+typedef void (*ph_work_func_t)(
+    ph_work_item_t *work,
     // how we were triggered
     uint32_t trigger,
     // the current time
-    phenom_time_t now,
+    ph_time_t now,
     // work->data
     void *workdata,
     // interpret depending on trigger source
     intptr_t triggerdata
 );
 
-struct phenom_work_item {
+struct ph_work_item {
   // indicates how we get dispatched
   int runclass;
 
   // what to do when we get dispatched
-  phenom_work_func_t callback;
+  ph_work_func_t callback;
 
   // data associated with the item
   void *data;
 
   // associated file descriptor
-  phenom_socket_t fd;
+  ph_socket_t fd;
 
 // accumulate triggers but don't notify or dispatch
 // until the item is enabled again
-#define PHENOM_TRIGGER_STATE_PAUSED  0
+#define PH_TRIGGER_STATE_PAUSED  0
 // accumulate triggers, notify and dispatch as they are
 // received
-#define PHENOM_TRIGGER_STATE_ENABLED 1
+#define PH_TRIGGER_STATE_ENABLED 1
 // don't accumulate triggers; discard any that arrive
 // while in this state
-#define PHENOM_TRIGGER_STATE_DISCARD 2
+#define PH_TRIGGER_STATE_DISCARD 2
   uint32_t trigger_state;
-  phenom_thread_t *owner;
+  ph_thread_t *owner;
 
   // affinity
-  phenom_thread_t *affinity;
+  ph_thread_t *affinity;
 
   // If we have a timer...
-  struct phenom_timerwheel_timer timer;
+  struct ph_timerwheel_timer timer;
 
-  // queue of phenom_work_trigger
+  // queue of ph_work_trigger
   ck_fifo_mpmc_t triggers;
 };
 
@@ -102,8 +102,8 @@ struct phenom_work_item {
  * the triggers will be queued up until the triggers are
  * re-enabled.
  */
-phenom_result_t phenom_work_trigger_disable(
-    phenom_work_item_t *item,
+ph_result_t ph_work_trigger_disable(
+    ph_work_item_t *item,
     bool discard);
 
 /** Enables triggers for the specified work item.
@@ -113,8 +113,8 @@ phenom_result_t phenom_work_trigger_disable(
  * to avoid issues where the target triggers while current
  * item is in the middle of setting up multiple events
  */
-phenom_result_t phenom_work_trigger_enable(
-    phenom_work_item_t *item);
+ph_result_t ph_work_trigger_enable(
+    ph_work_item_t *item);
 
 /** Arranges for a work item to be dispatched when IO is ready
  *
@@ -129,29 +129,29 @@ phenom_result_t phenom_work_trigger_enable(
  * that we disabled when we obtained the item will be re-enabled
  * at that time.
  */
-phenom_result_t phenom_work_io_event_mask_set(
-    phenom_work_item_t *item,
-    phenom_socket_t fd,
-    phenom_io_mask_t mask);
+ph_result_t ph_work_io_event_mask_set(
+    ph_work_item_t *item,
+    ph_socket_t fd,
+    ph_io_mask_t mask);
 
 /** Arranges for a work item to be dispatched at a certain time.
  *
  * If time is 0, disables any previously arranged timeout trigger.
  *
- * Similar to phenom_work_io_event_mask_set(), this function
+ * Similar to ph_work_io_event_mask_set(), this function
  * may fail if we are unable to immediately operate on the item.
  */
-phenom_result_t phenom_work_timeout_at(
-    phenom_work_item_t *item,
-    phenom_time_t at);
+ph_result_t ph_work_timeout_at(
+    ph_work_item_t *item,
+    ph_time_t at);
 
-phenom_time_t phenom_time_now(void);
+ph_time_t ph_time_now(void);
 
-phenom_result_t phenom_work_init(
-    phenom_work_item_t *item);
+ph_result_t ph_work_init(
+    ph_work_item_t *item);
 
-phenom_result_t phenom_work_destroy(
-    phenom_work_item_t *item);
+ph_result_t ph_work_destroy(
+    ph_work_item_t *item);
 
 
 /** arranges for a work item to be dispatched.
@@ -160,8 +160,8 @@ phenom_result_t phenom_work_destroy(
  * dispatch queue and trigger asynchronously from
  * the context of the calling thread.
  */
-phenom_result_t phenom_work_trigger(
-    phenom_work_item_t *work,
+ph_result_t ph_work_trigger(
+    ph_work_item_t *work,
     uint32_t trigger,
     intptr_t triggerdata);
 
@@ -176,13 +176,13 @@ phenom_result_t phenom_work_trigger(
  *
  * It is better to avoid calling this function if you can!
  */
-phenom_result_t phenom_work_dispatch_affinity_set_current(
-    phenom_work_item_t *item);
+ph_result_t ph_work_dispatch_affinity_set_current(
+    ph_work_item_t *item);
 
 
-phenom_result_t phenom_sched_init(uint32_t sched_cores, uint32_t fd_hint);
-phenom_result_t phenom_sched_run(void);
-void phenom_sched_stop(void);
+ph_result_t ph_sched_init(uint32_t sched_cores, uint32_t fd_hint);
+ph_result_t ph_sched_run(void);
+void ph_sched_stop(void);
 
 
 #ifdef __cplusplus

@@ -24,32 +24,32 @@
 extern "C" {
 #endif
 
-typedef int phenom_socket_t;
-void phenom_socket_set_nonblock(phenom_socket_t fd, bool enable);
+typedef int ph_socket_t;
+void ph_socket_set_nonblock(ph_socket_t fd, bool enable);
 
 #define PH_PIPE_NONBLOCK 1
 #define PH_PIPE_CLOEXEC  2
-phenom_result_t phenom_pipe(phenom_socket_t fds[2], int flags);
+ph_result_t ph_pipe(ph_socket_t fds[2], int flags);
 
 
-struct phenom_pingfd {
-  phenom_socket_t fds[2];
+struct ph_pingfd {
+  ph_socket_t fds[2];
 };
 
-typedef struct phenom_pingfd phenom_pingfd_t;
+typedef struct ph_pingfd ph_pingfd_t;
 
-phenom_result_t phenom_pingfd_init(phenom_pingfd_t *pfd);
-phenom_result_t phenom_pingfd_ping(phenom_pingfd_t *pfd);
-phenom_result_t phenom_pingfd_close(phenom_pingfd_t *pfd);
-phenom_socket_t phenom_pingfd_get_fd(phenom_pingfd_t *pfd);
-bool phenom_pingfd_consume_one(phenom_pingfd_t *pfd);
+ph_result_t ph_pingfd_init(ph_pingfd_t *pfd);
+ph_result_t ph_pingfd_ping(ph_pingfd_t *pfd);
+ph_result_t ph_pingfd_close(ph_pingfd_t *pfd);
+ph_socket_t ph_pingfd_get_fd(ph_pingfd_t *pfd);
+bool ph_pingfd_consume_one(ph_pingfd_t *pfd);
 
-void phenom_freedtoa(char *s);
-char *phenom_dtoa(double _d, int mode, int ndigits,
+void ph_freedtoa(char *s);
+char *ph_dtoa(double _d, int mode, int ndigits,
     int *decpt, int *sign, char **rve);
-double phenom_strtod(const char *s00, const char **se);
+double ph_strtod(const char *s00, const char **se);
 
-static inline uint32_t phenom_power_2(uint32_t n)
+static inline uint32_t ph_power_2(uint32_t n)
 {
   n |= (n >> 16);
   n |= (n >> 8);
@@ -59,14 +59,14 @@ static inline uint32_t phenom_power_2(uint32_t n)
   return n + 1;
 }
 
-struct phenom_vprintf_funcs {
+struct ph_vprintf_funcs {
   bool (*print)(void *arg, const char *buf, size_t len);
   bool (*flush)(void *arg);
 };
 
 /** Thread-safe errno value to string conversion */
-const char *phenom_strerror(int errval);
-const char *phenom_strerror_r(int errval, char *buf, size_t len);
+const char *ph_strerror(int errval);
+const char *ph_strerror_r(int errval, char *buf, size_t len);
 
 /** Portable string formatting.
  * This handles things like NULL string pointers without faulting.
@@ -89,45 +89,45 @@ const char *phenom_strerror_r(int errval, char *buf, size_t len);
  *  `Pv%s%p - recursively expands a format string and a va_list.
  *            Arguments are a char* and va_list*
  */
-int phenom_vprintf_core(void *print_arg,
-    const struct phenom_vprintf_funcs *print_funcs,
+int ph_vprintf_core(void *print_arg,
+    const struct ph_vprintf_funcs *print_funcs,
     const char *fmt0, va_list ap);
 
-/** Like vsnprintf(), except that it uses phenom_vprintf_core() */
-int phenom_vsnprintf(char *buf, size_t size, const char *fmt, va_list ap);
-/** Like snprintf(), except that it uses phenom_vprintf_core() */
-int phenom_snprintf(char *buf, size_t size, const char *fmt, ...)
+/** Like vsnprintf(), except that it uses ph_vprintf_core() */
+int ph_vsnprintf(char *buf, size_t size, const char *fmt, va_list ap);
+/** Like snprintf(), except that it uses ph_vprintf_core() */
+int ph_snprintf(char *buf, size_t size, const char *fmt, ...)
 #ifdef __GNUC__
   __attribute__((format(printf, 3, 4)))
 #endif
   ;
 
-/** Uses phenom_vprintf_core to print to a file descriptor.
+/** Uses ph_vprintf_core to print to a file descriptor.
  * Uses a 1k buffer internally to reduce the number of calls
  * to the write() syscall. */
-int phenom_vfdprintf(int fd, const char *fmt, va_list ap);
-/** Uses phenom_vprintf_core to print to a file descriptor */
-int phenom_fdprintf(int fd, const char *fmt, ...)
+int ph_vfdprintf(int fd, const char *fmt, va_list ap);
+/** Uses ph_vprintf_core to print to a file descriptor */
+int ph_fdprintf(int fd, const char *fmt, ...)
 #ifdef __GNUC__
   __attribute__((format(printf, 2, 3)))
 #endif
   ;
 
-/** Like asprintf, except that it uses phenom_vprintf_core().
+/** Like asprintf, except that it uses ph_vprintf_core().
  * On error, returns -1 and sets strp to NULL */
-int phenom_vasprintf(char **strp, const char *fmt, va_list ap);
-int phenom_asprintf(char **strp, const char *fmt, ...)
+int ph_vasprintf(char **strp, const char *fmt, va_list ap);
+int ph_asprintf(char **strp, const char *fmt, ...)
 #ifdef __GNUC__
   __attribute__((format(printf, 2, 3)))
 #endif
   ;
 
-/** Like phenom_asprintf, except that it uses the specified
+/** Like ph_asprintf, except that it uses the specified
  * memtype for the memory it allocates.
  * On error, returns -1 and sets strp to NULL */
-int phenom_vmtsprintf(phenom_memtype_t memtype, char **strp,
+int ph_vmtsprintf(ph_memtype_t memtype, char **strp,
     const char *fmt, va_list ap);
-int phenom_mtsprintf(phenom_memtype_t memtype, char **strp,
+int ph_mtsprintf(ph_memtype_t memtype, char **strp,
     const char *fmt, ...)
 #ifdef __GNUC__
   __attribute__((format(printf, 3, 4)))

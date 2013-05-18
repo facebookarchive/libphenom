@@ -16,9 +16,9 @@
 
 #include "phenom/timerwheel.h"
 
-phenom_result_t phenom_timerwheel_init(
-    phenom_timerwheel_t *wheel,
-    phenom_time_t now,
+ph_result_t ph_timerwheel_init(
+    ph_timerwheel_t *wheel,
+    ph_time_t now,
     uint32_t tick_resolution)
 {
   int i;
@@ -34,29 +34,29 @@ phenom_result_t phenom_timerwheel_init(
     PH_LIST_INIT(&wheel->buckets[3].lists[i]);
   }
 
-  return PHENOM_OK;
+  return PH_OK;
 }
 
-phenom_result_t phenom_timerwheel_insert(
-    phenom_timerwheel_t *wheel,
-    struct phenom_timerwheel_timer *timer)
+ph_result_t ph_timerwheel_insert(
+    ph_timerwheel_t *wheel,
+    struct ph_timerwheel_timer *timer)
 {
-  phenom_result_t res;
+  ph_result_t res;
 
   ck_spinlock_lock(&wheel->lock);
   ck_pr_faa_32(&timer->generation, 1);
-  res = phenom_timerwheel_insert_unlocked(wheel, timer);
+  res = ph_timerwheel_insert_unlocked(wheel, timer);
   ck_spinlock_unlock(&wheel->lock);
 
   return res;
 }
 
-phenom_result_t phenom_timerwheel_insert_unlocked(
-    phenom_timerwheel_t *wheel,
-    struct phenom_timerwheel_timer *timer)
+ph_result_t ph_timerwheel_insert_unlocked(
+    ph_timerwheel_t *wheel,
+    struct ph_timerwheel_timer *timer)
 {
-  phenom_time_t due = timer->due / wheel->tick_resolution;
-  struct phenom_timerwheel_list *list;
+  ph_time_t due = timer->due / wheel->tick_resolution;
+  struct ph_timerwheel_list *list;
   int64_t diff = due - wheel->next_run;
 
   if (diff < 0) {
@@ -87,72 +87,72 @@ phenom_result_t phenom_timerwheel_insert_unlocked(
 
   PH_LIST_INSERT_HEAD(list, timer, t);
 
-  return PHENOM_OK;
+  return PH_OK;
 }
 
-phenom_result_t phenom_timerwheel_remove(
-    phenom_timerwheel_t *wheel,
-    struct phenom_timerwheel_timer *timer)
+ph_result_t ph_timerwheel_remove(
+    ph_timerwheel_t *wheel,
+    struct ph_timerwheel_timer *timer)
 {
-  phenom_result_t res;
+  ph_result_t res;
 
   ck_spinlock_lock(&wheel->lock);
   ck_pr_faa_32(&timer->generation, 1);
-  res = phenom_timerwheel_remove_unlocked(wheel, timer);
+  res = ph_timerwheel_remove_unlocked(wheel, timer);
   ck_spinlock_unlock(&wheel->lock);
 
   return res;
 }
 
-phenom_result_t phenom_timerwheel_remove_unlocked(
-    phenom_timerwheel_t *wheel,
-    struct phenom_timerwheel_timer *timer)
+ph_result_t ph_timerwheel_remove_unlocked(
+    ph_timerwheel_t *wheel,
+    struct ph_timerwheel_timer *timer)
 {
   unused_parameter(wheel);
 
   PH_LIST_REMOVE(timer, t);
 
-  return PHENOM_OK;
+  return PH_OK;
 }
 
 /* returns true if we should cascade to the next level,
  * which is in the case where our slot is 0 */
-static bool cascade_timer(phenom_timerwheel_t *wheel,
-    struct phenom_timerwheel_list *from, int slot)
+static bool cascade_timer(ph_timerwheel_t *wheel,
+    struct ph_timerwheel_list *from, int slot)
 {
-  struct phenom_timerwheel_list list;
-  struct phenom_timerwheel_timer *timer, *tmp;
+  struct ph_timerwheel_list list;
+  struct ph_timerwheel_timer *timer, *tmp;
 
   /* steal all items from the the origin list */
   PH_LIST_INIT(&list);
-  PH_LIST_SWAP(&list, from + slot, phenom_timerwheel_timer, t);
+  PH_LIST_SWAP(&list, from + slot, ph_timerwheel_timer, t);
 
   /* "re"-schedule the timers, putting them into the correct
    * slots */
   PH_LIST_FOREACH_SAFE(timer, &list, t, tmp) {
     /* we're called under the wheel.lock */
     PH_LIST_REMOVE(timer, t);
-    phenom_timerwheel_insert_unlocked(wheel, timer);
+    ph_timerwheel_insert_unlocked(wheel, timer);
   }
 
   return slot == 0;
 }
 
-bool phenom_timerwheel_timer_was_modified(
-    struct phenom_timerwheel_timer *timer)
+bool ph_timerwheel_timer_was_modified(
+    struct ph_timerwheel_timer *timer)
 {
   return ck_pr_load_32(&timer->generation) !=
     ck_pr_load_32(&timer->wheel_gen);
 }
 
-uint32_t phenom_timerwheel_tick(
-    phenom_timerwheel_t *wheel,
-    phenom_time_t now,
-    phenom_timerwheel_dispatch_func_t dispatch,
+uint32_t ph_timerwheel_tick(
+    ph_timerwheel_t *wheel,
+    ph_time_t now,
+    ph_timerwheel_dispatch_func_t dispatch,
     void *arg)
 {
-  struct phenom_timerwheel_list list;
-  struct phenom_timerwheel_timer *timer;
+  struct ph_timerwheel_list list;
+  struct ph_timerwheel_timer *timer;
   int idx;
   int64_t tick;
   uint32_t ticked = 0;
@@ -192,7 +192,7 @@ uint32_t phenom_timerwheel_tick(
       }
       /* claim the timers */
       PH_LIST_SWAP(&list, &wheel->buckets[0].lists[idx],
-          phenom_timerwheel_timer, t);
+          ph_timerwheel_timer, t);
     }
   }
   ck_spinlock_unlock(&wheel->lock);
@@ -204,7 +204,7 @@ uint32_t phenom_timerwheel_tick(
     ticked++;
     PH_LIST_REMOVE(timer, t);
 
-    if (!phenom_timerwheel_timer_was_modified(timer)) {
+    if (!ph_timerwheel_timer_was_modified(timer)) {
       dispatch(wheel, timer, now, arg);
     }
   }

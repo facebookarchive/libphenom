@@ -20,7 +20,7 @@
 
 static uint8_t log_level = PH_LOG_ERR;
 
-uint8_t phenom_log_level_set(uint8_t level)
+uint8_t ph_log_level_set(uint8_t level)
 {
   uint8_t old = log_level;
 
@@ -29,37 +29,37 @@ uint8_t phenom_log_level_set(uint8_t level)
   return old;
 }
 
-uint8_t phenom_log_level_get(void)
+uint8_t ph_log_level_get(void)
 {
   return log_level;
 }
 
-void phenom_logv(uint8_t level, const char *fmt, va_list ap)
+void ph_logv(uint8_t level, const char *fmt, va_list ap)
 {
   if (level > log_level) {
     return;
   }
 
-  phenom_fdprintf(STDERR_FILENO,
+  ph_fdprintf(STDERR_FILENO,
       "%" PRIi64 " %u: `Pv%s%p\n",
-      phenom_time_now(), level, fmt, (void*)&ap);
+      ph_time_now(), level, fmt, (void*)&ap);
 }
 
-void phenom_log(uint8_t level, const char *fmt, ...)
+void ph_log(uint8_t level, const char *fmt, ...)
 {
   va_list ap;
 
   va_start(ap, fmt);
-  phenom_logv(level, fmt, ap);
+  ph_logv(level, fmt, ap);
   va_end(ap);
 }
 
-void phenom_panic(const char *fmt, ...)
+void ph_panic(const char *fmt, ...)
 {
   va_list ap;
 
   va_start(ap, fmt);
-  phenom_logv(PH_LOG_PANIC, fmt, ap);
+  ph_logv(PH_LOG_PANIC, fmt, ap);
   va_end(ap);
 
   abort();

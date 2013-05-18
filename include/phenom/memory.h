@@ -30,14 +30,14 @@ extern "C" {
 #endif
 
 /** represents a registered memory type */
-typedef int phenom_memtype_t;
-#define PHENOM_MEMTYPE_INVALID -1
+typedef int ph_memtype_t;
+#define PH_MEMTYPE_INVALID -1
 
 /** requests that allocations are zero'd out before being returned */
-#define PHENOM_MEM_FLAGS_ZERO 1
+#define PH_MEM_FLAGS_ZERO 1
 
 /** defines a memory type */
-struct phenom_memtype_def {
+struct ph_memtype_def {
   /** General category of allocations.
    * Convention is to name it after the module or subsystem.
    * This will be used to construct a counter name of the form:
@@ -54,17 +54,17 @@ struct phenom_memtype_def {
    * If the item_size is zero, then allocations may be
    * of any size */
   uint64_t item_size;
-  /** One of the PHENOM_MEM_FLAGS above */
+  /** One of the PH_MEM_FLAGS above */
   unsigned flags;
 };
-typedef struct phenom_memtype_def phenom_memtype_def_t;
+typedef struct ph_memtype_def ph_memtype_def_t;
 
 /** Registers a memtype
  *
- * @return the memtype identifier, or PHENOM_MEMTYPE_INVALID if
+ * @return the memtype identifier, or PH_MEMTYPE_INVALID if
  * registration failed.
  */
-phenom_memtype_t phenom_memtype_register(const phenom_memtype_def_t *def);
+ph_memtype_t ph_memtype_register(const ph_memtype_def_t *def);
 
 /** Registers a block of memtypes in one operation.
  *
@@ -80,39 +80,39 @@ phenom_memtype_t phenom_memtype_register(const phenom_memtype_def_t *def);
  *
  * This function always assigns a contiguous block of memtype identifiers.
  * @return the memtype identifier corresponding to the first definition, or
- * PHENOM_MEMTYPE_INVALID if the registration failed.
+ * PH_MEMTYPE_INVALID if the registration failed.
 \code
-phenom_memtype_def_t defs[] = {
+ph_memtype_def_t defs[] = {
   { "example", "one", 0, 0 },
   { "example", "two", 0, 0 }
 };
 struct {
-  phenom_memtype_t one, two
+  ph_memtype_t one, two
 } mt;
-phenom_memtype_register_block(
+ph_memtype_register_block(
   sizeof(defs) / sizeof(defs[0]),
   defs,
   &mt.one);
 // Now I can use mt.one and mt.two to allocate
 \endcode
  */
-phenom_memtype_t phenom_memtype_register_block(
+ph_memtype_t ph_memtype_register_block(
     uint8_t num_types,
-    const phenom_memtype_def_t *defs,
-    phenom_memtype_t *types);
+    const ph_memtype_def_t *defs,
+    ph_memtype_t *types);
 
 /** Allocates a fixed-size memory chunk
  *
  * Given a memory type, allocates a block of memory of its defined
  * size and returns it.
  *
- * if PHENOM_MEM_FLAGS_ZERO was specified in the flags of the memtype,
+ * if PH_MEM_FLAGS_ZERO was specified in the flags of the memtype,
  * the memory region will be cleared to zero before it is returned.
  *
  * It is an error to call this for a memtype that was defined with
  * a 0 size.
  */
-void *phenom_mem_alloc(phenom_memtype_t memtype)
+void *ph_mem_alloc(ph_memtype_t memtype)
 #ifdef __GNUC__
   __attribute__((malloc))
 #endif
@@ -123,13 +123,13 @@ void *phenom_mem_alloc(phenom_memtype_t memtype)
  * Given a memory type that was registered with size 0, allocates
  * a chunk of the specified size and returns it.
  *
- * if PHENOM_MEM_FLAGS_ZERO was specified in the flags of the memtype,
+ * if PH_MEM_FLAGS_ZERO was specified in the flags of the memtype,
  * the memory region will be cleared to zero before it is returned.
  *
  * It is an error to call this for a memtype that was not defined with
  * a 0 size.
  */
-void *phenom_mem_alloc_size(phenom_memtype_t memtype, uint64_t size)
+void *ph_mem_alloc_size(ph_memtype_t memtype, uint64_t size)
 #ifdef __GNUC__
   __attribute__((malloc))
 #endif
@@ -142,29 +142,29 @@ void *phenom_mem_alloc_size(phenom_memtype_t memtype, uint64_t size)
  * of the old and new sizes.
  *
  * If the block is grown, the remaining space will hold undefined
- * values unless PHENOM_MEM_FLAGS_ZERO was specified in the memtype.
+ * values unless PH_MEM_FLAGS_ZERO was specified in the memtype.
  *
- * If ptr is NULL, this is equivalent to phenom_mem_alloc_size().
+ * If ptr is NULL, this is equivalent to ph_mem_alloc_size().
  *
- * If size is 0, this is equivalent to phenom_mem_free().
+ * If size is 0, this is equivalent to ph_mem_free().
  *
  * It is an error if ptr was allocated against a different memtype.
  *
  * If the memory was moved, the original ptr value will be freed.
  */
-void *phenom_mem_realloc(phenom_memtype_t memtype, void *ptr, uint64_t size);
+void *ph_mem_realloc(ph_memtype_t memtype, void *ptr, uint64_t size);
 
 /** Frees a memory chunk
  *
- * The memory MUST have been allocated via phenom_mem_alloc()
- * or phenom_mem_alloc_size().
+ * The memory MUST have been allocated via ph_mem_alloc()
+ * or ph_mem_alloc_size().
  */
-void phenom_mem_free(phenom_memtype_t memtype, void *ptr);
+void ph_mem_free(ph_memtype_t memtype, void *ptr);
 
 /** Data structure for querying memory usage information */
-struct phenom_mem_stats {
+struct ph_mem_stats {
   /** the definition */
-  const phenom_memtype_def_t *def;
+  const ph_memtype_def_t *def;
   /** current amount of allocated memory in bytes */
   uint64_t bytes;
   /** total number of out-of-memory events (allocation failures) */
@@ -177,14 +177,14 @@ struct phenom_mem_stats {
    * equivalent to an alloc or free) */
   uint64_t reallocs;
 };
-typedef struct phenom_mem_stats phenom_mem_stats_t;
+typedef struct ph_mem_stats ph_mem_stats_t;
 
 /** Queries information about the specified memtype.
  *
  * @param memtype the memtype being interrogated
  * @param[out] stats receives the usage information
  */
-bool phenom_mem_stat(phenom_memtype_t memtype, phenom_mem_stats_t *stats);
+bool ph_mem_stat(ph_memtype_t memtype, ph_mem_stats_t *stats);
 
 /** Queries information about memtypes in the specified facility.
  *
@@ -193,8 +193,8 @@ bool phenom_mem_stat(phenom_memtype_t memtype, phenom_mem_stats_t *stats);
  * @param[out] stats array of num_stats elements, receives the stats
  * @return the number of stats that were populated.
  */
-int phenom_mem_stat_facility(const char *facility,
-    int num_stats, phenom_mem_stats_t *stats);
+int ph_mem_stat_facility(const char *facility,
+    int num_stats, ph_mem_stats_t *stats);
 
 /** Queries information about a range of memtypes in the system.
  *
@@ -205,14 +205,14 @@ int phenom_mem_stat_facility(const char *facility,
  * A short return value indicates that there are no more memtypes beyond
  * the "end" parameter.
  */
-int phenom_mem_stat_range(phenom_memtype_t start,
-    phenom_memtype_t end, phenom_mem_stats_t *stats);
+int ph_mem_stat_range(ph_memtype_t start,
+    ph_memtype_t end, ph_mem_stats_t *stats);
 
 /** Resolves a memory type by name
  *
  * Intended as a diagnostic/testing aid.
  */
-phenom_memtype_t phenom_mem_type_by_name(const char *facility,
+ph_memtype_t ph_mem_type_by_name(const char *facility,
     const char *name);
 
 #ifdef __cplusplus

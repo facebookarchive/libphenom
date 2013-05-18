@@ -17,7 +17,7 @@
 #include "phenom/thread.h"
 #include "phenom/sysutil.h"
 
-const char *phenom_strerror_r(int errval, char *buf, size_t len)
+const char *ph_strerror_r(int errval, char *buf, size_t len)
 {
 #ifdef __linux__
   /* Since we defined _GNU_SOURCE, we get the GNU-style version
@@ -31,10 +31,10 @@ const char *phenom_strerror_r(int errval, char *buf, size_t len)
 #endif
 }
 
-const char *phenom_strerror(int errval)
+const char *ph_strerror(int errval)
 {
-  phenom_thread_t *me = phenom_thread_self();
-  return phenom_strerror_r(errval,
+  ph_thread_t *me = ph_thread_self();
+  return ph_strerror_r(errval,
       me->strerror_buf, sizeof(me->strerror_buf));
 }
 

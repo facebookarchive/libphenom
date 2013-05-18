@@ -23,7 +23,7 @@ static int test_va_list(char *buf, size_t len, const char *fmt, ...)
   int ret;
 
   va_start(ap, fmt);
-  ret = phenom_snprintf(buf, len, "prefix: %s `Pv%s%p suffix: %s",
+  ret = ph_snprintf(buf, len, "prefix: %s `Pv%s%p suffix: %s",
           "PREFIX", fmt, (void*)&ap, "SUFFIX");
   va_end(ap);
   return ret;
@@ -43,30 +43,30 @@ int main(int argc, char **argv)
 
   plan_tests(15);
 
-  len = phenom_snprintf(buf, 10, "12345678901");
+  len = ph_snprintf(buf, 10, "12345678901");
   // Returns the length required
   ok(len == 11, "snprintf gave %d", len);
   // But is constrained to the size we indicated
   ok(!strcmp(buf, "123456789"), "produced %s", buf);
 
   memset(buf, 0, sizeof(buf));
-  len = phenom_snprintf(buf, sizeof(buf), "double:%.1f", 1.2);
+  len = ph_snprintf(buf, sizeof(buf), "double:%.1f", 1.2);
   ok(!strcmp(buf, "double:1.2"), "produced %d %s", len, buf);
 
   /* check the error formatter */
-  phenom_snprintf(buf, sizeof(buf), "`Pe%d:%d", EAGAIN, EAGAIN);
+  ph_snprintf(buf, sizeof(buf), "`Pe%d:%d", EAGAIN, EAGAIN);
   snprintf(verify, sizeof(verify), "%s:%d", strerror(EAGAIN), EAGAIN);
   ok(!strcmp(buf, verify), "expected %s got %s", verify, buf);
 
   /* check invalid backtick escape */
-  phenom_snprintf(buf, sizeof(buf), "`boo");
+  ph_snprintf(buf, sizeof(buf), "`boo");
   ok(!strcmp(buf, "`boo"), "got %s", buf);
 
   /* check backtick escape */
-  phenom_snprintf(buf, sizeof(buf), "``boo");
+  ph_snprintf(buf, sizeof(buf), "``boo");
   ok(!strcmp(buf, "`boo"), "got %s", buf);
 
-  phenom_snprintf(buf, sizeof(buf), "``Pboo");
+  ph_snprintf(buf, sizeof(buf), "``Pboo");
   ok(!strcmp(buf, "`Pboo"), "got %s", buf);
 
   len = test_va_list(buf, sizeof(buf), "inside %d %d", 42, 1);
@@ -78,7 +78,7 @@ int main(int argc, char **argv)
   ok(len == (int)strlen(EXPECTED), "got len=%d", len);
 
 
-  len = phenom_asprintf(&strp, "testing %s", "basic");
+  len = ph_asprintf(&strp, "testing %s", "basic");
   is(len, 13);
   is_string(strp, "testing basic");
   free(strp);
@@ -88,7 +88,7 @@ int main(int argc, char **argv)
     bigbuf[i] = i + 1;
   }
   bigbuf[sizeof(bigbuf)-1] = '\0';
-  len = phenom_asprintf(&strp, "prefix: %s", bigbuf);
+  len = ph_asprintf(&strp, "prefix: %s", bigbuf);
   is(len, 8 + sizeof(bigbuf) - 1);
   ok(!strncmp(strp, "prefix: ", 8), "got prefix %.*s", 8, strp);
   ok(!strcmp(strp + 8, bigbuf), "bigbuf compared ok");

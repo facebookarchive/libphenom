@@ -19,12 +19,12 @@
 #include "tap.h"
 
 static int ticks = 0;
-static phenom_time_t last_tick;
+static ph_time_t last_tick;
 
-static void record_tick(phenom_work_item_t *work, uint32_t trigger,
-    phenom_time_t now, void *workdata, intptr_t triggerdata)
+static void record_tick(ph_work_item_t *work, uint32_t trigger,
+    ph_time_t now, void *workdata, intptr_t triggerdata)
 {
-  phenom_time_t diff;
+  ph_time_t diff;
 
   unused_parameter(work);
   unused_parameter(trigger);
@@ -37,31 +37,31 @@ static void record_tick(phenom_work_item_t *work, uint32_t trigger,
   last_tick = now;
 
   if (ticks++ < 3) {
-    phenom_work_timeout_at(work, now + 1);
+    ph_work_timeout_at(work, now + 1);
   } else {
     // Stop the scheduler now
-    phenom_sched_stop();
+    ph_sched_stop();
   }
 }
 
 int main(int argc, char **argv)
 {
-  phenom_work_item_t timer;
+  ph_work_item_t timer;
   unused_parameter(argc);
   unused_parameter(argv);
 
   plan_tests(10);
 
-  is(PHENOM_OK, phenom_sched_init(0, 0));
-  is(PHENOM_OK, phenom_work_init(&timer));
-  is_true(phenom_time_now() != 0);
+  is(PH_OK, ph_sched_init(0, 0));
+  is(PH_OK, ph_work_init(&timer));
+  is_true(ph_time_now() != 0);
 
   timer.callback = record_tick;
-  last_tick = phenom_time_now();
-  is(PHENOM_OK, phenom_work_timeout_at(&timer, last_tick));
-  is(PHENOM_OK, phenom_work_trigger_enable(&timer));
+  last_tick = ph_time_now();
+  is(PH_OK, ph_work_timeout_at(&timer, last_tick));
+  is(PH_OK, ph_work_trigger_enable(&timer));
 
-  is(PHENOM_OK, phenom_sched_run());
+  is(PH_OK, ph_sched_run());
 
   return exit_status();
 }

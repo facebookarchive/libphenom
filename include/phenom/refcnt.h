@@ -29,17 +29,17 @@ extern "C" {
 #endif
 
 /** holds a reference count */
-typedef int phenom_refcnt_t;
+typedef int ph_refcnt_t;
 
 /** adds a reference */
-static inline void phenom_refcnt_add(phenom_refcnt_t *ref)
+static inline void ph_refcnt_add(ph_refcnt_t *ref)
 {
   ck_pr_inc_int(ref);
 }
 
 /** releases a reference; returns true if we just released
  * the final reference */
-static inline bool phenom_refcnt_del(phenom_refcnt_t *ref)
+static inline bool ph_refcnt_del(ph_refcnt_t *ref)
 {
   return ck_pr_faa_int(ref, -1) == 1;
 }

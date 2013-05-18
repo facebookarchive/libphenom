@@ -27,38 +27,38 @@
 extern "C" {
 #endif
 
-struct phenom_thread;
-struct phenom_work_item;
+struct ph_thread;
+struct ph_work_item;
 
-typedef struct phenom_thread phenom_thread_t;
-typedef struct phenom_work_item phenom_work_item_t;
+typedef struct ph_thread ph_thread_t;
+typedef struct ph_work_item ph_work_item_t;
 
-struct phenom_thread_trigger {
+struct ph_thread_trigger {
   ck_fifo_mpmc_entry_t entry;
   ck_epoch_entry_t epoch;
-  phenom_work_item_t *work;
+  ph_work_item_t *work;
 };
 
-struct phenom_work_trigger {
+struct ph_work_trigger {
   ck_fifo_mpmc_entry_t entry;
   ck_epoch_entry_t epoch;
   uint32_t trigger;
   uintptr_t triggerdata;
 };
 
-extern ck_epoch_t __phenom_trigger_epoch;
-extern phenom_memtype_t __phenom_sched_mt_thread_trigger;
+extern ck_epoch_t __ph_trigger_epoch;
+extern ph_memtype_t __ph_sched_mt_thread_trigger;
 
-struct phenom_thread {
+struct ph_thread {
   bool is_init;
 
-  // queue of phenom_thread_trigger
+  // queue of ph_thread_trigger
   ck_fifo_mpmc_t triggers;
 
   // for safe reclamation of trigger structs
   ck_epoch_record_t *trigger_record;
 
-  phenom_time_t now;
+  ph_time_t now;
 
   // OS level representation
   pthread_t thr;
@@ -71,32 +71,32 @@ struct phenom_thread {
 #endif
 };
 
-typedef void *(*phenom_thread_func)(void *arg);
+typedef void *(*ph_thread_func)(void *arg);
 
-phenom_thread_t *phenom_spawn_thread(phenom_thread_func func, void *arg);
-bool phenom_thread_init(void);
+ph_thread_t *ph_spawn_thread(ph_thread_func func, void *arg);
+bool ph_thread_init(void);
 
-phenom_thread_t *phenom_thread_self_slow(void);
+ph_thread_t *ph_thread_self_slow(void);
 
-extern pthread_key_t __phenom_thread_key;
+extern pthread_key_t __ph_thread_key;
 #ifdef HAVE___THREAD
-extern __thread phenom_thread_t __phenom_thread_self;
-# define phenom_thread_self_fast()   (&__phenom_thread_self)
+extern __thread ph_thread_t __ph_thread_self;
+# define ph_thread_self_fast()   (&__ph_thread_self)
 #else
-# define phenom_thread_self_fast()   \
-  ((phenom_thread_t*)pthread_getspecific(__phenom_thread_key))
+# define ph_thread_self_fast()   \
+  ((ph_thread_t*)pthread_getspecific(__ph_thread_key))
 #endif
 
-static inline phenom_thread_t *phenom_thread_self(void)
+static inline ph_thread_t *ph_thread_self(void)
 {
-  phenom_thread_t *me = phenom_thread_self_fast();
+  ph_thread_t *me = ph_thread_self_fast();
 
   if (unlikely(me == NULL)) {
-    return phenom_thread_self_slow();
+    return ph_thread_self_slow();
   }
 #ifdef HAVE___THREAD
   if (unlikely(!me->is_init)) {
-    return phenom_thread_self_slow();
+    return ph_thread_self_slow();
   }
 #endif
   return me;
@@ -106,10 +106,10 @@ static inline phenom_thread_t *phenom_thread_self(void)
  * Used for debugging.  Phenom will set this up
  * when initializing thread pools, you probably don't
  * need to call it */
-void phenom_thread_set_name(const char *name);
+void ph_thread_set_name(const char *name);
 
 /* Set the affinity of a thread */
-bool phenom_thread_set_affinity(phenom_thread_t *thr, int affinity);
+bool ph_thread_set_affinity(ph_thread_t *thr, int affinity);
 
 #ifdef __cplusplus
 }

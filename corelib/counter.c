@@ -37,11 +37,11 @@
  * time may be negative even though the total is positive.
  */
 
-struct phenom_counter_block {
+struct ph_counter_block {
   /* must be first in the struct so that we can cast the return
    * value from ck_hs_get() */
   uint32_t scope_id;
-  phenom_refcnt_t refcnt;
+  ph_refcnt_t refcnt;
   ck_sequence_t seqlock;
 
   /* variable size array; the remainder of this struct
@@ -49,8 +49,8 @@ struct phenom_counter_block {
   int64_t slots[1];
 };
 
-struct phenom_counter_scope {
-  phenom_refcnt_t refcnt;
+struct ph_counter_scope {
+  ph_refcnt_t refcnt;
   uint32_t scope_id;
   unsigned long hash;
 
@@ -67,17 +67,17 @@ struct phenom_counter_scope {
 /* Each thread maintains an instance of counter head.
  * It tracks the thread local counter_block structures
  */
-struct phenom_counter_head {
+struct ph_counter_head {
   /* linkage so that a stat reader can find all blocks */
   ck_stack_entry_t stack_entry;
   /* maps counter_id to a block instance in this thread */
   ck_hs_t ht;
 };
 
-/* This defines a function called phenom_counter_head_from_stack_entry
- * that maps a ck_stack_entry_t to a phenom_counter_head */
-CK_STACK_CONTAINER(struct phenom_counter_head,
-    stack_entry, phenom_counter_head_from_stack_entry)
+/* This defines a function called ph_counter_head_from_stack_entry
+ * that maps a ck_stack_entry_t to a ph_counter_head */
+CK_STACK_CONTAINER(struct ph_counter_head,
+    stack_entry, ph_counter_head_from_stack_entry)
 
 /** map of fully qualified name to scope.
  * The CK hash set is single producer, multi-consumer,
@@ -90,16 +90,16 @@ static ck_spinlock_t scope_map_lock = CK_SPINLOCK_INITIALIZER;
 static pthread_key_t tls_key;
 static pthread_once_t done_tls_init = PTHREAD_ONCE_INIT;
 #ifdef HAVE___THREAD
-static __thread struct phenom_counter_head *myhead = NULL;
+static __thread struct ph_counter_head *myhead = NULL;
 #endif
 static ck_stack_t all_heads = CK_STACK_INITIALIZER;
 
 /** atomic scope identifier */
 static uint32_t next_scope_id = 0;
 
-static void phenom_counter_tls_dtor(void *ptr)
+static void ph_counter_tls_dtor(void *ptr)
 {
-  struct phenom_counter_head *head = ptr;
+  struct ph_counter_head *head = ptr;
 
   unused_parameter(head);
 
@@ -125,17 +125,17 @@ static struct ck_malloc ht_allocator = {
 };
 
 
-static void phenom_counter_init(void)
+static void ph_counter_init(void)
 {
-  pthread_key_create(&tls_key, phenom_counter_tls_dtor);
+  pthread_key_create(&tls_key, ph_counter_tls_dtor);
 
-  if (sizeof(struct phenom_counter_scope_iterator) !=
+  if (sizeof(struct ph_counter_scope_iterator) !=
       sizeof(struct ck_ht_iterator)) {
     /* ideally, we'd let the compiler catch this, but we
-     * don't want to pollute phenom_counter.h with the CK
+     * don't want to pollute ph_counter.h with the CK
      * functions, because C++ compilers hate it.
      * If you're seeing this abort trigger, you need to
-     * update struct phenom_counter_scope_iterator to
+     * update struct ph_counter_scope_iterator to
      * have the same size as struct ck_ht_iterator */
     abort();
   }
@@ -168,14 +168,14 @@ static bool is_valid_name(const char *name)
   return true;
 }
 
-uint8_t phenom_counter_scope_get_num_slots(
-    phenom_counter_scope_t *scope)
+uint8_t ph_counter_scope_get_num_slots(
+    ph_counter_scope_t *scope)
 {
   return scope->num_slots;
 }
 
-const char *phenom_counter_scope_get_name(
-    phenom_counter_scope_t *scope)
+const char *ph_counter_scope_get_name(
+    ph_counter_scope_t *scope)
 {
   return scope->full_scope_name;
 }
@@ -195,12 +195,12 @@ static unsigned long scope_id_hash(const void *key,
   return 1 + *(uint32_t*)key;
 }
 
-phenom_counter_scope_t *phenom_counter_scope_define(
-    phenom_counter_scope_t *parent,
+ph_counter_scope_t *ph_counter_scope_define(
+    ph_counter_scope_t *parent,
     const char *path,
     uint8_t max_counters)
 {
-  phenom_counter_scope_t *scope;
+  ph_counter_scope_t *scope;
   int full_name_len = 0;
   int fail = 0;
   ck_ht_hash_t hash;
@@ -210,7 +210,7 @@ phenom_counter_scope_t *phenom_counter_scope_define(
     return NULL;
   }
 
-  pthread_once(&done_tls_init, phenom_counter_init);
+  pthread_once(&done_tls_init, ph_counter_init);
 
   if (parent) {
     full_name_len = strlen(path) + 1 /* '/' */ +
@@ -267,7 +267,7 @@ phenom_counter_scope_t *phenom_counter_scope_define(
   {
     if (ck_ht_put_spmc(&scope_map, hash, &entry)) {
       // map owns a new ref
-      phenom_refcnt_add(&scope->refcnt);
+      ph_refcnt_add(&scope->refcnt);
     } else {
       // already exists
       fail = 1;
@@ -276,25 +276,25 @@ phenom_counter_scope_t *phenom_counter_scope_define(
   ck_spinlock_unlock(&scope_map_lock);
 
   if (fail) {
-    phenom_counter_scope_delref(scope);
+    ph_counter_scope_delref(scope);
     scope = NULL;
   }
 
   return scope;
 }
 
-phenom_counter_scope_t *phenom_counter_scope_resolve(
-    phenom_counter_scope_t *parent,
+ph_counter_scope_t *ph_counter_scope_resolve(
+    ph_counter_scope_t *parent,
     const char *path)
 {
   char *full_name = NULL;
   int len;
   ck_ht_hash_t hash;
   struct ck_ht_entry entry;
-  phenom_counter_scope_t *scope = NULL;
+  ph_counter_scope_t *scope = NULL;
 
   if (parent) {
-    len = phenom_asprintf(&full_name, "%s/%s",
+    len = ph_asprintf(&full_name, "%s/%s",
         parent->full_scope_name, path);
   } else {
     full_name = (char*)path;
@@ -304,11 +304,11 @@ phenom_counter_scope_t *phenom_counter_scope_resolve(
   ck_ht_entry_key_set(&entry, full_name, len);
   if (ck_ht_get_spmc(&scope_map, hash, &entry)) {
     // Got it
-    scope = (phenom_counter_scope_t*)entry.value;
+    scope = (ph_counter_scope_t*)entry.value;
     // Note: if we ever allow removing scopes from the map,
     // we will need to find a way to make adding this ref
     // race free wrt. that removal operation
-    phenom_refcnt_add(&scope->refcnt);
+    ph_refcnt_add(&scope->refcnt);
   }
 
   if (full_name != path) {
@@ -318,24 +318,24 @@ phenom_counter_scope_t *phenom_counter_scope_resolve(
   return scope;
 }
 
-void phenom_counter_scope_delref(phenom_counter_scope_t *scope)
+void ph_counter_scope_delref(ph_counter_scope_t *scope)
 {
-  if (!phenom_refcnt_del(&scope->refcnt)) {
+  if (!ph_refcnt_del(&scope->refcnt)) {
     return;
   }
 
   free(scope);
 }
 
-uint8_t phenom_counter_scope_register_counter(
-    phenom_counter_scope_t *scope,
+uint8_t ph_counter_scope_register_counter(
+    ph_counter_scope_t *scope,
     const char *name)
 {
   uint8_t slot;
 
   do {
     if (scope->next_slot >= scope->num_slots) {
-      return PHENOM_COUNTER_INVALID;
+      return PH_COUNTER_INVALID;
     }
     slot = scope->next_slot;
   } while (!ck_pr_cas_8(&scope->next_slot, slot, slot + 1));
@@ -345,8 +345,8 @@ uint8_t phenom_counter_scope_register_counter(
   return slot;
 }
 
-bool phenom_counter_scope_register_counter_block(
-    phenom_counter_scope_t *scope,
+bool ph_counter_scope_register_counter_block(
+    ph_counter_scope_t *scope,
     uint8_t num_slots,
     uint8_t first_slot,
     const char **names)
@@ -368,9 +368,9 @@ bool phenom_counter_scope_register_counter_block(
   return true;
 }
 
-static struct phenom_counter_head *init_head(void)
+static struct ph_counter_head *init_head(void)
 {
-  struct phenom_counter_head *head = calloc(1, sizeof(*head));
+  struct ph_counter_head *head = calloc(1, sizeof(*head));
 
   if (!head) {
     return NULL;
@@ -393,12 +393,12 @@ static struct phenom_counter_head *init_head(void)
   return head;
 }
 
-static phenom_counter_block_t *get_block_for_scope(
-    phenom_counter_scope_t *scope)
+static ph_counter_block_t *get_block_for_scope(
+    ph_counter_scope_t *scope)
 {
   /* locate my counter head */
-  struct phenom_counter_head *head;
-  struct phenom_counter_block *block = NULL;
+  struct ph_counter_head *head;
+  struct ph_counter_block *block = NULL;
 
 #ifdef HAVE___THREAD
   head = myhead;
@@ -438,12 +438,12 @@ static phenom_counter_block_t *get_block_for_scope(
   return block;
 }
 
-void phenom_counter_scope_add(
-    phenom_counter_scope_t *scope,
+void ph_counter_scope_add(
+    ph_counter_scope_t *scope,
     uint8_t offset,
     int64_t value)
 {
-  phenom_counter_block_t *block = get_block_for_scope(scope);
+  ph_counter_block_t *block = get_block_for_scope(scope);
 
   if (unlikely(!block)) return;
 
@@ -453,19 +453,19 @@ void phenom_counter_scope_add(
   ck_sequence_write_end(&block->seqlock);
 }
 
-phenom_counter_block_t *phenom_counter_block_open(
-    phenom_counter_scope_t *scope)
+ph_counter_block_t *ph_counter_block_open(
+    ph_counter_scope_t *scope)
 {
-  phenom_counter_block_t *block = get_block_for_scope(scope);
+  ph_counter_block_t *block = get_block_for_scope(scope);
 
   if (!block) return NULL;
 
-  phenom_refcnt_add(&block->refcnt);
+  ph_refcnt_add(&block->refcnt);
   return block;
 }
 
-void phenom_counter_block_add(
-    phenom_counter_block_t *block,
+void ph_counter_block_add(
+    ph_counter_block_t *block,
     uint8_t offset,
     int64_t value)
 {
@@ -474,8 +474,8 @@ void phenom_counter_block_add(
   ck_sequence_write_end(&block->seqlock);
 }
 
-void phenom_counter_block_bulk_add(
-    phenom_counter_block_t *block,
+void ph_counter_block_bulk_add(
+    ph_counter_block_t *block,
     uint8_t num_slots,
     const uint8_t *slots,
     const int64_t *values)
@@ -489,28 +489,28 @@ void phenom_counter_block_bulk_add(
   ck_sequence_write_end(&block->seqlock);
 }
 
-void phenom_counter_block_delref(
-    phenom_counter_block_t *block)
+void ph_counter_block_delref(
+    ph_counter_block_t *block)
 {
-  if (!phenom_refcnt_del(&block->refcnt)) {
+  if (!ph_refcnt_del(&block->refcnt)) {
     return;
   }
 
   free(block);
 }
 
-int64_t phenom_counter_scope_get(
-    phenom_counter_scope_t *scope,
+int64_t ph_counter_scope_get(
+    ph_counter_scope_t *scope,
     uint8_t offset)
 {
   int64_t res = 0, val;
   ck_stack_entry_t *stack_entry;
-  struct phenom_counter_head *head;
-  struct phenom_counter_block *block;
+  struct ph_counter_head *head;
+  struct ph_counter_block *block;
   unsigned int vers;
 
   CK_STACK_FOREACH(&all_heads, stack_entry) {
-    head = phenom_counter_head_from_stack_entry(stack_entry);
+    head = ph_counter_head_from_stack_entry(stack_entry);
     /* locate counter block */
     block = ck_hs_get(&head->ht, scope->hash, &scope->scope_id);
     if (!block) {
@@ -528,16 +528,16 @@ int64_t phenom_counter_scope_get(
   return res;
 }
 
-uint8_t phenom_counter_scope_get_view(
-    phenom_counter_scope_t *scope,
+uint8_t ph_counter_scope_get_view(
+    ph_counter_scope_t *scope,
     uint8_t num_slots,
     int64_t *slots,
     const char **names)
 {
   int i;
   ck_stack_entry_t *stack_entry;
-  struct phenom_counter_head *head;
-  struct phenom_counter_block *block;
+  struct ph_counter_head *head;
+  struct ph_counter_block *block;
   unsigned int vers;
   int64_t *local_slots;
 
@@ -552,7 +552,7 @@ uint8_t phenom_counter_scope_get_view(
   memset(slots, 0, sizeof(*slots) * num_slots);
 
   CK_STACK_FOREACH(&all_heads, stack_entry) {
-    head = phenom_counter_head_from_stack_entry(stack_entry);
+    head = ph_counter_head_from_stack_entry(stack_entry);
 
     /* locate counter block */
     block = ck_hs_get(&head->ht, scope->hash, &scope->scope_id);
@@ -577,14 +577,14 @@ uint8_t phenom_counter_scope_get_view(
   return num_slots;
 }
 
-void phenom_counter_scope_iterator_init(
-    phenom_counter_scope_iterator_t *iter)
+void ph_counter_scope_iterator_init(
+    ph_counter_scope_iterator_t *iter)
 {
   ck_ht_iterator_init((ck_ht_iterator_t*)iter);
 }
 
-phenom_counter_scope_t *phenom_counter_scope_iterator_next(
-    phenom_counter_scope_iterator_t *iter)
+ph_counter_scope_t *ph_counter_scope_iterator_next(
+    ph_counter_scope_iterator_t *iter)
 {
   ck_ht_entry_t *entry;
 
@@ -593,8 +593,8 @@ phenom_counter_scope_t *phenom_counter_scope_iterator_next(
     return NULL;
   }
 
-  phenom_counter_scope_t *scope = (phenom_counter_scope_t*)entry->value;
-  phenom_refcnt_add(&scope->refcnt);
+  ph_counter_scope_t *scope = (ph_counter_scope_t*)entry->value;
+  ph_refcnt_add(&scope->refcnt);
   return scope;
 }
 

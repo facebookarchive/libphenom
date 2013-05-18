@@ -2494,7 +2494,7 @@ retlow1:
 #endif /* NO_STRTOD_BIGCOMP */
 
  double
-phenom_strtod
+ph_strtod
 #ifdef KR_headers
   (s00, se) CONST char *s00; char **se;
 #else
@@ -3617,9 +3617,9 @@ nrv_alloc(const char *s, char **rve, int n)
 
  void
 #ifdef KR_headers
-phenom_freedtoa(s) char *s;
+ph_freedtoa(s) char *s;
 #else
-phenom_freedtoa(char *s)
+ph_freedtoa(char *s)
 #endif
 {
   Bigint *b = (Bigint *)((int *)s - 1);
@@ -3666,7 +3666,7 @@ phenom_freedtoa(char *s)
  */
 
  char *
-phenom_dtoa
+ph_dtoa
 #ifdef KR_headers
   (dd, mode, ndigits, decpt, sign, rve)
   double dd; int mode, ndigits, *decpt, *sign; char **rve;
@@ -3744,7 +3744,7 @@ phenom_dtoa
 
 #ifndef MULTIPLE_THREADS
   if (dtoa_result) {
-    phenom_freedtoa(dtoa_result);
+    ph_freedtoa(dtoa_result);
     dtoa_result = 0;
     }
 #endif

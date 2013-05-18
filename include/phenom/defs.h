@@ -152,13 +152,13 @@
 extern "C" {
 #endif
 
-typedef int64_t phenom_time_t;
+typedef int64_t ph_time_t;
 
-typedef uint32_t phenom_result_t;
-#define PHENOM_OK      0
-#define PHENOM_NOMEM   1
-#define PHENOM_BUSY    2
-#define PHENOM_ERR     3 /* programmer too lazy */
+typedef uint32_t ph_result_t;
+#define PH_OK      0
+#define PH_NOMEM   1
+#define PH_BUSY    2
+#define PH_ERR     3 /* programmer too lazy */
 
 
 #ifdef __cplusplus

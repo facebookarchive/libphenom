@@ -222,8 +222,8 @@ static const char xdigs_lower[16] = "0123456789abcdef";
 static const char xdigs_upper[16] = "0123456789ABCDEF";
 
 int
-phenom_vprintf_core(void *print_arg,
-    const struct phenom_vprintf_funcs *print_funcs,
+ph_vprintf_core(void *print_arg,
+    const struct ph_vprintf_funcs *print_funcs,
     const char *fmt0, va_list ap)
 {
   char *fmt;    /* format string */
@@ -455,7 +455,7 @@ phenom_vprintf_core(void *print_arg,
             char ebuf[128];
             int err = GETARG(int);
 
-            cp = (char*)phenom_strerror_r(err, ebuf, sizeof(ebuf));
+            cp = (char*)ph_strerror_r(err, ebuf, sizeof(ebuf));
 
             size = strlen(cp);
             fmt += 5;
@@ -473,7 +473,7 @@ phenom_vprintf_core(void *print_arg,
 
             va_copy(vcopy, *vp);
 
-            res = phenom_vprintf_core(print_arg, print_funcs,
+            res = ph_vprintf_core(print_arg, print_funcs,
                   rfmt, vcopy);
 
             va_end(vcopy);
@@ -669,10 +669,10 @@ fp_begin:
       if (prec < 0)
         prec = DEFPREC;
       if (dtoaresult)
-        phenom_freedtoa(dtoaresult);
+        ph_freedtoa(dtoaresult);
       fparg.dbl = GETARG(double);
       dtoaresult = cp =
-          phenom_dtoa(fparg.dbl, expchar ? 2 : 3, prec,
+          ph_dtoa(fparg.dbl, expchar ? 2 : 3, prec,
           &expt, &signflag, &dtoaend);
       if (dtoaresult == NULL) {
         errno = ENOMEM;
@@ -1011,7 +1011,7 @@ finish:
 #endif
 #ifdef FLOATING_POINT
   if (dtoaresult)
-    phenom_freedtoa(dtoaresult);
+    ph_freedtoa(dtoaresult);
 #endif
   if (argtable != NULL && argtable != statargtable) {
     munmap(argtable, argtablesiz);

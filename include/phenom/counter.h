@@ -40,10 +40,10 @@
 extern "C" {
 #endif
 
-struct phenom_counter_scope;
-struct phenom_counter_block;
-typedef struct phenom_counter_scope phenom_counter_scope_t;
-typedef struct phenom_counter_block phenom_counter_block_t;
+struct ph_counter_scope;
+struct ph_counter_block;
+typedef struct ph_counter_scope ph_counter_scope_t;
+typedef struct ph_counter_block ph_counter_block_t;
 
 /** Defines a new counter scope.
  *
@@ -63,11 +63,11 @@ typedef struct phenom_counter_block phenom_counter_block_t;
  *        added later.
  *
  * @return a counter scope instance.  The caller owns a reference
- * to this instance and must release it via phenom_counter_scope_delref()
+ * to this instance and must release it via ph_counter_scope_delref()
  * when it is no longer needed.
  */
-phenom_counter_scope_t *phenom_counter_scope_define(
-    phenom_counter_scope_t *parent,
+ph_counter_scope_t *ph_counter_scope_define(
+    ph_counter_scope_t *parent,
     const char *path,
     uint8_t max_counters);
 
@@ -77,10 +77,10 @@ phenom_counter_scope_t *phenom_counter_scope_define(
  * @param parent option relative counter scope. May be NULL.
  * @param path scope name to be resolved. Must not be NULL.
  * @return a counter scope instance.  The caller owns a reference
- * to this instance and must release it via phenom_counter_scope_delref().
+ * to this instance and must release it via ph_counter_scope_delref().
  */
-phenom_counter_scope_t *phenom_counter_scope_resolve(
-    phenom_counter_scope_t *parent,
+ph_counter_scope_t *ph_counter_scope_resolve(
+    ph_counter_scope_t *parent,
     const char *path);
 
 /** Release a reference to a counter scope.
@@ -90,9 +90,9 @@ phenom_counter_scope_t *phenom_counter_scope_resolve(
  * unlinked from its parent scope (not currently supported).
  * @param scope the scope to be released
  */
-void phenom_counter_scope_delref(phenom_counter_scope_t *scope);
+void ph_counter_scope_delref(ph_counter_scope_t *scope);
 
-#define PHENOM_COUNTER_INVALID 0xff
+#define PH_COUNTER_INVALID 0xff
 
 /** Registers a counter name in a counter scope.
  *
@@ -105,8 +105,8 @@ void phenom_counter_scope_delref(phenom_counter_scope_t *scope);
  *
  * If the counter cannot be registered, returns PHENOM_COUNTER_INVALID.
  */
-uint8_t phenom_counter_scope_register_counter(
-    phenom_counter_scope_t *scope,
+uint8_t ph_counter_scope_register_counter(
+    ph_counter_scope_t *scope,
     const char *name);
 
 /** Registers a block of counter names and values in a counter scope.
@@ -122,7 +122,7 @@ uint8_t phenom_counter_scope_register_counter(
  * you want to register them, you'd write something like:
 \code
 const char *names[2] = {"sent", "recvd"};
-phenom_counter_scope_register_counter_block(scope, 2, 0, names);
+ph_counter_scope_register_counter_block(scope, 2, 0, names);
 \endcode
  *
  * If the requested first_slot is not yet allocated, then it will allocate
@@ -131,8 +131,8 @@ phenom_counter_scope_register_counter_block(scope, 2, 0, names);
  *
  * If the scope doesn't have enough room for the num_slots, returns false.
  */
-bool phenom_counter_scope_register_counter_block(
-    phenom_counter_scope_t *scope,
+bool ph_counter_scope_register_counter_block(
+    ph_counter_scope_t *scope,
     uint8_t num_slots,
     uint8_t first_slot,
     const char **names
@@ -147,8 +147,8 @@ bool phenom_counter_scope_register_counter_block(
  * @param slot the counter slot offset
  * @param value the value to add to the current counter value.
  */
-void phenom_counter_scope_add(
-    phenom_counter_scope_t *scope,
+void ph_counter_scope_add(
+    ph_counter_scope_t *scope,
     uint8_t offset,
     int64_t value);
 
@@ -157,23 +157,23 @@ void phenom_counter_scope_add(
  * The handle is useful is two main situations:
  * 1. The same thread is making very frequent updates to counter
  *    values and wants to shave off the TLS overheads.
- *    See phenom_counter_block_add().
+ *    See ph_counter_block_add().
  * 2. The same thread is updating multiple counters in this scope
  *    and wants to do so as efficiently as possible.
- *    See phenom_counter_block_bulk_add().
+ *    See ph_counter_block_bulk_add().
  *
  * The returned handle is reference counted and can be released
  * from any thread, but it changing the stats within it is only
  * safe when carried out by the owning thread.
  *
- * You must call phenom_counter_block_delref() on the handle when
+ * You must call ph_counter_block_delref() on the handle when
  * it is no longer needed.
  *
  * @param scope the scope to open
  * @return a thread local counter block.
  */
-phenom_counter_block_t *phenom_counter_block_open(
-    phenom_counter_scope_t *scope);
+ph_counter_block_t *ph_counter_block_open(
+    ph_counter_scope_t *scope);
 
 /** Modify a counter value in a thread local block
  *
@@ -184,8 +184,8 @@ phenom_counter_block_t *phenom_counter_block_open(
  * @param slot the counter slot offset
  * @param value the value to add to the current counter value.
  */
-void phenom_counter_block_add(
-    phenom_counter_block_t *block,
+void ph_counter_block_add(
+    ph_counter_block_t *block,
     uint8_t offset,
     int64_t value);
 
@@ -193,8 +193,8 @@ void phenom_counter_block_add(
  *
  * @param block the block to be released.
  */
-void phenom_counter_block_delref(
-    phenom_counter_block_t *block);
+void ph_counter_block_delref(
+    ph_counter_block_t *block);
 
 /** Modify a set of counters in a block
  *
@@ -218,8 +218,8 @@ void phenom_counter_block_delref(
  * It is the callers responsibility to ensure that the offsets are
  * valid.
  */
-void phenom_counter_block_bulk_add(
-    phenom_counter_block_t *block,
+void ph_counter_block_bulk_add(
+    ph_counter_block_t *block,
     uint8_t num_slots,
     const uint8_t *slots,
     const int64_t *values);
@@ -234,8 +234,8 @@ void phenom_counter_block_bulk_add(
  * @param scope the containing scope
  * @param slot the counter slot offset
  */
-int64_t phenom_counter_scope_get(
-    phenom_counter_scope_t *scope,
+int64_t ph_counter_scope_get(
+    ph_counter_scope_t *scope,
     uint8_t offset);
 
 /** Returns a consistent view on the counters in a scope.
@@ -258,8 +258,8 @@ int64_t phenom_counter_scope_get(
  * @param slots an array of size num_slots to hold the values
  * @param names an optional array to receive the counter names
  */
-uint8_t phenom_counter_scope_get_view(
-    phenom_counter_scope_t *scope,
+uint8_t ph_counter_scope_get_view(
+    ph_counter_scope_t *scope,
     uint8_t num_slots,
     int64_t *slots,
     const char **names);
@@ -271,8 +271,8 @@ uint8_t phenom_counter_scope_get_view(
  * The returned string is only valid while the scope reference is
  * maintained; once you delref, the name pointer value is undefined.
  */
-const char *phenom_counter_scope_get_name(
-    phenom_counter_scope_t *scope);
+const char *ph_counter_scope_get_name(
+    ph_counter_scope_t *scope);
 
 /** Returns the number of allocated slots in a scope.
  *
@@ -283,21 +283,21 @@ const char *phenom_counter_scope_get_name(
  * @param scope the scope being inspected
  * @return the number of allocated slots
  */
-uint8_t phenom_counter_scope_get_num_slots(
-    phenom_counter_scope_t *scope);
+uint8_t ph_counter_scope_get_num_slots(
+    ph_counter_scope_t *scope);
 
 /** an iterator for scopes */
-struct phenom_counter_scope_iterator {
+struct ph_counter_scope_iterator {
   void *ptr;
   uint64_t offset;
 };
-typedef struct phenom_counter_scope_iterator phenom_counter_scope_iterator_t;
+typedef struct ph_counter_scope_iterator ph_counter_scope_iterator_t;
 
 /** Initialize a scope iterator.
  * @param iter the iterator to be initialized
  */
-void phenom_counter_scope_iterator_init(
-    phenom_counter_scope_iterator_t *iter);
+void ph_counter_scope_iterator_init(
+    ph_counter_scope_iterator_t *iter);
 
 /** iterate scopes
  * @param iter the iterator
@@ -309,15 +309,15 @@ void phenom_counter_scope_iterator_init(
  *
  * Iteration order is undefined.
  *
- * The caller is responsible for calling phenom_counter_scope_delref()
+ * The caller is responsible for calling ph_counter_scope_delref()
  * on the returned scope.
  *
  * If you wish to halt iteration early, simply break out of your loop.
  * The iterator does not hold any resources and does not need to be
  * destroyed.
  */
-phenom_counter_scope_t *phenom_counter_scope_iterator_next(
-    phenom_counter_scope_iterator_t *iter);
+ph_counter_scope_t *ph_counter_scope_iterator_next(
+    ph_counter_scope_iterator_t *iter);
 
 
 #ifdef __cplusplus

@@ -48,12 +48,12 @@ extern "C" {
 #endif
 
 PH_LIST_HEAD(
-    phenom_timerwheel_list,
-    phenom_timerwheel_timer);
+    ph_timerwheel_list,
+    ph_timerwheel_timer);
 
-struct phenom_timerwheel_timer {
-  PH_LIST_ENTRY(phenom_timerwheel_timer) t;
-  phenom_time_t due;
+struct ph_timerwheel_timer {
+  PH_LIST_ENTRY(ph_timerwheel_timer) t;
+  ph_time_t due;
   uint32_t generation, wheel_gen;
 };
 
@@ -61,47 +61,47 @@ struct phenom_timerwheel_timer {
 #define PHENOM_WHEEL_SIZE (1 << PHENOM_WHEEL_BITS)
 #define PHENOM_WHEEL_MASK (PHENOM_WHEEL_SIZE - 1)
 
-struct phenom_timerwheel {
+struct ph_timerwheel {
   int64_t next_run;
   uint32_t tick_resolution;
   ck_spinlock_t lock;
   struct {
-    struct phenom_timerwheel_list lists[PHENOM_WHEEL_SIZE];
+    struct ph_timerwheel_list lists[PHENOM_WHEEL_SIZE];
   } buckets[4];
 };
 
-typedef struct phenom_timerwheel phenom_timerwheel_t;
+typedef struct ph_timerwheel ph_timerwheel_t;
 
 /** Initialize a timerwheel
  * tick_resolution specifies how many milliseconds comprise a tick.
  */
-phenom_result_t phenom_timerwheel_init(
-    phenom_timerwheel_t *wheel,
-    phenom_time_t now,
+ph_result_t ph_timerwheel_init(
+    ph_timerwheel_t *wheel,
+    ph_time_t now,
     uint32_t tick_resolution);
 
 /** Insert an element into the timerweel */
-phenom_result_t phenom_timerwheel_insert(
-    phenom_timerwheel_t *wheel,
-    struct phenom_timerwheel_timer *timer);
+ph_result_t ph_timerwheel_insert(
+    ph_timerwheel_t *wheel,
+    struct ph_timerwheel_timer *timer);
 
-phenom_result_t phenom_timerwheel_insert_unlocked(
-    phenom_timerwheel_t *wheel,
-    struct phenom_timerwheel_timer *timer);
+ph_result_t ph_timerwheel_insert_unlocked(
+    ph_timerwheel_t *wheel,
+    struct ph_timerwheel_timer *timer);
 
 /** Remove an element from the timerwheel */
-phenom_result_t phenom_timerwheel_remove(
-    phenom_timerwheel_t *wheel,
-    struct phenom_timerwheel_timer *timer);
+ph_result_t ph_timerwheel_remove(
+    ph_timerwheel_t *wheel,
+    struct ph_timerwheel_timer *timer);
 
-phenom_result_t phenom_timerwheel_remove_unlocked(
-    phenom_timerwheel_t *wheel,
-    struct phenom_timerwheel_timer *timer);
+ph_result_t ph_timerwheel_remove_unlocked(
+    ph_timerwheel_t *wheel,
+    struct ph_timerwheel_timer *timer);
 
-typedef void (*phenom_timerwheel_dispatch_func_t)(
-    phenom_timerwheel_t *wheel,
-    struct phenom_timerwheel_timer *timer,
-    phenom_time_t now,
+typedef void (*ph_timerwheel_dispatch_func_t)(
+    ph_timerwheel_t *wheel,
+    struct ph_timerwheel_timer *timer,
+    ph_time_t now,
     void *arg);
 
 /** Tick and dispatch any due timer(s).
@@ -116,14 +116,14 @@ typedef void (*phenom_timerwheel_dispatch_func_t)(
  *
  * Returns the number of timers that were dispatched.
  */
-uint32_t phenom_timerwheel_tick(
-    phenom_timerwheel_t *wheel,
-    phenom_time_t now,
-    phenom_timerwheel_dispatch_func_t dispatch,
+uint32_t ph_timerwheel_tick(
+    ph_timerwheel_t *wheel,
+    ph_time_t now,
+    ph_timerwheel_dispatch_func_t dispatch,
     void *arg);
 
-bool phenom_timerwheel_timer_was_modified(
-    struct phenom_timerwheel_timer *timer);
+bool ph_timerwheel_timer_was_modified(
+    struct ph_timerwheel_timer *timer);
 
 #ifdef __cplusplus
 }

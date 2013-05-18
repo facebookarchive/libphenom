@@ -30,14 +30,14 @@ extern "C" {
 #define PH_LOG_INFO     6
 #define PH_LOG_DEBUG    7
 
-uint8_t phenom_log_level_set(uint8_t level);
-uint8_t phenom_log_level_get(void);
+uint8_t ph_log_level_set(uint8_t level);
+uint8_t ph_log_level_get(void);
 
-void phenom_log(uint8_t level, const char *fmt, ...);
-void phenom_logv(uint8_t level, const char *fmt, va_list ap);
+void ph_log(uint8_t level, const char *fmt, ...);
+void ph_logv(uint8_t level, const char *fmt, va_list ap);
 
 /** Log a PH_LOG_PANIC level message, then abort() */
-void phenom_panic(const char *fmt, ...)
+void ph_panic(const char *fmt, ...)
 #ifdef __GNUC__
   __attribute__((noreturn))
 #endif

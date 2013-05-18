@@ -16,7 +16,7 @@
 
 #include "phenom/sysutil.h"
 
-phenom_result_t phenom_pipe(phenom_socket_t fds[2], int flags)
+ph_result_t ph_pipe(ph_socket_t fds[2], int flags)
 {
 #ifdef HAVE_PIPE2
   int pflags = 0;
@@ -46,8 +46,8 @@ phenom_result_t phenom_pipe(phenom_socket_t fds[2], int flags)
     fcntl(fds[1], F_SETFD, FD_CLOEXEC);
   }
   if (flags & PH_PIPE_NONBLOCK) {
-    phenom_socket_set_nonblock(fds[0], true);
-    phenom_socket_set_nonblock(fds[1], true);
+    ph_socket_set_nonblock(fds[0], true);
+    ph_socket_set_nonblock(fds[1], true);
   }
 
   return 0;
