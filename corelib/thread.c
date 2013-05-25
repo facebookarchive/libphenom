@@ -32,7 +32,7 @@
 __thread ph_thread_t __ph_thread_self;
 #else
 static ph_memtype_def_t mt_def = {
-  "thread", "thread", sizeof(ph_thread_t), PHENOM_MEM_FLAGS_ZERO
+  "thread", "thread", sizeof(ph_thread_t), PH_MEM_FLAGS_ZERO
 };
 static ph_memtype_t mt_thread;
 #endif
@@ -55,7 +55,7 @@ bool ph_thread_init(void)
 
 #ifndef HAVE___THREAD
   mt_thread = ph_memtype_register(&mt_def);
-  if (mt_thread == PHENOM_MEMTYPE_INVALID) {
+  if (mt_thread == PH_MEMTYPE_INVALID) {
     return false;
   }
 #endif
