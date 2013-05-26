@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Facebook, Inc.
+ * Copyright 2012-2013 Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -33,12 +33,17 @@ extern "C" {
 uint8_t ph_log_level_set(uint8_t level);
 uint8_t ph_log_level_get(void);
 
-void ph_log(uint8_t level, const char *fmt, ...);
+void ph_log(uint8_t level, const char *fmt, ...)
+#ifdef __GNUC__
+  __attribute__((format(printf, 2, 3)))
+#endif
+  ;
 void ph_logv(uint8_t level, const char *fmt, va_list ap);
 
 /** Log a PH_LOG_PANIC level message, then abort() */
 void ph_panic(const char *fmt, ...)
 #ifdef __GNUC__
+  __attribute__((format(printf, 1, 2)))
   __attribute__((noreturn))
 #endif
   ;

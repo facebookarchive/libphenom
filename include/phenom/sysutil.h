@@ -112,11 +112,17 @@ const char *ph_strerror_r(int errval, char *buf, size_t len);
  *            strerror_r() when present, where arg is an errno
  *            argument supplied by you.
  *  `Pv%s%p - recursively expands a format string and a va_list.
- *            Arguments are a char* and va_list*
+ *            Arguments are a char* and ph_vaptr(va_list)
  */
 int ph_vprintf_core(void *print_arg,
     const struct ph_vprintf_funcs *print_funcs,
     const char *fmt0, va_list ap);
+
+#ifdef __sun__
+# define ph_vaptr(ap)    (void*)ap
+#else
+# define ph_vaptr(ap)    (void*)&ap
+#endif
 
 /** Like vsnprintf(), except that it uses ph_vprintf_core() */
 int ph_vsnprintf(char *buf, size_t size, const char *fmt, va_list ap);

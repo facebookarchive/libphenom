@@ -24,7 +24,7 @@ static int test_va_list(char *buf, size_t len, const char *fmt, ...)
 
   va_start(ap, fmt);
   ret = ph_snprintf(buf, len, "prefix: %s `Pv%s%p suffix: %s",
-          "PREFIX", fmt, (void*)&ap, "SUFFIX");
+          "PREFIX", fmt, ph_vaptr(ap), "SUFFIX");
   va_end(ap);
   return ret;
 }

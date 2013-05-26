@@ -597,7 +597,7 @@ ph_result_t ph_work_destroy(
     ph_panic(
         "ph_work_destroy: unable to disable triggers for item %p, "
         "is it still owned and active?",
-        item);
+        (void*)item);
   }
 
   // FIXME: tear down ck_fifo_mpmc
@@ -605,7 +605,7 @@ ph_result_t ph_work_destroy(
     ph_panic(
         "ph_work_destroy: trigger fifo is not empty for item %p, "
         "is it still active?",
-        item);
+        (void*)item);
   }
 
   return PH_OK;
@@ -827,6 +827,7 @@ ph_result_t ph_sched_init(uint32_t sched_cores, uint32_t fd_hint)
     struct sigevent sev;
     port_notify_t notify;
     struct itimerspec ts;
+    struct timespec res;
 
     port_fd = port_create();
     if (port_fd == -1) {
@@ -835,6 +836,10 @@ ph_result_t ph_sched_init(uint32_t sched_cores, uint32_t fd_hint)
 
     memset(&sev, 0, sizeof(sev));
     memset(&notify, 0, sizeof(notify));
+    memset(&ts, 0, sizeof(ts));
+
+    ts.it_interval.tv_nsec = WHEEL_INTERVAL_MS * 1000000;
+    ts.it_value.tv_nsec = ts.it_interval.tv_nsec;
 
     notify.portnfy_port = port_fd;
     sev.sigev_notify = SIGEV_PORT;
@@ -843,10 +848,15 @@ ph_result_t ph_sched_init(uint32_t sched_cores, uint32_t fd_hint)
     if (timer_create(CLOCK_REALTIME, &sev, &port_timer)) {
       ph_panic("failed to create timer: `Pe%d", errno);
     }
+    clock_getres(CLOCK_REALTIME, &res);
+    if (res.tv_nsec > ts.it_interval.tv_nsec) {
+      ph_panic(
+        "clock resolution (%dns) is less than the %dns we require",
+        (int)res.tv_nsec,
+        (int)ts.it_interval.tv_nsec
+      );
+    }
 
-    memset(&ts, 0, sizeof(ts));
-    ts.it_interval.tv_nsec = WHEEL_INTERVAL_MS * 1000000;
-    ts.it_value.tv_nsec = ts.it_interval.tv_nsec;
     if (timer_settime(port_timer, 0, &ts, NULL)) {
       ph_panic("failed to set timer: `Pe%d", errno);
     }

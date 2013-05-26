@@ -42,7 +42,7 @@ void ph_logv(uint8_t level, const char *fmt, va_list ap)
 
   ph_fdprintf(STDERR_FILENO,
       "%" PRIi64 " %u: `Pv%s%p\n",
-      ph_time_now(), level, fmt, (void*)&ap);
+      ph_time_now(), level, fmt, ph_vaptr(ap));
 }
 
 void ph_log(uint8_t level, const char *fmt, ...)

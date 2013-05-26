@@ -112,7 +112,10 @@ class PhenomUnitEngine extends ArcanistBaseUnitTestEngine {
     }
 
     $results = array();
-    foreach (Futures($futures)->limit(4) as $test => $future) {
+    // Use a smaller limit for SunOS because my test VM has crappy
+    // timing characteristics and that causes timer.t to fail
+    $limit = PHP_OS == 'SunOS' ? 1 : 4;
+    foreach (Futures($futures)->limit($limit) as $test => $future) {
       list($err, $stdout, $stderr) = $future->resolve();
 
       $results[$test] = $this->parseTestResults(
