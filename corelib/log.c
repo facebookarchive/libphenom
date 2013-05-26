@@ -54,6 +54,29 @@ void ph_log(uint8_t level, const char *fmt, ...)
   va_end(ap);
 }
 
+#if defined(HAVE_BACKTRACE) && defined(HAVE_BACKTRACE_SYMBOLS)
+# include <execinfo.h>
+#endif
+
+ void ph_log_stacktrace(uint8_t level)
+{
+#if defined(HAVE_BACKTRACE) && defined(HAVE_BACKTRACE_SYMBOLS)
+  void *array[24];
+  size_t size;
+  char **strings;
+  size_t i;
+
+  size = backtrace(array, sizeof(array)/sizeof(array[0]));
+  strings = backtrace_symbols(array, size);
+
+  for (i = 0; i < size; i++) {
+    ph_log(level, "%s", strings[i]);
+  }
+
+  free(strings);
+#endif
+}
+
 void ph_panic(const char *fmt, ...)
 {
   va_list ap;
@@ -62,6 +85,8 @@ void ph_panic(const char *fmt, ...)
   ph_logv(PH_LOG_PANIC, fmt, ap);
   va_end(ap);
 
+  ph_log(PH_LOG_PANIC, "Fatal error detected at:");
+  ph_log_stacktrace(PH_LOG_PANIC);
   abort();
 }
 

@@ -48,6 +48,13 @@ void ph_panic(const char *fmt, ...)
 #endif
   ;
 
+/** Logs the current call stack at the specified log level.
+ * This may block or trigger IO while symbols are loaded.
+ * It is intended to be used in last-resort or debug situations,
+ * and not in the hot-path.
+ * It may be a NOP on some systems.
+ */
+void ph_log_stacktrace(uint8_t level);
 
 #ifdef __cplusplus
 }

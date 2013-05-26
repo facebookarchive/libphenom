@@ -101,6 +101,9 @@ AC_CHECK_HEADERS([pthread_np.h],[],[],[[
 
 AC_CHECK_FUNCS(\
 asprintf \
+backtrace \
+backtrace_symbols \
+backtrace_symbols_fd \
 clock_gettime \
 cpuset_setaffinity \
 epoll_create \
