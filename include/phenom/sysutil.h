@@ -24,6 +24,13 @@
 extern "C" {
 #endif
 
+#ifndef MIN
+# define MIN(a, b) ((a) < (b) ? (a) : (b))
+#endif
+#ifndef MAX
+# define MAX(a, b) ((a) > (b) ? (a) : (b))
+#endif
+
 typedef int ph_socket_t;
 void ph_socket_set_nonblock(ph_socket_t fd, bool enable);
 
@@ -58,6 +65,24 @@ static inline uint32_t ph_power_2(uint32_t n)
   n |= (n >> 1);
   return n + 1;
 }
+
+/** Generate a unique temporary file name and open it.
+ * nametemplate must be of the form /path/to/fileXXXXXX.  The
+ * 'X' characters will be replaced by randomized characters.
+ * flags is passed to the underlying open(2) call
+ * Returns the opened file descriptor, or -1 on error
+ */
+int ph_mkostemp(char *nametemplate, int flags);
+
+/** Generate a unique temporary name with a suffix and open it.
+ * nametemplate must not be NULL; it must be of the form
+ * /path/to/fileXXXXXsuffix.  The 'X' characters will be replaced
+ * by randomized characters.  suffixlen identifies the length of
+ * the filename suffix.
+ * flags is passed ot the underlying open(2) call.
+ * Returns the opened file descriptor, or -1 on error
+ */
+int ph_mkostemps(char *nametemplate, int suffixlen, int flags);
 
 struct ph_vprintf_funcs {
   bool (*print)(void *arg, const char *buf, size_t len);

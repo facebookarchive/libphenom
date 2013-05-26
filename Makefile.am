@@ -30,6 +30,11 @@ libphenom_a_SOURCES = \
 	corelib/thread.c \
 	corelib/timerwheel.c \
 	corelib/vprintf.c \
+	corelib/streams/make.c \
+	corelib/streams/read.c \
+	corelib/streams/write.c \
+	corelib/streams/fd.c \
+	corelib/streams/temp.c \
 	$(ck_SOURCES)
 
 # some automakes put include/phenom in here, which causes conflicts
@@ -43,7 +48,7 @@ libtap_a_SOURCES = thirdparty/tap/tap.c
 TEST_CPPFLAGS = -Ithirdparty/tap -Ithirdparty/ck/include -Iinclude -DPHENOM_IMPL
 TEST_LDADD = libphenom.a libtap.a
 TESTS = tests/counter.t tests/memory.t tests/timer.t tests/printf.t \
-				tests/iobasic.t
+				tests/iobasic.t tests/stream.t
 noinst_PROGRAMS = $(TESTS)
 
 # generate a rule that we can use to ensure that
@@ -66,4 +71,6 @@ tests_printf_t_LDADD = $(TEST_LDADD)
 tests_iobasic_t_CPPFLAGS = $(TEST_CPPFLAGS)
 tests_iobasic_t_LDADD = $(TEST_LDADD)
 
+tests_stream_t_CPPFLAGS = $(TEST_CPPFLAGS)
+tests_stream_t_LDADD = $(TEST_LDADD)
 

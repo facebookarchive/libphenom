@@ -18,6 +18,11 @@ case "$target_cpu" in
     ;;
 esac
 
+dnl We always want large file support in our implementation.
+dnl The functions we provide explicitly use 64-bit types and
+dnl thus we do not force this requirement on our clients
+CFLAGS="$CFLAGS -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64"
+
 AM_INIT_AUTOMAKE([dist-bzip2 subdir-objects])
 
 AC_PROG_CC
@@ -46,6 +51,7 @@ AC_ARG_ENABLE(stack-protector, [
 
 AC_SEARCH_LIBS([pthread_create], [pthread])
 AC_SEARCH_LIBS([socket], [socket])
+AC_SEARCH_LIBS([clock_gettime], [rt])
 
 have_thread=no
 AC_TRY_COMPILE([__thread int tls;],[tls;],
@@ -95,6 +101,7 @@ AC_CHECK_HEADERS([pthread_np.h],[],[],[[
 
 AC_CHECK_FUNCS(\
 asprintf \
+clock_gettime \
 cpuset_setaffinity \
 epoll_create \
 getpagesize \

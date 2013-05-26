@@ -40,9 +40,6 @@ class PhenomLintEngine extends ArcanistLintEngine {
     $nolint_linter = new ArcanistNoLintLinter();
     $linters[] = $nolint_linter;
 
-    $apache_license_linter = new PhenomLicenseLinter();
-    $linters[] = $apache_license_linter;
-
     $text_linter = new ArcanistTextLinter();
     $text_linter->setCustomSeverityMap(array(
       ArcanistTextLinter::LINT_LINE_WRAP
@@ -65,10 +62,6 @@ class PhenomLintEngine extends ArcanistLintEngine {
 
         $spelling_linter->addPath($path);
         $spelling_linter->addData($path, $this->loadData($path));
-      }
-      if (preg_match('/\.(c|h|php)$/', $path)) {
-        $apache_license_linter->addPath($path);
-        $apache_license_linter->addData($path, $this->loadData($path));
       }
     }
 

@@ -95,6 +95,7 @@
 #include <errno.h>
 #include <signal.h>
 #include <fcntl.h>
+#include <limits.h>
 
 #ifdef HAVE_SYS_CPUSET_H
 # include <sys/cpuset.h>
@@ -118,11 +119,15 @@
 # include <sys/poll.h>
 #endif
 
+#include <sys/uio.h>
+
 #if defined(__APPLE__)
 /* for thread affinity */
 #include <mach/thread_policy.h>
 #include <mach/mach_init.h>
 #include <mach/thread_act.h>
+/* clock */
+#include <mach/mach_time.h>
 #endif
 
 #if defined(PHENOM_IMPL)
