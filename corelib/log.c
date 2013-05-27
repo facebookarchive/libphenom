@@ -16,7 +16,7 @@
 
 #include "phenom/defs.h"
 #include "phenom/log.h"
-#include "phenom/work.h"
+#include "phenom/sysutil.h"
 
 static uint8_t log_level = PH_LOG_ERR;
 

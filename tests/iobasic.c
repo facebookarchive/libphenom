@@ -14,12 +14,12 @@
  * limitations under the License.
  */
 
-#include "phenom/work.h"
+#include "phenom/job.h"
 #include "phenom/thread.h"
 #include "phenom/sysutil.h"
 #include "tap.h"
 
-static ph_work_item_t pipe_work;
+static ph_job_t pipe_job;
 static int pipe_fd[2];
 static ph_time_t start_time;
 static int ticks = 0;
@@ -47,15 +47,14 @@ static bool ping_pipe_in(ph_time_t delay)
   return thr != NULL;
 }
 
-static void pipe_dispatch(ph_work_item_t *work, uint32_t trigger,
-    ph_time_t now, void *workdata, intptr_t triggerdata)
+static void pipe_dispatch(ph_job_t *job, ph_iomask_t why,
+    ph_time_t now, void *data)
 {
   char buf;
   ph_time_t diff;
 
-  unused_parameter(triggerdata);
-  unused_parameter(workdata);
-  unused_parameter(trigger);
+  unused_parameter(why);
+  unused_parameter(data);
 
   diff = now - start_time;
   ok(diff >= 80 && diff <= 120, "time diff is %" PRIi64, diff);
@@ -64,7 +63,7 @@ static void pipe_dispatch(ph_work_item_t *work, uint32_t trigger,
 
   if (ticks++ < 3) {
     ping_pipe_in(100);
-    ph_work_io_event_mask_set(work, pipe_fd[0], PH_IO_MASK_READ);
+    ph_job_set_nbio(job, PH_IOMASK_READ, 0);
   } else {
     ph_sched_stop();
   }
@@ -77,13 +76,12 @@ int main(int argc, char **argv)
 
   plan_tests(13);
 
-  is(PH_OK, ph_sched_init(0, 0));
-  is(PH_OK, ph_work_init(&pipe_work));
-  pipe_work.callback = pipe_dispatch;
+  is(PH_OK, ph_nbio_init(0));
+  is(PH_OK, ph_job_init(&pipe_job));
+  pipe_job.callback = pipe_dispatch;
   is(0, ph_pipe(pipe_fd, PH_PIPE_NONBLOCK));
-  ph_work_io_event_mask_set(&pipe_work,
-      pipe_fd[0], PH_IO_MASK_READ);
-  ph_work_trigger_enable(&pipe_work);
+  pipe_job.fd = pipe_fd[0];
+  ph_job_set_nbio(&pipe_job, PH_IOMASK_READ, 0);
 
   ok(ping_pipe_in(100), "set up ping");
 

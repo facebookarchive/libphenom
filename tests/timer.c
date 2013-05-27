@@ -14,22 +14,20 @@
  * limitations under the License.
  */
 
-#include "phenom/work.h"
+#include "phenom/job.h"
 #include "phenom/log.h"
 #include "tap.h"
 
 static int ticks = 0;
 static ph_time_t last_tick;
 
-static void record_tick(ph_work_item_t *work, uint32_t trigger,
-    ph_time_t now, void *workdata, intptr_t triggerdata)
+static void record_tick(ph_job_t *job, ph_iomask_t why,
+    ph_time_t now, void *data)
 {
   ph_time_t diff;
 
-  unused_parameter(work);
-  unused_parameter(trigger);
-  unused_parameter(triggerdata);
-  unused_parameter(workdata);
+  unused_parameter(why);
+  unused_parameter(data);
 
   // ~100ms resolution
   diff = now - last_tick;
@@ -37,7 +35,7 @@ static void record_tick(ph_work_item_t *work, uint32_t trigger,
   last_tick = now;
 
   if (ticks++ < 3) {
-    ph_work_timeout_at(work, now + 1);
+    ph_job_set_timer_in(job, 1);
   } else {
     // Stop the scheduler now
     ph_sched_stop();
@@ -46,20 +44,19 @@ static void record_tick(ph_work_item_t *work, uint32_t trigger,
 
 int main(int argc, char **argv)
 {
-  ph_work_item_t timer;
+  ph_job_t timer;
   unused_parameter(argc);
   unused_parameter(argv);
 
-  plan_tests(10);
+  plan_tests(9);
 
-  is(PH_OK, ph_sched_init(0, 0));
-  is(PH_OK, ph_work_init(&timer));
+  is(PH_OK, ph_nbio_init(0));
+  is(PH_OK, ph_job_init(&timer));
   is_true(ph_time_now() != 0);
 
   timer.callback = record_tick;
   last_tick = ph_time_now();
-  is(PH_OK, ph_work_timeout_at(&timer, last_tick));
-  is(PH_OK, ph_work_trigger_enable(&timer));
+  is(PH_OK, ph_job_set_timer_at(&timer, last_tick));
 
   is(PH_OK, ph_sched_run());
 

@@ -20,48 +20,28 @@
 #include "phenom/defs.h"
 #include "phenom/queue.h"
 #include "phenom/memory.h"
-#include "ck_fifo.h"
-#include "ck_epoch.h"
+#include "phenom/queue.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 struct ph_thread;
-struct ph_work_item;
+struct ph_job;
 
 typedef struct ph_thread ph_thread_t;
-typedef struct ph_work_item ph_work_item_t;
-
-struct ph_thread_trigger {
-  ck_fifo_mpmc_entry_t entry;
-  ck_epoch_entry_t epoch;
-  ph_work_item_t *work;
-};
-
-struct ph_work_trigger {
-  ck_fifo_mpmc_entry_t entry;
-  ck_epoch_entry_t epoch;
-  uint32_t trigger;
-  uintptr_t triggerdata;
-};
-
-extern ck_epoch_t __ph_trigger_epoch;
-extern ph_memtype_t __ph_sched_mt_thread_trigger;
 
 struct ph_thread {
   bool is_init;
-
-  // queue of ph_thread_trigger
-  ck_fifo_mpmc_t triggers;
-
-  // for safe reclamation of trigger structs
-  ck_epoch_record_t *trigger_record;
+  bool is_worker;
 
   ph_time_t now;
 
   // OS level representation
   pthread_t thr;
+
+  PH_LIST_HEAD(pdisp, ph_job) pending_dispatch;
+
 #ifdef __sun__
   id_t lwpid;
 #endif

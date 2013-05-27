@@ -26,7 +26,7 @@ libphenom_a_SOURCES = \
 	corelib/pingfd.c \
 	corelib/pipe2.c \
 	corelib/pprintf.c \
-	corelib/sched.c \
+	corelib/nbio.c \
 	corelib/thread.c \
 	corelib/timerwheel.c \
 	corelib/vprintf.c \

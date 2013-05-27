@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include "phenom/work.h"
+#include "phenom/job.h"
 #include "phenom/log.h"
 #ifdef __sun__
 # include <sys/lwp.h>
@@ -42,10 +42,10 @@ static void destroy_thread(void *ptr)
 {
   ph_thread_t *thr = ptr;
 
-  ck_epoch_unregister(&__ph_trigger_epoch, thr->trigger_record);
-
 #ifndef HAVE___THREAD
   ph_mem_free(mt_thread, thr);
+#else
+  unused_parameter(thr);
 #endif
 }
 
@@ -70,17 +70,7 @@ static void init_thread(ph_thread_t *thr)
   thr->is_init = true;
 #endif
 
-  thr->trigger_record = ck_epoch_recycle(&__ph_trigger_epoch);
-  if (!thr->trigger_record) {
-    /* trigger records are never freed, but they can be recycled */
-    thr->trigger_record = malloc(sizeof(*thr->trigger_record));
-    if (!thr) {
-      ph_panic("fatal OOM in init_thread");
-    }
-    ck_epoch_register(&__ph_trigger_epoch, thr->trigger_record);
-  }
-  ck_fifo_mpmc_init(&thr->triggers,
-      ph_mem_alloc(__ph_sched_mt_thread_trigger));
+  PH_LIST_INIT(&thr->pending_dispatch);
 
   thr->thr = pthread_self();
 #ifdef __sun__

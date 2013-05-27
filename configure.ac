@@ -107,6 +107,7 @@ backtrace_symbols_fd \
 clock_gettime \
 cpuset_setaffinity \
 epoll_create \
+epoll_create1 \
 getpagesize \
 inotify_init \
 kqueue \

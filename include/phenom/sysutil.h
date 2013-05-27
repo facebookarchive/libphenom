@@ -56,6 +56,8 @@ char *ph_dtoa(double _d, int mode, int ndigits,
     int *decpt, int *sign, char **rve);
 double ph_strtod(const char *s00, const char **se);
 
+ph_time_t ph_time_now(void);
+
 static inline uint32_t ph_power_2(uint32_t n)
 {
   n |= (n >> 16);
@@ -121,7 +123,7 @@ int ph_vprintf_core(void *print_arg,
 #ifdef __sun__
 # define ph_vaptr(ap)    (void*)ap
 #else
-# define ph_vaptr(ap)    (void*)&ap
+# define ph_vaptr(ap)    (void*)ap
 #endif
 
 /** Like vsnprintf(), except that it uses ph_vprintf_core() */
