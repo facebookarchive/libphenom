@@ -66,7 +66,7 @@ static void _cleanup(void);
  * test_comment -- a comment to print afterwards, may be NULL
  */
 unsigned int
-_gen_result(int ok, const char *func, const char *file, unsigned int line, 
+_gen_result(int ok, const char *func, const char *file, unsigned int line,
 	    const char *test_name, ...)
 {
 	va_list ap;
@@ -148,7 +148,7 @@ _gen_result(int ok, const char *func, const char *file, unsigned int line,
 		if(getenv("HARNESS_ACTIVE") != NULL)
 			fputs("\n", stderr);
 
-		diag("    Failed %stest (%s:%s() at line %d)", 
+		diag("    Failed %stest (%s:%s() at line %d)",
 		     todo ? "(TODO) " : "", file, func, line);
 	}
 	free(local_test_name);
@@ -171,11 +171,6 @@ _tap_init(void)
 
 	if(!run_once) {
 		atexit(_cleanup);
-
-		/* stdout needs to be unbuffered so that the output appears
-		   in the same place relative to stderr output as it does 
-		   with Test::Harness */
-		setbuf(stdout, 0);
 		run_once = 1;
 		gettimeofday(&start_time, NULL);
 	}
@@ -304,8 +299,8 @@ skip(unsigned int n, char *fmt, ...)
 
 	while(n-- > 0) {
 		test_count++;
-		printf("ok %d # skip %s\n", test_count, 
-		       skip_msg != NULL ? 
+		printf("ok %d # skip %s\n", test_count,
+		       skip_msg != NULL ?
 		       skip_msg : "libtap():malloc() failed");
 	}
 
@@ -365,7 +360,7 @@ exit_status(void)
 		return r;
 	}
 
-	/* Return the number of tests that failed + the number of tests 
+	/* Return the number of tests that failed + the number of tests
 	   that weren't run */
 	r = failures + e_tests - test_count;
 	UNLOCK;
@@ -430,7 +425,7 @@ _cleanup(void)
 	}
 
 	if(failures)
-		diag("Looks like you failed %d %s of %d.", 
+		diag("Looks like you failed %d %s of %d.",
 		     failures, failures == 1 ? "test" : "tests", test_count);
 
 	diag("ELAPSED: %" PRIu64 "ms\n", ms);

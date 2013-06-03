@@ -53,8 +53,8 @@ PH_LIST_HEAD(
 
 struct ph_timerwheel_timer {
   PH_LIST_ENTRY(ph_timerwheel_timer) t;
-  ph_time_t due;
-  uint32_t generation, wheel_gen;
+  struct timeval due;
+  uint32_t generation, wheel_gen, active;
 };
 
 #define PHENOM_WHEEL_BITS 8
@@ -62,7 +62,7 @@ struct ph_timerwheel_timer {
 #define PHENOM_WHEEL_MASK (PHENOM_WHEEL_SIZE - 1)
 
 struct ph_timerwheel {
-  int64_t next_run;
+  struct timeval next_run;
   uint32_t tick_resolution;
   ck_spinlock_t lock;
   struct {
@@ -77,7 +77,7 @@ typedef struct ph_timerwheel ph_timerwheel_t;
  */
 ph_result_t ph_timerwheel_init(
     ph_timerwheel_t *wheel,
-    ph_time_t now,
+    struct timeval now,
     uint32_t tick_resolution);
 
 /** Insert an element into the timerweel */
@@ -101,7 +101,7 @@ ph_result_t ph_timerwheel_remove_unlocked(
 typedef void (*ph_timerwheel_dispatch_func_t)(
     ph_timerwheel_t *wheel,
     struct ph_timerwheel_timer *timer,
-    ph_time_t now,
+    struct timeval now,
     void *arg);
 
 /** Tick and dispatch any due timer(s).
@@ -118,7 +118,7 @@ typedef void (*ph_timerwheel_dispatch_func_t)(
  */
 uint32_t ph_timerwheel_tick(
     ph_timerwheel_t *wheel,
-    ph_time_t now,
+    struct timeval now,
     ph_timerwheel_dispatch_func_t dispatch,
     void *arg);
 

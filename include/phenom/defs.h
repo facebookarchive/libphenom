@@ -157,8 +157,6 @@
 extern "C" {
 #endif
 
-typedef int64_t ph_time_t;
-
 typedef uint32_t ph_result_t;
 #define PH_OK      0
 #define PH_NOMEM   1

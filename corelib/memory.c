@@ -16,6 +16,7 @@
 
 #include "phenom/memory.h"
 #include "phenom/counter.h"
+#include "phenom/log.h"
 #include <ck_pr.h>
 
 struct mem_type {
@@ -60,6 +61,24 @@ static const char *vsize_counter_names[] = {
 
 #define MEM_COUNTER_SLOTS 5
 
+/** tear things down and make valgrind believe that we didn't leak */
+static void memory_destroy(void)
+{
+  int i;
+
+  ph_counter_scope_delref(memory_scope);
+
+  for (i = 0; i < next_memtype; i++) {
+    ph_counter_scope_delref(memtypes[i].scope);
+    if (i == 0 || memtypes[i].def.facility != memtypes[i-1].def.facility) {
+      free((char*)memtypes[i].def.facility);
+    }
+    free((char*)memtypes[i].def.name);
+  }
+
+  free(memtypes);
+}
+
 static void memory_init(void)
 {
   memtypes_size = 1024;
@@ -72,6 +91,8 @@ static void memory_init(void)
   if (!memory_scope) {
     abort();
   }
+
+  atexit(memory_destroy);
 }
 
 static ph_counter_scope_t *resolve_facility(const char *fac)
@@ -210,6 +231,8 @@ ph_memtype_t ph_memtype_register_block(
     }
   }
 
+  ph_counter_scope_delref(fac_scope);
+
   return mt;
 }
 
@@ -240,6 +263,12 @@ void *ph_mem_alloc(ph_memtype_t mt)
   if (!ptr) {
     ph_counter_scope_add(mem_type->scope,
         mem_type->first_slot + SLOT_OOM, 1);
+
+    if (mem_type->def.flags & PH_MEM_FLAGS_PANIC) {
+      ph_panic("OOM while allocating %" PRIu64 " bytes of %s/%s memory",
+          mem_type->def.item_size, mem_type->def.facility,
+          mem_type->def.name);
+    }
     return NULL;
   }
 
@@ -278,6 +307,13 @@ void *ph_mem_alloc_size(ph_memtype_t mt, uint64_t size)
   if (!ptr) {
     ph_counter_scope_add(mem_type->scope,
         mem_type->first_slot + SLOT_OOM, 1);
+
+    if (mem_type->def.flags & PH_MEM_FLAGS_PANIC) {
+      ph_panic("OOM while allocating %" PRIu64 " bytes of %s/%s memory",
+          size + HEADER_RESERVATION, mem_type->def.facility,
+          mem_type->def.name);
+    }
+
     return NULL;
   }
 
@@ -369,6 +405,13 @@ void *ph_mem_realloc(ph_memtype_t mt, void *ptr, uint64_t size)
   if (!hdr) {
     ph_counter_scope_add(mem_type->scope,
         mem_type->first_slot + SLOT_OOM, 1);
+
+    if (mem_type->def.flags & PH_MEM_FLAGS_PANIC) {
+      ph_panic("OOM while allocating %" PRIu64 " bytes of %s/%s memory",
+          size + HEADER_RESERVATION, mem_type->def.facility,
+          mem_type->def.name);
+    }
+
     return NULL;
   }
   new_ptr = hdr + 1;

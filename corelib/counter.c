@@ -15,9 +15,7 @@
  */
 
 #include "phenom/counter.h"
-#include "phenom/refcnt.h"
 #include "phenom/sysutil.h"
-#include <ck_sequence.h>
 #include <ck_hs.h>
 #include <ck_ht.h>
 #include <ck_stack.h>
@@ -36,18 +34,6 @@
  * of any given counter on any given thread at a certain point in
  * time may be negative even though the total is positive.
  */
-
-struct ph_counter_block {
-  /* must be first in the struct so that we can cast the return
-   * value from ck_hs_get() */
-  uint32_t scope_id;
-  ph_refcnt_t refcnt;
-  ck_sequence_t seqlock;
-
-  /* variable size array; the remainder of this struct
-   * holds num_slots elements */
-  int64_t slots[1];
-};
 
 struct ph_counter_scope {
   ph_refcnt_t refcnt;
@@ -124,6 +110,37 @@ static struct ck_malloc ht_allocator = {
   .free = ht_free
 };
 
+/* Tear things down and make valgrind happy that we didn't leak */
+static void counter_destroy(void)
+{
+  ck_ht_iterator_t iter;
+  ck_ht_entry_t *entry;
+  ck_stack_entry_t *stack_entry;
+  struct ph_counter_head *head;
+  struct ph_counter_block *block;
+
+  while ((stack_entry = ck_stack_pop_npsc(&all_heads)) != NULL) {
+    ck_hs_iterator_t hiter;
+
+    head = ph_counter_head_from_stack_entry(stack_entry);
+    ck_hs_iterator_init(&hiter);
+    while (ck_hs_next(&head->ht, &hiter, (void*)&block)) {
+      ph_counter_block_delref(block);
+    }
+
+    ck_hs_destroy(&head->ht);
+    free(head);
+  }
+
+  ck_ht_iterator_init(&iter);
+  while (ck_ht_next(&scope_map, &iter, &entry)) {
+    ph_counter_scope_t *scope = (ph_counter_scope_t*)entry->value;
+
+    ph_counter_scope_delref(scope);
+  }
+
+  ck_ht_destroy(&scope_map);
+}
 
 static void ph_counter_init(void)
 {
@@ -145,6 +162,8 @@ static void ph_counter_init(void)
     // If this fails, we're screwed
     abort();
   }
+
+  atexit(counter_destroy);
 }
 
 /** Determine whether a given counter name is acceptable.
@@ -320,8 +339,14 @@ ph_counter_scope_t *ph_counter_scope_resolve(
 
 void ph_counter_scope_delref(ph_counter_scope_t *scope)
 {
+  int i;
+
   if (!ph_refcnt_del(&scope->refcnt)) {
     return;
+  }
+
+  for (i = 0; i < scope->next_slot; i++) {
+    free(scope->slot_names[i]);
   }
 
   free(scope);
@@ -429,7 +454,7 @@ static ph_counter_block_t *get_block_for_scope(
   /* the hash table owns this reference */
   block->refcnt = 1;
   block->scope_id = scope->scope_id;
-  ck_sequence_init(&block->seqlock);
+
   if (unlikely(!ck_hs_put(&head->ht, scope->hash, &block->scope_id))) {
     free(block);
     return NULL;
@@ -446,11 +471,7 @@ void ph_counter_scope_add(
   ph_counter_block_t *block = get_block_for_scope(scope);
 
   if (unlikely(!block)) return;
-
-  /* now update the counter value */
-  ck_sequence_write_begin(&block->seqlock);
-  block->slots[offset] += value;
-  ck_sequence_write_end(&block->seqlock);
+  ph_counter_block_add(block, offset, value);
 }
 
 ph_counter_block_t *ph_counter_block_open(
@@ -464,31 +485,6 @@ ph_counter_block_t *ph_counter_block_open(
   return block;
 }
 
-void ph_counter_block_add(
-    ph_counter_block_t *block,
-    uint8_t offset,
-    int64_t value)
-{
-  ck_sequence_write_begin(&block->seqlock);
-  block->slots[offset] += value;
-  ck_sequence_write_end(&block->seqlock);
-}
-
-void ph_counter_block_bulk_add(
-    ph_counter_block_t *block,
-    uint8_t num_slots,
-    const uint8_t *slots,
-    const int64_t *values)
-{
-  int i;
-
-  ck_sequence_write_begin(&block->seqlock);
-  for (i = 0; i < num_slots; i++) {
-    block->slots[slots[i]] += values[i];
-  }
-  ck_sequence_write_end(&block->seqlock);
-}
-
 void ph_counter_block_delref(
     ph_counter_block_t *block)
 {
@@ -497,6 +493,28 @@ void ph_counter_block_delref(
   }
 
   free(block);
+}
+
+static inline uint32_t read_begin(ph_counter_block_t *block)
+{
+  uint32_t ver;
+
+  for (;;) {
+    ver = ck_pr_load_32(&block->seqno);
+
+    if ((ver & 1) == 0) {
+      ck_pr_fence_load();
+      return ver;
+    }
+
+    ck_pr_stall();
+  }
+}
+
+static inline bool read_retry(ph_counter_block_t *block, uint32_t vers)
+{
+  ck_pr_fence_load();
+  return ck_pr_load_32(&block->seqno) != vers;
 }
 
 int64_t ph_counter_scope_get(
@@ -518,9 +536,9 @@ int64_t ph_counter_scope_get(
     }
 
     do {
-      vers = ck_sequence_read_begin(&block->seqlock);
+      vers = read_begin(block);
       val = block->slots[offset];
-    } while (ck_sequence_read_retry(&block->seqlock, vers));
+    } while (read_retry(block, vers));
 
     res += val;
   }
@@ -561,9 +579,9 @@ uint8_t ph_counter_scope_get_view(
     }
 
     do {
-      vers = ck_sequence_read_begin(&block->seqlock);
+      vers = read_begin(block);
       memcpy(local_slots, block->slots, num_slots * sizeof(int64_t));
-    } while (ck_sequence_read_retry(&block->seqlock, vers));
+    } while (read_retry(block, vers));
 
     for (i = 0; i < num_slots; i++) {
       slots[i] += local_slots[i];

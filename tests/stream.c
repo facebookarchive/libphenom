@@ -30,7 +30,7 @@ int main(int argc, char **argv)
   unused_parameter(argc);
   unused_parameter(argv);
 
-  plan_tests(18);
+  plan_tests(19);
 
   is(PH_OK, ph_stm_init());
   strcpy(namebuf, "/tmp/phenomXXXXXX");
@@ -69,6 +69,8 @@ int main(int argc, char **argv)
   ok(ph_stm_read(stm, buf, 14, &amount), "read ok");
   ok(amount == 14, "len was %" PRIu64, amount);
   ok(!memcmp("testing 1 two!", buf, 14), "got formatted");
+
+  ok(ph_stm_close(stm), "closed");
 
   return exit_status();
 }

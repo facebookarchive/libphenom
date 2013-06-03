@@ -21,43 +21,45 @@
 
 static ph_job_t pipe_job;
 static int pipe_fd[2];
-static ph_time_t start_time;
+static struct timeval start_time;
 static int ticks = 0;
 
 static void *ping_thread(void *arg)
 {
-  ph_time_t delay = (intptr_t)arg;
+  uint32_t delay = (intptr_t)arg;
   struct timespec ts = { 0, 0 };
 
   ts.tv_sec = delay / 1000;
   ts.tv_nsec = (delay - (ts.tv_sec * 1000)) * 1000000;
 
-  ck_pr_store_64((uint64_t*)&start_time, ph_time_now());
+  start_time = ph_time_now();
   nanosleep(&ts, NULL);
 
   ignore_result(write(pipe_fd[1], "a", 1));
   return NULL;
 }
 
-static bool ping_pipe_in(ph_time_t delay)
+static bool ping_pipe_in(uint32_t delay)
 {
   ph_thread_t *thr;
 
-  thr = ph_spawn_thread(ping_thread, (void*)(intptr_t)delay);
+  thr = ph_thread_spawn(ping_thread, (void*)(intptr_t)delay);
   return thr != NULL;
 }
 
-static void pipe_dispatch(ph_job_t *job, ph_iomask_t why,
-    ph_time_t now, void *data)
+static void pipe_dispatch(ph_job_t *job, ph_iomask_t why, void *data)
 {
   char buf;
-  ph_time_t diff;
+  struct timeval diff;
+  int64_t diffn;
+  struct timeval now = ph_time_now();
 
   unused_parameter(why);
   unused_parameter(data);
 
-  diff = now - start_time;
-  ok(diff >= 80 && diff <= 120, "time diff is %" PRIi64, diff);
+  timersub(&now, &start_time, &diff);
+  diffn = (diff.tv_sec * 1000) + (diff.tv_usec / 1000);
+  ok(diffn >= 80 && diffn <= 120, "100ms resolution: diff=%d", (int)diffn);
 
   is(1, read(pipe_fd[0], &buf, sizeof(buf)));
 

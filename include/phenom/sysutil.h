@@ -56,7 +56,7 @@ char *ph_dtoa(double _d, int mode, int ndigits,
     int *decpt, int *sign, char **rve);
 double ph_strtod(const char *s00, const char **se);
 
-ph_time_t ph_time_now(void);
+struct timeval ph_time_now(void);
 
 static inline uint32_t ph_power_2(uint32_t n)
 {
@@ -67,6 +67,8 @@ static inline uint32_t ph_power_2(uint32_t n)
   n |= (n >> 1);
   return n + 1;
 }
+
+uint32_t ph_num_cores(void);
 
 /** Generate a unique temporary file name and open it.
  * nametemplate must be of the form /path/to/fileXXXXXX.  The

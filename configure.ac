@@ -6,11 +6,12 @@ case "$target_os-$target_cpu" in
     dnl force us to consider this a 64-bit system.
     dnl also: you'd have to be insane to run 32-bit intel solaris.
     target_cpu=x86_64
+    LDFLAGS="$LDFLAGS -lumem"
     ;;
 esac
 case "$target_cpu" in
   x86_64|amd64)
-    CFLAGS="$CFLAGS -m64"
+    CFLAGS="$CFLAGS -m64 -fno-omit-frame-pointer"
     ;;
 	i*86|pentium*|athlon*|k5|k6|k6_2|k6_3)
     target_cpu=i686

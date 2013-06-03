@@ -16,16 +16,28 @@
 
 #include "phenom/timerwheel.h"
 
+static inline void tval_add_res(ph_timerwheel_t *wheel,
+    struct timeval *op1, struct timeval *res)
+{
+  struct timeval diff;
+
+  diff.tv_sec = wheel->tick_resolution / 1000;
+  diff.tv_usec = (wheel->tick_resolution - (diff.tv_sec * 1000)) * 1000;
+
+  timeradd(&diff, op1, res);
+}
+
 ph_result_t ph_timerwheel_init(
     ph_timerwheel_t *wheel,
-    ph_time_t now,
+    struct timeval now,
     uint32_t tick_resolution)
 {
   int i;
 
   ck_spinlock_init(&wheel->lock);
   wheel->tick_resolution = tick_resolution;
-  wheel->next_run = now / wheel->tick_resolution;
+
+  tval_add_res(wheel, &now, &wheel->next_run);
 
   for (i = 0; i < PHENOM_WHEEL_SIZE; i++) {
     PH_LIST_INIT(&wheel->buckets[0].lists[i]);
@@ -44,26 +56,41 @@ ph_result_t ph_timerwheel_insert(
   ph_result_t res;
 
   ck_spinlock_lock(&wheel->lock);
+  if (timer->active) {
+    ck_spinlock_unlock(&wheel->lock);
+    return PH_BUSY;
+  }
+
   ck_pr_faa_32(&timer->generation, 1);
+  ck_pr_store_32(&timer->active, 1);
   res = ph_timerwheel_insert_unlocked(wheel, timer);
   ck_spinlock_unlock(&wheel->lock);
 
   return res;
 }
 
+static inline uint64_t tval_to_tick(ph_timerwheel_t *wheel, struct timeval tv)
+{
+  return (tv.tv_sec * 1000 / wheel->tick_resolution) +
+         (tv.tv_usec / (wheel->tick_resolution * 1000));
+}
+
 ph_result_t ph_timerwheel_insert_unlocked(
     ph_timerwheel_t *wheel,
     struct ph_timerwheel_timer *timer)
 {
-  ph_time_t due = timer->due / wheel->tick_resolution;
   struct ph_timerwheel_list *list;
-  int64_t diff = due - wheel->next_run;
+  uint64_t due, now, diff;
 
-  if (diff < 0) {
-    // Ensure that we never schedule in the past
-    due = wheel->next_run;
-    diff = 0;
+  // Ensure that we never schedule in the past
+  if (timercmp(&timer->due, &wheel->next_run, <)) {
+    memcpy(&timer->due, &wheel->next_run, sizeof(timer->due));
   }
+
+  now = tval_to_tick(wheel, wheel->next_run);
+  due = tval_to_tick(wheel, timer->due);
+  diff = due - now;
+
   if (diff < PHENOM_WHEEL_SIZE) {
     list = wheel->buckets[0].lists + (due & PHENOM_WHEEL_MASK);
   } else if (diff < 1 << (2 * PHENOM_WHEEL_BITS)) {
@@ -72,14 +99,11 @@ ph_result_t ph_timerwheel_insert_unlocked(
   } else if (diff < 1 << (3 * PHENOM_WHEEL_BITS)) {
     list = wheel->buckets[2].lists +
             ((due >> (2*PHENOM_WHEEL_BITS)) & PHENOM_WHEEL_MASK);
-  } else if (diff < 0) {
-    /* overdue */
-    list = wheel->buckets[0].lists + (wheel->next_run & PHENOM_WHEEL_MASK);
   } else {
     /* in largest slot */
     if (diff > 0xffffffffLL) {
       diff = 0xffffffffLL;
-      due = diff + wheel->next_run;
+      due = diff + now;
     }
     list = wheel->buckets[3].lists +
             ((due >> (3*PHENOM_WHEEL_BITS)) & PHENOM_WHEEL_MASK);
@@ -96,6 +120,10 @@ ph_result_t ph_timerwheel_remove(
 {
   ph_result_t res;
 
+  if (!ck_pr_load_32(&timer->active)) {
+    return PH_OK;
+  }
+
   ck_spinlock_lock(&wheel->lock);
   ck_pr_faa_32(&timer->generation, 1);
   res = ph_timerwheel_remove_unlocked(wheel, timer);
@@ -110,6 +138,7 @@ ph_result_t ph_timerwheel_remove_unlocked(
 {
   unused_parameter(wheel);
 
+  ck_pr_store_32(&timer->active, 0);
   PH_LIST_REMOVE(timer, t);
 
   return PH_OK;
@@ -147,42 +176,43 @@ bool ph_timerwheel_timer_was_modified(
 
 uint32_t ph_timerwheel_tick(
     ph_timerwheel_t *wheel,
-    ph_time_t now,
+    struct timeval now,
     ph_timerwheel_dispatch_func_t dispatch,
     void *arg)
 {
   struct ph_timerwheel_list list;
   struct ph_timerwheel_timer *timer;
   int idx;
-  int64_t tick;
+  uint64_t tick, nowtick;
   uint32_t ticked = 0;
 
-  tick = now / wheel->tick_resolution;
+  tick = tval_to_tick(wheel, now);
+  nowtick = tval_to_tick(wheel, wheel->next_run);
 
   PH_LIST_INIT(&list);
 
   ck_spinlock_lock(&wheel->lock);
   {
-    if (wheel->next_run <= tick) {
-      idx = wheel->next_run & PHENOM_WHEEL_MASK;
+    if (nowtick <= tick) {
+      idx = nowtick & PHENOM_WHEEL_MASK;
 
       if (idx == 0) {
         /* it's time to cascade timers */
         if (cascade_timer(wheel, wheel->buckets[1].lists,
-              (wheel->next_run >> PHENOM_WHEEL_BITS)
+              (nowtick >> PHENOM_WHEEL_BITS)
               & PHENOM_WHEEL_MASK) &&
 
             cascade_timer(wheel, wheel->buckets[2].lists,
-              (wheel->next_run >> (2*PHENOM_WHEEL_BITS))
+              (nowtick >> (2*PHENOM_WHEEL_BITS))
               & PHENOM_WHEEL_MASK)) {
 
           cascade_timer(wheel, wheel->buckets[3].lists,
-            (wheel->next_run >> (3*PHENOM_WHEEL_BITS))
+            (nowtick >> (3*PHENOM_WHEEL_BITS))
             & PHENOM_WHEEL_MASK);
         }
       }
 
-      wheel->next_run++;
+      tval_add_res(wheel, &wheel->next_run, &wheel->next_run);
 
       PH_LIST_FOREACH(timer, &wheel->buckets[0].lists[idx], t) {
         /* observe the generation number so we can
@@ -202,6 +232,7 @@ uint32_t ph_timerwheel_tick(
     if (!timer) break;
 
     ticked++;
+    ck_pr_store_32(&timer->active, 0);
     PH_LIST_REMOVE(timer, t);
 
     if (!ph_timerwheel_timer_was_modified(timer)) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Facebook, Inc.
+ * Copyright 2012-2013 Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,6 +21,9 @@
 #include "phenom/queue.h"
 #include "phenom/memory.h"
 #include "phenom/queue.h"
+#include "ck_fifo.h"
+#include "ck_stack.h"
+#include "ck_queue.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -28,19 +31,26 @@ extern "C" {
 
 struct ph_thread;
 struct ph_job;
+struct ph_thread_pool;
 
 typedef struct ph_thread ph_thread_t;
 
 struct ph_thread {
-  bool is_init;
-  bool is_worker;
+  bool refresh_time;
+  // internal monotonic thread id
+  uint32_t tid;
 
-  ph_time_t now;
+  PH_STAILQ_HEAD(pdisp, ph_job) pending_dispatch;
+
+  bool is_worker;
+  bool is_init;
+  struct timeval now;
 
   // OS level representation
   pthread_t thr;
 
-  PH_LIST_HEAD(pdisp, ph_job) pending_dispatch;
+  // If part of a pool, linkage in that pool
+  CK_LIST_ENTRY(ph_thread) pool_ent;
 
 #ifdef __sun__
   id_t lwpid;
@@ -49,11 +59,25 @@ struct ph_thread {
 #ifdef HAVE_STRERROR_R
   char strerror_buf[128];
 #endif
+
+  // Name for debugging purposes
+  char name[16];
 };
+
+struct ph_thread_pool_job_entry {
+  ck_fifo_mpmc_entry_t fifo;
+  struct ph_job *job;
+  uint32_t vers;
+  ck_stack_entry_t spare;
+};
+
+struct ph_thread_pool;
+typedef struct ph_thread_pool ph_thread_pool_t;
 
 typedef void *(*ph_thread_func)(void *arg);
 
-ph_thread_t *ph_spawn_thread(ph_thread_func func, void *arg);
+ph_thread_t *ph_thread_spawn(ph_thread_func func, void *arg);
+int ph_thread_join(ph_thread_t *thr, void **res);
 bool ph_thread_init(void);
 
 ph_thread_t *ph_thread_self_slow(void);
@@ -67,15 +91,16 @@ extern __thread ph_thread_t __ph_thread_self;
   ((ph_thread_t*)pthread_getspecific(__ph_thread_key))
 #endif
 
+/** If you create a thread for yourself, not using ph_thread_spawn(),
+ * you must call ph_thread_self_slow() at least once prior to calling
+ * any phenom function.  This restriction avoids a conditional
+ * branch on every ph_thread_self() call */
 static inline ph_thread_t *ph_thread_self(void)
 {
   ph_thread_t *me = ph_thread_self_fast();
 
+#ifndef HAVE___THREAD
   if (unlikely(me == NULL)) {
-    return ph_thread_self_slow();
-  }
-#ifdef HAVE___THREAD
-  if (unlikely(!me->is_init)) {
     return ph_thread_self_slow();
   }
 #endif

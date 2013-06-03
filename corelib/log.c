@@ -16,9 +16,21 @@
 
 #include "phenom/defs.h"
 #include "phenom/log.h"
+#include "phenom/thread.h"
 #include "phenom/sysutil.h"
 
+static pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
 static uint8_t log_level = PH_LOG_ERR;
+static const char *log_labels[] = {
+  "panic",
+  "alert",
+  "crit",
+  "err",
+  "warn",
+  "notice",
+  "info",
+  "debug"
+};
 
 uint8_t ph_log_level_set(uint8_t level)
 {
@@ -36,13 +48,30 @@ uint8_t ph_log_level_get(void)
 
 void ph_logv(uint8_t level, const char *fmt, va_list ap)
 {
+  struct timeval now = ph_time_now();
+  ph_thread_t *me;
+  int len;
+
   if (level > log_level) {
     return;
   }
 
+  me = ph_thread_self();
+
+  len = strlen(fmt);
+  if (len == 0) {
+    return;
+  }
+
+  pthread_mutex_lock(&log_lock);
   ph_fdprintf(STDERR_FILENO,
-      "%" PRIi64 " %u: `Pv%s%p\n",
-      ph_time_now(), level, fmt, ph_vaptr(ap));
+      "%" PRIi64 ".%03d %s: %s/%d `Pv%s%p%s",
+      (int64_t)now.tv_sec, (int)(now.tv_usec / 1000),
+      log_labels[level], me ? me->name : "", me ? me->tid : 0,
+      fmt, ph_vaptr(ap),
+      fmt[len-1] == '\n' ? "" : "\n"
+  );
+  pthread_mutex_unlock(&log_lock);
 }
 
 void ph_log(uint8_t level, const char *fmt, ...)

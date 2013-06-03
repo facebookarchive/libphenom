@@ -27,6 +27,7 @@ libphenom_a_SOURCES = \
 	corelib/pipe2.c \
 	corelib/pprintf.c \
 	corelib/nbio.c \
+	corelib/job.c \
 	corelib/thread.c \
 	corelib/timerwheel.c \
 	corelib/vprintf.c \
@@ -48,7 +49,7 @@ libtap_a_SOURCES = thirdparty/tap/tap.c
 TEST_CPPFLAGS = -Ithirdparty/tap -Ithirdparty/ck/include -Iinclude -DPHENOM_IMPL
 TEST_LDADD = libphenom.a libtap.a
 TESTS = tests/counter.t tests/memory.t tests/timer.t tests/printf.t \
-				tests/iobasic.t tests/stream.t
+				tests/iobasic.t tests/stream.t tests/tpool.t
 noinst_PROGRAMS = $(TESTS)
 
 # generate a rule that we can use to ensure that
@@ -73,4 +74,7 @@ tests_iobasic_t_LDADD = $(TEST_LDADD)
 
 tests_stream_t_CPPFLAGS = $(TEST_CPPFLAGS)
 tests_stream_t_LDADD = $(TEST_LDADD)
+
+tests_tpool_t_CPPFLAGS = $(TEST_CPPFLAGS)
+tests_tpool_t_LDADD = $(TEST_LDADD)
 

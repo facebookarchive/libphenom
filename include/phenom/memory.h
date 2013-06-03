@@ -36,6 +36,9 @@ typedef int ph_memtype_t;
 /** requests that allocations are zero'd out before being returned */
 #define PH_MEM_FLAGS_ZERO 1
 
+/** panic if memory could not be allocated */
+#define PH_MEM_FLAGS_PANIC 2
+
 /** defines a memory type */
 struct ph_memtype_def {
   /** General category of allocations.

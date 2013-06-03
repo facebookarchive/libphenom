@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Facebook, Inc.
+ * Copyright 2012-2013 Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,6 +35,8 @@
 #define PHENOM_COUNTER_H
 
 #include <phenom/defs.h>
+#include <ck_sequence.h>
+#include "phenom/refcnt.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -154,7 +156,7 @@ void ph_counter_scope_add(
 
 /** Open a handle on the set of counters for the current thread
  *
- * The handle is useful is two main situations:
+ * The handle is useful in two main situations:
  * 1. The same thread is making very frequent updates to counter
  *    values and wants to shave off the TLS overheads.
  *    See ph_counter_block_add().
@@ -184,10 +186,39 @@ ph_counter_block_t *ph_counter_block_open(
  * @param slot the counter slot offset
  * @param value the value to add to the current counter value.
  */
+#if 0
 void ph_counter_block_add(
     ph_counter_block_t *block,
     uint8_t offset,
     int64_t value);
+#endif
+struct ph_counter_block {
+  /* must be first in the struct so that we can cast the return
+   * value from ck_hs_get() */
+  uint32_t scope_id;
+  ph_refcnt_t refcnt;
+  uint32_t seqno CK_CC_CACHELINE;
+  char pad[CK_MD_CACHELINE - sizeof(uint32_t)];
+
+  /* variable size array; the remainder of this struct
+   * holds num_slots elements */
+  int64_t slots[1];
+};
+
+static inline void ph_counter_block_record_write(
+    ph_counter_block_t *block)
+{
+  block->seqno += 2;
+}
+
+static inline void ph_counter_block_add(
+    ph_counter_block_t *block,
+    uint8_t offset,
+    int64_t value)
+{
+  block->slots[offset] += value;
+  ph_counter_block_record_write(block);
+}
 
 /** Release a counter block
  *
@@ -218,11 +249,21 @@ void ph_counter_block_delref(
  * It is the callers responsibility to ensure that the offsets are
  * valid.
  */
-void ph_counter_block_bulk_add(
+static inline void ph_counter_block_bulk_add(
     ph_counter_block_t *block,
     uint8_t num_slots,
     const uint8_t *slots,
-    const int64_t *values);
+    const int64_t *values)
+{
+  int i;
+
+  block->seqno++;
+  for (i = 0; i < num_slots; i++) {
+    block->slots[slots[i]] += values[i];
+  }
+  block->seqno++;
+}
+
 
 /** Returns a current counter value.
  *
