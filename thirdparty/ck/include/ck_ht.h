@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Samy Al Bahra.
+ * Copyright 2012-2013 Samy Al Bahra.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -253,6 +253,7 @@ bool ck_ht_get_spmc(ck_ht_t *, ck_ht_hash_t, ck_ht_entry_t *);
 bool ck_ht_grow_spmc(ck_ht_t *, uint64_t);
 bool ck_ht_remove_spmc(ck_ht_t *, ck_ht_hash_t, ck_ht_entry_t *);
 bool ck_ht_reset_spmc(ck_ht_t *);
+bool ck_ht_reset_size_spmc(ck_ht_t *, uint64_t);
 uint64_t ck_ht_count(ck_ht_t *);
 
 #endif /* CK_F_PR_LOAD_64 && CK_F_PR_STORE_64 */

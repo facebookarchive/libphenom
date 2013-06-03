@@ -1,5 +1,5 @@
 /*
- * Copyright 2009-2012 Samy Al Bahra.
+ * Copyright 2009-2013 Samy Al Bahra.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -62,51 +62,24 @@ ck_pr_stall(void)
 	return;
 }
 
-#if defined(CK_MD_RMO) || defined(CK_MD_PSO)
 #define CK_PR_FENCE(T, I)				\
 	CK_CC_INLINE static void			\
 	ck_pr_fence_strict_##T(void)			\
 	{						\
 		__asm__ __volatile__(I ::: "memory");	\
-	}						\
-	CK_CC_INLINE static void ck_pr_fence_##T(void)	\
-	{						\
-		__asm__ __volatile__(I ::: "memory");	\
 	}
-#else
-/*
- * IA32 has strong memory ordering guarantees, so memory
- * fences are enabled if and only if the user specifies that
- * that the program will be using non-temporal instructions.
- * Otherwise, an optimization barrier is used in order to prevent
- * compiler re-ordering of loads and stores across the barrier.
- */
-#define CK_PR_FENCE(T, I)				\
-	CK_CC_INLINE static void			\
-	ck_pr_fence_strict_##T(void)			\
-	{						\
-		__asm__ __volatile__(I ::: "memory");	\
-	}						\
-	CK_CC_INLINE static void ck_pr_fence_##T(void)	\
-	{						\
-		__asm__ __volatile__("" ::: "memory");	\
-	}
-#endif /* !CK_MD_RMO && !CK_MD_PSO */
 
+CK_PR_FENCE(atomic_store, "sfence")
+CK_PR_FENCE(atomic_load, "mfence")
+CK_PR_FENCE(store_atomic, "sfence")
+CK_PR_FENCE(load_atomic, "mfence")
 CK_PR_FENCE(load, "lfence")
-CK_PR_FENCE(load_depends, "")
+CK_PR_FENCE(load_store, "mfence")
 CK_PR_FENCE(store, "sfence")
+CK_PR_FENCE(store_load, "mfence")
 CK_PR_FENCE(memory, "mfence")
 
 #undef CK_PR_FENCE
-
-CK_CC_INLINE static void
-ck_pr_barrier(void)
-{
-
-	__asm__ __volatile__("" ::: "memory");
-	return;
-}
 
 /*
  * Atomic fetch-and-store operations.
@@ -211,7 +184,7 @@ CK_PR_LOAD_2(8, 16, uint8_t)
 /*
  * Atomic store-to-memory operations.
  */
-#define CK_PR_STORE(S, M, T, C, I)				\
+#define CK_PR_STORE_IMM(S, M, T, C, I)				\
 	CK_CC_INLINE static void				\
 	ck_pr_store_##S(M *target, T v)				\
 	{							\
@@ -222,20 +195,32 @@ CK_PR_LOAD_2(8, 16, uint8_t)
 		return;						\
 	}
 
-CK_PR_STORE(ptr, void, const void *, char, "movq")
+#define CK_PR_STORE(S, M, T, C, I)				\
+	CK_CC_INLINE static void				\
+	ck_pr_store_##S(M *target, T v)				\
+	{							\
+		__asm__ __volatile__(I " %1, %0"		\
+					: "=m" (*(C *)target)	\
+					: "q" (v)		\
+					: "memory");		\
+		return;						\
+	}
 
-#define CK_PR_STORE_S(S, T, I) CK_PR_STORE(S, T, T, T, I)
+CK_PR_STORE_IMM(ptr, void, const void *, char, "movq")
+CK_PR_STORE(double, double, double, double, "movq")
+
+#define CK_PR_STORE_S(S, T, I) CK_PR_STORE_IMM(S, T, T, T, I)
 
 CK_PR_STORE_S(char, char, "movb")
 CK_PR_STORE_S(uint, unsigned int, "movl")
 CK_PR_STORE_S(int, int, "movl")
-CK_PR_STORE_S(double, double, "movq")
 CK_PR_STORE_S(64, uint64_t, "movq")
 CK_PR_STORE_S(32, uint32_t, "movl")
 CK_PR_STORE_S(16, uint16_t, "movw")
 CK_PR_STORE_S(8,  uint8_t, "movb")
 
 #undef CK_PR_STORE_S
+#undef CK_PR_STORE_IMM
 #undef CK_PR_STORE
 
 /*

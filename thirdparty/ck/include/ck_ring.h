@@ -1,5 +1,5 @@
 /*
- * Copyright 2009-2012 Samy Al Bahra.
+ * Copyright 2009-2013 Samy Al Bahra.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -52,11 +52,11 @@
 			    unsigned int size)					\
 	{									\
 										\
-		ck_pr_store_uint(&ring->size, size);				\
-		ck_pr_store_uint(&ring->mask, size - 1);			\
-		ck_pr_store_uint(&ring->p_tail, 0);				\
-		ck_pr_store_uint(&ring->c_head, 0);				\
-		ck_pr_store_ptr(&ring->ring, buffer);				\
+		ring->size = size;						\
+		ring->mask = size - 1;						\
+		ring->p_tail = 0;						\
+		ring->c_head = 0;						\
+		ring->ring = buffer;						\
 		return;								\
 	}									\
 	CK_CC_INLINE static unsigned int					\
@@ -73,6 +73,27 @@
 	{									\
 										\
 		return ring->size;						\
+	}									\
+	CK_CC_INLINE static bool						\
+	ck_ring_enqueue_spsc_size_##name(struct ck_ring_##name *ring,		\
+	    struct type *entry,							\
+	    unsigned int *size)							\
+	{									\
+		unsigned int consumer, producer, delta;				\
+		unsigned int mask = ring->mask;					\
+										\
+		consumer = ck_pr_load_uint(&ring->c_head);			\
+		producer = ring->p_tail;					\
+		delta = producer + 1;						\
+		*size = (producer - consumer) & mask;				\
+										\
+		if ((delta & mask) == (consumer & mask))			\
+			return false;						\
+										\
+		ring->ring[producer & mask] = *entry;				\
+		ck_pr_fence_store();						\
+		ck_pr_store_uint(&ring->p_tail, delta);				\
+		return true;							\
 	}									\
 	CK_CC_INLINE static bool						\
 	ck_ring_enqueue_spsc_##name(struct ck_ring_##name *ring,		\
@@ -98,19 +119,27 @@
 				    struct type *data)				\
 	{									\
 		unsigned int consumer, producer;				\
+		unsigned int mask = ring->mask;					\
 										\
 		consumer = ring->c_head;					\
 		producer = ck_pr_load_uint(&ring->p_tail);			\
 										\
 		if (consumer == producer)					\
-			return (false);						\
+			return false;						\
 										\
 		ck_pr_fence_load();						\
-		*data = ring->ring[consumer & ring->mask];			\
+		*data = ring->ring[consumer & mask];				\
 		ck_pr_fence_store();						\
 		ck_pr_store_uint(&ring->c_head, consumer + 1);			\
 										\
-		return (true);							\
+		return true;							\
+	}									\
+	CK_CC_INLINE static bool						\
+	ck_ring_enqueue_spmc_size_##name(struct ck_ring_##name *ring,		\
+	    void *entry, unsigned int *size)					\
+	{									\
+										\
+		return ck_ring_enqueue_spsc_size_##name(ring, entry, size);	\
 	}									\
 	CK_CC_INLINE static bool						\
 	ck_ring_enqueue_spmc_##name(struct ck_ring_##name *ring, void *entry)	\
@@ -123,6 +152,7 @@
 				       struct type *data)			\
 	{									\
 		unsigned int consumer, producer;				\
+		unsigned int mask = ring->mask;					\
 										\
 		consumer = ck_pr_load_uint(&ring->c_head);			\
 		ck_pr_fence_load();						\
@@ -132,7 +162,7 @@
 			return false;						\
 										\
 		ck_pr_fence_load();						\
-		*data = ring->ring[consumer & ring->mask];			\
+		*data = ring->ring[consumer & mask];				\
 		ck_pr_fence_memory();						\
 		return ck_pr_cas_uint(&ring->c_head,				\
 				      consumer,					\
@@ -143,6 +173,7 @@
 				    struct type *data)				\
 	{									\
 		unsigned int consumer, producer;				\
+		unsigned int mask = ring->mask;					\
 										\
 		consumer = ck_pr_load_uint(&ring->c_head);			\
 		do {								\
@@ -153,7 +184,7 @@
 				return false;					\
 										\
 			ck_pr_fence_load();					\
-			*data = ring->ring[consumer & ring->mask];		\
+			*data = ring->ring[consumer & mask];			\
 			ck_pr_fence_memory();					\
 		} while (ck_pr_cas_uint_value(&ring->c_head,			\
 					      consumer,				\
@@ -164,23 +195,27 @@
 	}
 
 
-#define CK_RING_INSTANCE(name)				\
+#define CK_RING_INSTANCE(name)					\
 	struct ck_ring_##name
-#define CK_RING_INIT(name, object, buffer, size)	\
+#define CK_RING_INIT(name, object, buffer, size)		\
 	ck_ring_init_##name(object, buffer, size)
-#define CK_RING_SIZE(name, object)			\
+#define CK_RING_SIZE(name, object)				\
 	ck_ring_size_##name(object)
-#define CK_RING_CAPACITY(name, object)			\
+#define CK_RING_CAPACITY(name, object)				\
 	ck_ring_capacity_##name(object)
-#define CK_RING_ENQUEUE_SPSC(name, object, value)	\
+#define CK_RING_ENQUEUE_SPSC_SIZE(name, object, value, s)	\
+	ck_ring_enqueue_spsc_size_##name(object, value, s)
+#define CK_RING_ENQUEUE_SPSC(name, object, value)		\
 	ck_ring_enqueue_spsc_##name(object, value)
-#define CK_RING_DEQUEUE_SPSC(name, object, value)	\
+#define CK_RING_DEQUEUE_SPSC(name, object, value)		\
 	ck_ring_dequeue_spsc_##name(object, value)
-#define CK_RING_DEQUEUE_SPMC(name, object, value)	\
+#define CK_RING_DEQUEUE_SPMC(name, object, value)		\
 	ck_ring_dequeue_spmc_##name(object, value)
-#define CK_RING_TRYDEQUEUE_SPMC(name, object, value)	\
+#define CK_RING_TRYDEQUEUE_SPMC(name, object, value)		\
 	ck_ring_trydequeue_spmc_##name(object, value)
-#define CK_RING_ENQUEUE_SPMC(name, object, value)	\
+#define CK_RING_ENQUEUE_SPMC_SIZE(name, object, value, s)	\
+	ck_ring_enqueue_spmc_size_##name(object, value, s)
+#define CK_RING_ENQUEUE_SPMC(name, object, value)		\
 	ck_ring_enqueue_spmc_##name(object, value)
 
 struct ck_ring {
@@ -194,9 +229,6 @@ struct ck_ring {
 };
 typedef struct ck_ring ck_ring_t;
 
-/*
- * Single consumer and single producer ring buffer enqueue (producer).
- */
 CK_CC_INLINE static unsigned int
 ck_ring_size(struct ck_ring *ring)
 {
@@ -214,6 +246,50 @@ ck_ring_capacity(struct ck_ring *ring)
 	return ring->size;
 }
 
+/*
+ * Atomically enqueues the specified entry. Returns true on success, returns
+ * false if the ck_ring is full. This operation only support one active
+ * invocation at a time and works in the presence of a concurrent invocation
+ * of ck_ring_dequeue_spsc.
+ *
+ * This variant of ck_ring_enqueue_spsc returns the snapshot of queue length
+ * with respect to the linearization point. This can be used to extract ring
+ * size without incurring additional cacheline invalidation overhead from the
+ * writer.
+ */
+CK_CC_INLINE static bool
+ck_ring_enqueue_spsc_size(struct ck_ring *ring,
+    void *entry,
+    unsigned int *size)
+{
+	unsigned int consumer, producer, delta;
+	unsigned int mask = ring->mask;
+
+	consumer = ck_pr_load_uint(&ring->c_head);
+	producer = ring->p_tail;
+	delta = producer + 1;
+	*size = (producer - consumer) & mask;
+
+	if ((delta & mask) == (consumer & mask))
+		return false;
+
+	ring->ring[producer & mask] = entry;
+
+	/*
+	 * Make sure to update slot value before indicating
+	 * that the slot is available for consumption.
+	 */
+	ck_pr_fence_store();
+	ck_pr_store_uint(&ring->p_tail, delta);
+	return true;
+}
+
+/*
+ * Atomically enqueues the specified entry. Returns true on success, returns
+ * false if the ck_ring is full. This operation only support one active
+ * invocation at a time and works in the presence of a concurrent invocation
+ * of ck_ring_dequeue_spsc.
+ */
 CK_CC_INLINE static bool
 ck_ring_enqueue_spsc(struct ck_ring *ring, void *entry)
 {
@@ -245,6 +321,7 @@ CK_CC_INLINE static bool
 ck_ring_dequeue_spsc(struct ck_ring *ring, void *data)
 {
 	unsigned int consumer, producer;
+	unsigned int mask = ring->mask;
 
 	consumer = ring->c_head;
 	producer = ck_pr_load_uint(&ring->p_tail);
@@ -265,12 +342,38 @@ ck_ring_dequeue_spsc(struct ck_ring *ring, void *data)
 	 * troublesome on platforms where sizeof(void *)
 	 * is not guaranteed to be sizeof(T *).
 	 */
-	ck_pr_store_ptr(data, ring->ring[consumer & ring->mask]);
+	ck_pr_store_ptr(data, ring->ring[consumer & mask]);
 	ck_pr_fence_store();
 	ck_pr_store_uint(&ring->c_head, consumer + 1);
 	return true;
 }
 
+/*
+ * Atomically enqueues the specified entry. Returns true on success, returns
+ * false if the ck_ring is full. This operation only support one active
+ * invocation at a time and works in the presence of up to UINT_MAX concurrent
+ * invocations of ck_ring_dequeue_spmc.
+ *
+ * This variant of ck_ring_enqueue_spmc returns the snapshot of queue length
+ * with respect to the linearization point. This can be used to extract ring
+ * size without incurring additional cacheline invalidation overhead from the
+ * writer.
+ */
+CK_CC_INLINE static bool
+ck_ring_enqueue_spmc_size(struct ck_ring *ring,
+    void *entry,
+    unsigned int *size)
+{
+
+	return ck_ring_enqueue_spsc_size(ring, entry, size);
+}
+
+/*
+ * Atomically enqueues the specified entry. Returns true on success, returns
+ * false if the ck_ring is full. This operation only support one active
+ * invocation at a time and works in the presence of up to UINT_MAX concurrent
+ * invocations of ck_ring_dequeue_spmc.
+ */
 CK_CC_INLINE static bool
 ck_ring_enqueue_spmc(struct ck_ring *ring, void *entry)
 {
@@ -282,6 +385,7 @@ CK_CC_INLINE static bool
 ck_ring_trydequeue_spmc(struct ck_ring *ring, void *data)
 {
 	unsigned int consumer, producer;
+	unsigned int mask = ring->mask;
 
 	consumer = ck_pr_load_uint(&ring->c_head);
 	ck_pr_fence_load();
@@ -291,7 +395,7 @@ ck_ring_trydequeue_spmc(struct ck_ring *ring, void *data)
 		return false;
 
 	ck_pr_fence_load();
-	ck_pr_store_ptr(data, ring->ring[consumer & ring->mask]);
+	ck_pr_store_ptr(data, ring->ring[consumer & mask]);
 	ck_pr_fence_memory();
 
 	return ck_pr_cas_uint(&ring->c_head, consumer, consumer + 1);
@@ -301,6 +405,7 @@ CK_CC_INLINE static bool
 ck_ring_dequeue_spmc(struct ck_ring *ring, void *data)
 {
 	unsigned int consumer, producer;
+	unsigned int mask = ring->mask;
 	void *r;
 
 	consumer = ck_pr_load_uint(&ring->c_head);
@@ -317,7 +422,15 @@ ck_ring_dequeue_spmc(struct ck_ring *ring, void *data)
 			return false;
 
 		ck_pr_fence_load();
-		r = ring->ring[consumer & ring->mask];
+		
+		/*
+		 * Both LLVM and GCC have generated code which completely
+		 * ignores the semantics of the r load, despite it being
+		 * sandwiched between compiler barriers. We use an atomic
+		 * volatile load to force volatile semantics while allowing
+		 * for r itself to remain aliased across the loop.
+		 */
+		r = ck_pr_load_ptr(&ring->ring[consumer & mask]);
 
 		/* Serialize load with respect to head update. */
 		ck_pr_fence_memory();
@@ -326,6 +439,10 @@ ck_ring_dequeue_spmc(struct ck_ring *ring, void *data)
 				      consumer + 1,
 				      &consumer) == false);
 
+	/*
+	 * Force spillage while avoiding aliasing issues that aren't
+	 * a problem on POSIX.
+	 */
 	ck_pr_store_ptr(data, r);
 	return true;
 }

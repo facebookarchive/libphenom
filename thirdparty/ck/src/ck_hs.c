@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Samy Al Bahra.
+ * Copyright 2012-2013 Samy Al Bahra.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -167,12 +167,12 @@ ck_hs_map_create(struct ck_hs *hs, unsigned long entries)
 }
 
 bool
-ck_hs_reset(struct ck_hs *hs)
+ck_hs_reset_size(struct ck_hs *hs, unsigned long capacity)
 {
 	struct ck_hs_map *map, *previous;
 
 	previous = hs->map;
-	map = ck_hs_map_create(hs, previous->capacity);
+	map = ck_hs_map_create(hs, capacity);
 	if (map == NULL)
 		return false;
 
@@ -181,8 +181,21 @@ ck_hs_reset(struct ck_hs *hs)
 	return true;
 }
 
+bool
+ck_hs_reset(struct ck_hs *hs)
+{
+	struct ck_hs_map *previous;
+
+	previous = hs->map;
+	return ck_hs_reset_size(hs, previous->capacity);
+}
+
 static inline unsigned long
-ck_hs_map_probe_next(struct ck_hs_map *map, unsigned long offset, unsigned long h, unsigned long level, unsigned long probes)
+ck_hs_map_probe_next(struct ck_hs_map *map,
+    unsigned long offset,
+    unsigned long h,
+    unsigned long level,
+    unsigned long probes)
 {
 	unsigned long r;
 	unsigned long stride;
@@ -198,7 +211,7 @@ ck_hs_map_probe_next(struct ck_hs_map *map, unsigned long offset, unsigned long 
 
 bool
 ck_hs_grow(struct ck_hs *hs,
-	   unsigned long capacity)
+    unsigned long capacity)
 {
 	struct ck_hs_map *map, *update;
 	void **bucket, *previous;
@@ -272,13 +285,13 @@ restart:
 
 static void **
 ck_hs_map_probe(struct ck_hs *hs,
-		struct ck_hs_map *map,
-		unsigned long *n_probes,
-		void ***priority,
-		unsigned long h,
-		const void *key,
-		void **object,
-		unsigned long probe_limit)
+    struct ck_hs_map *map,
+    unsigned long *n_probes,
+    void ***priority,
+    unsigned long h,
+    const void *key,
+    void **object,
+    unsigned long probe_limit)
 {
 	void **bucket, **cursor, *k;
 	const void *compare;
@@ -315,10 +328,11 @@ ck_hs_map_probe(struct ck_hs *hs,
 				goto leave;
 
 			if (k == CK_HS_TOMBSTONE) {
-				if (pr == NULL)
+				if (pr == NULL) {
 					pr = cursor;
+					*n_probes = probes;
+				}
 
-				*n_probes = probes;
 				continue;
 			}
 
@@ -344,10 +358,12 @@ ck_hs_map_probe(struct ck_hs *hs,
 		offset = ck_hs_map_probe_next(map, offset, h, i, probes);
 	}
 
-	return NULL;
-
 leave:
-	*object = k;
+	if (i != probe_limit) {
+		*object = k;
+	} else {
+		cursor = NULL;
+	}
 
 	if (pr == NULL)
 		*n_probes = probes;
@@ -358,9 +374,9 @@ leave:
 
 bool
 ck_hs_set(struct ck_hs *hs,
-          unsigned long h,
-	  const void *key,
-	  void **previous)
+    unsigned long h,
+    const void *key,
+    void **previous)
 {
 	void **slot, **first, *object, *insert;
 	unsigned long n_probes;
@@ -370,8 +386,9 @@ ck_hs_set(struct ck_hs *hs,
 
 restart:
 	map = hs->map;
+
 	slot = ck_hs_map_probe(hs, map, &n_probes, &first, h, key, &object, map->probe_limit);
-	if (slot == NULL) {
+	if (slot == NULL && first == NULL) {
 		if (ck_hs_grow(hs, map->capacity << 1) == false)
 			return false;
 
@@ -396,12 +413,15 @@ restart:
 		ck_pr_store_ptr(first, insert);
 
 		/*
-		 * If a duplicate was found, then we must guarantee that new entry
-		 * is visible with respect to concurrent probe sequences.
+		 * If a duplicate key was found, then delete it after
+		 * signaling concurrent probes to restart. Optionally,
+		 * it is possible to install tombstone after grace
+		 * period if we can guarantee earlier position of
+		 * duplicate key.
 		 */
-		if (*slot != CK_HS_EMPTY) {
+		if (slot != NULL && *slot != CK_HS_EMPTY) {
 			ck_pr_inc_uint(&map->generation[h & CK_HS_G_MASK]);
-			ck_pr_fence_store();
+			ck_pr_fence_atomic_store();
 			ck_pr_store_ptr(slot, CK_HS_TOMBSTONE);
 		}
 	} else {
@@ -424,8 +444,8 @@ restart:
 
 bool
 ck_hs_put(struct ck_hs *hs,
-          unsigned long h,
-	  const void *key)
+    unsigned long h,
+    const void *key)
 {
 	void **slot, **first, *object, *insert;
 	unsigned long n_probes;
@@ -433,16 +453,17 @@ ck_hs_put(struct ck_hs *hs,
 
 restart:
 	map = hs->map;
+
 	slot = ck_hs_map_probe(hs, map, &n_probes, &first, h, key, &object, map->probe_limit);
-	if (slot == NULL) {
+	if (slot == NULL && first == NULL) {
 		if (ck_hs_grow(hs, map->capacity << 1) == false)
 			return false;
 
 		goto restart;
 	}
 
-	/* If a match was found, then fail. */
-	if (*slot != CK_HS_EMPTY)
+	/* Fail operation if a match was found. */
+	if (slot != NULL && *slot != CK_HS_EMPTY)
 		return false;
 
 #ifdef CK_HS_PP
@@ -459,13 +480,8 @@ restart:
 		ck_pr_store_uint(&map->probe_maximum, n_probes);
 
 	if (first != NULL) {
-		/* If an earlier bucket was found, then go ahead and replace it. */
+		/* Insert key into first bucket in probe sequence. */
 		ck_pr_store_ptr(first, insert);
-		ck_pr_inc_uint(&map->generation[h & CK_HS_G_MASK]);
-
-		/* Guarantee that new object is visible with respect to generation increment. */
-		ck_pr_fence_store();
-		ck_pr_store_ptr(slot, CK_HS_TOMBSTONE);
 	} else {
 		/* An empty slot was found. */
 		ck_pr_store_ptr(slot, insert);
@@ -480,8 +496,8 @@ restart:
 
 void *
 ck_hs_get(struct ck_hs *hs,
-	  unsigned long h,
-	  const void *key)
+    unsigned long h,
+    const void *key)
 {
 	void **slot, **first, *object;
 	struct ck_hs_map *map;
@@ -509,8 +525,8 @@ ck_hs_get(struct ck_hs *hs,
 
 void *
 ck_hs_remove(struct ck_hs *hs,
-	     unsigned long h,
-	     const void *key)
+    unsigned long h,
+    const void *key)
 {
 	void **slot, **first, *object;
 	struct ck_hs_map *map = hs->map;
@@ -528,12 +544,12 @@ ck_hs_remove(struct ck_hs *hs,
 
 bool
 ck_hs_init(struct ck_hs *hs,
-	   unsigned int mode,
-	   ck_hs_hash_cb_t *hf,
-	   ck_hs_compare_cb_t *compare,
-	   struct ck_malloc *m,
-	   unsigned long n_entries,
-	   unsigned long seed)
+    unsigned int mode,
+    ck_hs_hash_cb_t *hf,
+    ck_hs_compare_cb_t *compare,
+    struct ck_malloc *m,
+    unsigned long n_entries,
+    unsigned long seed)
 {
 
 	if (m == NULL || m->malloc == NULL || m->free == NULL || hf == NULL)

@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2012 Samy Al Bahra.
+ * Copyright 2010-2013 Samy Al Bahra.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -69,7 +69,7 @@ struct ck_hp_record {
 	unsigned int n_pending;
 	ck_stack_entry_t global_entry;
 	unsigned int n_peak;
-	uint64_t     n_reclamations;
+	uint64_t n_reclamations;
 } CK_CC_CACHELINE;
 typedef struct ck_hp_record ck_hp_record_t;
 

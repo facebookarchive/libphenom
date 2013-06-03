@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2012 Samy Al Bahra.
+ * Copyright 2011-2013 Samy Al Bahra.
  * Copyright 2011 David Joseph.
  * All rights reserved.
  *
@@ -31,8 +31,7 @@
 #include <stdbool.h>
 
 void
-ck_barrier_mcs_init(struct ck_barrier_mcs *barrier,
-                    unsigned int nthr)
+ck_barrier_mcs_init(struct ck_barrier_mcs *barrier, unsigned int nthr)
 {
 	unsigned int i, j;
 
@@ -55,17 +54,17 @@ ck_barrier_mcs_init(struct ck_barrier_mcs *barrier,
 
 		/* The root thread does not have a parent. */
 		barrier[i].parent = (i == 0) ?
-					    &barrier[i].dummy :
-					    &barrier[(i - 1) >> 2].childnotready[(i - 1) & 3];
+		    &barrier[i].dummy :
+		    &barrier[(i - 1) >> 2].childnotready[(i - 1) & 3];
 
 		/* Leaf threads do not have any children. */
 		barrier[i].children[0] = ((i << 1) + 1 >= nthr)	?
-						 &barrier[i].dummy :
-						 &barrier[(i << 1) + 1].parentsense;
+		    &barrier[i].dummy :
+		    &barrier[(i << 1) + 1].parentsense;
 
 		barrier[i].children[1] = ((i << 1) + 2 >= nthr)	?
-						 &barrier[i].dummy :
-						 &barrier[(i << 1) + 2].parentsense;
+		    &barrier[i].dummy :
+		    &barrier[(i << 1) + 2].parentsense;
 
 		barrier[i].parentsense = 0;
 	}
@@ -87,15 +86,15 @@ ck_barrier_mcs_check_children(unsigned int *childnotready)
 {
 
 	if (ck_pr_load_uint(&childnotready[0]) != 0)
-		return (false);
+		return false;
 	if (ck_pr_load_uint(&childnotready[1]) != 0)
-		return (false);
+		return false;
 	if (ck_pr_load_uint(&childnotready[2]) != 0)
-		return (false);
+		return false;
 	if (ck_pr_load_uint(&childnotready[3]) != 0)
-		return (false);
+		return false;
 
-	return (true);
+	return true;
 }
 
 CK_CC_INLINE static void
@@ -111,7 +110,7 @@ ck_barrier_mcs_reinitialize_children(struct ck_barrier_mcs *node)
 
 void
 ck_barrier_mcs(struct ck_barrier_mcs *barrier,
-               struct ck_barrier_mcs_state *state)
+    struct ck_barrier_mcs_state *state)
 {
 
 	/*

@@ -1,6 +1,6 @@
 /*
- * Copyright 2012 Abel P. Mathew
- * Copyright 2012 Samy Al Bahra
+ * Copyright 2012-2013 Abel P. Mathew
+ * Copyright 2012-2013 Samy Al Bahra
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -45,8 +45,8 @@ static size_t allocator_overhead;
 
 bool
 ck_bag_init(struct ck_bag *bag,
-	    size_t n_cachelines,
-	    enum ck_bag_allocation_strategy as)
+    size_t n_cachelines,
+    enum ck_bag_allocation_strategy as)
 {
 	size_t block_overhead, block_size;
 

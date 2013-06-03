@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2012 Samy Al Bahra.
+ * Copyright 2010-2013 Samy Al Bahra.
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -93,7 +93,7 @@ ck_bytelock_write_lock(struct ck_bytelock *bytelock, unsigned int slot)
 		ck_pr_store_8(&bytelock->readers[slot - 1], false);
 
 	/* Wait for slotted readers to drain out. */
-	ck_pr_fence_strict_memory();
+	ck_pr_fence_store_load();
 	for (i = 0; i < sizeof(bytelock->readers) / CK_BYTELOCK_LENGTH; i++) {
 		while (CK_BYTELOCK_LOAD((CK_BYTELOCK_TYPE *)&readers[i]) != false)
 			ck_pr_stall();
@@ -124,7 +124,7 @@ ck_bytelock_read_lock(struct ck_bytelock *bytelock, unsigned int slot)
 {
 
 	if (ck_pr_load_uint(&bytelock->owner) == slot) {
-		ck_pr_store_8(&bytelock->readers[slot], true);
+		ck_pr_store_8(&bytelock->readers[slot - 1], true);
 		ck_pr_fence_strict_store();
 		ck_pr_store_uint(&bytelock->owner, 0);
 		return;
@@ -134,7 +134,7 @@ ck_bytelock_read_lock(struct ck_bytelock *bytelock, unsigned int slot)
 	if (slot > sizeof bytelock->readers) {
 		for (;;) {
 			ck_pr_inc_uint(&bytelock->n_readers);
-			ck_pr_fence_memory();
+			ck_pr_fence_atomic_load();
 			if (ck_pr_load_uint(&bytelock->owner) == 0)
 				break;
 			ck_pr_dec_uint(&bytelock->n_readers);
@@ -143,13 +143,14 @@ ck_bytelock_read_lock(struct ck_bytelock *bytelock, unsigned int slot)
 				ck_pr_stall();
 		}
 
+		ck_pr_fence_load();
 		return;
 	}
 
 	slot -= 1;
 	for (;;) {
 		ck_pr_store_8(&bytelock->readers[slot], true);
-		ck_pr_fence_strict_memory();
+		ck_pr_fence_store_load();
 
 		/*
 		 * If there is no owner at this point, our slot has
@@ -164,6 +165,7 @@ ck_bytelock_read_lock(struct ck_bytelock *bytelock, unsigned int slot)
 			ck_pr_stall();
 	}
 
+	ck_pr_fence_load();
 	return;
 }
 
