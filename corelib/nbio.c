@@ -19,9 +19,20 @@
 #include "phenom/sysutil.h"
 #include "phenom/memory.h"
 #include "phenom/log.h"
+#include "phenom/counter.h"
 
 // We use 100ms resolution
 #define WHEEL_INTERVAL_MS 100
+
+static ph_counter_scope_t *counter_scope = NULL;
+static const char *counter_names[] = {
+  "dispatched",     // number of jobs dispatched
+  "timer_ticks",    // how many times the timer has ticked
+  "timer_busy",     // couldn't claim from timer
+};
+#define SLOT_DISP 0
+#define SLOT_TIMER_TICK 1
+#define SLOT_BUSY 2
 
 static ph_timerwheel_t wheel;
 static int num_schedulers;
@@ -46,13 +57,16 @@ static int kq_fd;
 static ph_result_t apply_io_mask(ph_job_t *job, ph_iomask_t mask);
 
 static inline void trigger_now(
+    ph_counter_block_t *cblock,
     ph_job_t *job, ph_iomask_t why)
 {
   if (why != PH_IOMASK_TIME &&
       ph_timerwheel_disable(&wheel, &job->timer) == PH_BUSY) {
     // timer is currently dispatching this: it wins
+    ph_counter_block_add(cblock, SLOT_BUSY, 1);
     return;
   }
+  ph_counter_block_add(cblock, SLOT_DISP, 1);
   job->callback(job, why, job->data);
 }
 
@@ -90,16 +104,16 @@ static void dispatch_timer(
     void *arg)
 {
   ph_job_t *job;
+  ph_counter_block_t *cblock = arg;
 
   unused_parameter(w);
   unused_parameter(now);
-  unused_parameter(arg);
 
   // map the timer address back to that of its containing
   // work item
   job = job_from_timer(timer);
 
-  trigger_now(job, PH_IOMASK_TIME);
+  trigger_now(cblock, job, PH_IOMASK_TIME);
 }
 
 #ifdef HAVE_EPOLL_CREATE
@@ -115,8 +129,12 @@ static void tick_epoll(ph_job_t *job, ph_iomask_t why, void *data)
    * means that we've fallen behind */
   if (read(timer_fd, &expirations, sizeof(expirations)) > 0) {
     if (expirations) {
+      ph_counter_block_t *cblock = ph_counter_block_open(counter_scope);
+
+      ph_counter_block_add(cblock, SLOT_TIMER_TICK, 1);
       ph_timerwheel_tick(&wheel, ph_time_now(),
-          before_dispatch_timer, dispatch_timer, ph_thread_self());
+          before_dispatch_timer, dispatch_timer, cblock);
+      ph_counter_block_delref(cblock);
     }
   }
 
@@ -235,6 +253,11 @@ ph_result_t ph_nbio_init(uint32_t sched_cores)
 
   ph_job_pool_init();
 
+  counter_scope = ph_counter_scope_define(NULL, "iosched", 16);
+  ph_counter_scope_register_counter_block(
+      counter_scope, sizeof(counter_names)/sizeof(counter_names[0]),
+      0, counter_names);
+
 #ifdef HAVE_EPOLL_CREATE
   return do_epoll_init();
 #elif defined(HAVE_PORT_CREATE)
@@ -247,7 +270,7 @@ ph_result_t ph_nbio_init(uint32_t sched_cores)
 }
 
 #ifdef HAVE_EPOLL_CREATE
-static void epoll_emitter(ph_thread_t *thread)
+static void epoll_emitter(ph_counter_block_t *cblock, ph_thread_t *thread)
 {
   struct epoll_event event;
   int n;
@@ -272,7 +295,7 @@ static void epoll_emitter(ph_thread_t *thread)
       if (event.events & (EPOLLERR|EPOLLHUP)) {
         mask |= PH_IOMASK_ERR;
       }
-      trigger_now(job, mask);
+      trigger_now(cblock, job, mask);
       if (ph_job_have_deferred_items(thread)) {
         ph_job_pool_apply_deferred_items(thread);
       }
@@ -282,7 +305,7 @@ static void epoll_emitter(ph_thread_t *thread)
 #endif
 
 #ifdef HAVE_PORT_CREATE
-static void port_emitter(ph_thread_t *thread)
+static void port_emitter(ph_counter_block_t *cblock, ph_thread_t *thread)
 {
   port_event_t event;
   uint_t n;
@@ -308,8 +331,10 @@ static void port_emitter(ph_thread_t *thread)
       case PORT_SOURCE_TIMER:
         gettimeofday(&thread->now, NULL);
         thread->refresh_time = false;
+
+        ph_counter_block_add(cblock, SLOT_TIMER_TICK, 1);
         ph_timerwheel_tick(&wheel, thread->now, before_dispatch_timer,
-            dispatch_timer, thread);
+            dispatch_timer, cblock);
         break;
 
       case PORT_SOURCE_USER:
@@ -329,7 +354,7 @@ static void port_emitter(ph_thread_t *thread)
         if (event.portev_events & (POLLERR|POLLHUP)) {
           mask |= PH_IOMASK_ERR;
         }
-        trigger_now(job, mask);
+        trigger_now(cblock, job, mask);
         break;
     }
 
@@ -341,7 +366,7 @@ static void port_emitter(ph_thread_t *thread)
 #endif
 
 #ifdef HAVE_KQUEUE
-static void kqueue_emitter(ph_thread_t *thread)
+static void kqueue_emitter(ph_counter_block_t *cblock, ph_thread_t *thread)
 {
   struct kevent event;
   int n;
@@ -362,8 +387,9 @@ static void kqueue_emitter(ph_thread_t *thread)
       case EVFILT_TIMER:
         gettimeofday(&thread->now, NULL);
         thread->refresh_time = false;
+        ph_counter_block_add(cblock, SLOT_TIMER_TICK, 1);
         ph_timerwheel_tick(&wheel, thread->now, before_dispatch_timer,
-            dispatch_timer, thread);
+            dispatch_timer, cblock);
         break;
 
       case EVFILT_READ:
@@ -374,12 +400,12 @@ static void kqueue_emitter(ph_thread_t *thread)
         }
 
         thread->refresh_time = true;
-        trigger_now(event.udata, mask);
+        trigger_now(cblock, event.udata, mask);
         break;
 
       case EVFILT_WRITE:
         thread->refresh_time = true;
-        trigger_now(event.udata, PH_IOMASK_WRITE);
+        trigger_now(cblock, event.udata, PH_IOMASK_WRITE);
         break;
     }
 
@@ -393,6 +419,8 @@ static void kqueue_emitter(ph_thread_t *thread)
 static void *sched_loop(void *arg)
 {
   ph_thread_t *me = ph_thread_self();
+  ph_counter_block_t *cblock;
+
   unused_parameter(arg);
 
   if (!ph_thread_set_affinity(me, me->tid % ph_num_cores())) {
@@ -408,15 +436,19 @@ static void *sched_loop(void *arg)
     ph_thread_set_name("sched");
   }
 
+  cblock = ph_counter_block_open(counter_scope);
+
 #ifdef HAVE_KQUEUE
-  kqueue_emitter(me);
+  kqueue_emitter(cblock, me);
 #endif
 #ifdef HAVE_EPOLL_CREATE
-  epoll_emitter(me);
+  epoll_emitter(cblock, me);
 #endif
 #ifdef HAVE_PORT_CREATE
-  port_emitter(me);
+  port_emitter(cblock, me);
 #endif
+
+  ph_counter_block_delref(cblock);
   return NULL;
 }
 
@@ -695,6 +727,13 @@ void ph_socket_set_nonblock(ph_socket_t fd, bool enable)
   } else {
     fcntl(fd, F_SETFL, flag & ~O_NONBLOCK);
   }
+}
+
+void ph_nbio_stat(struct ph_nbio_stats *stats)
+{
+  ph_counter_scope_get_view(counter_scope,
+      sizeof(counter_names)/sizeof(counter_names[0]),
+      &stats->num_dispatched, NULL);
 }
 
 /* vim:ts=2:sw=2:et:

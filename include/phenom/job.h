@@ -180,6 +180,15 @@ struct ph_thread_pool_stats {
 void ph_thread_pool_stat(ph_thread_pool_t *pool,
     struct ph_thread_pool_stats *stats);
 
+/** io scheduler thread pool stats */
+struct ph_nbio_stats {
+  int64_t num_dispatched;
+  int64_t timer_ticks;
+  int64_t timer_busy;
+};
+
+void ph_nbio_stat(struct ph_nbio_stats *stats);
+
 /** Start the run loop.  Must be called from the main thread */
 ph_result_t ph_sched_run(void);
 

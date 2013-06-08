@@ -49,7 +49,8 @@ libtap_a_SOURCES = thirdparty/tap/tap.c
 TEST_CPPFLAGS = -Ithirdparty/tap -Ithirdparty/ck/include -Iinclude -DPHENOM_IMPL
 TEST_LDADD = libphenom.a libtap.a
 TESTS = tests/counter.t tests/memory.t tests/timer.t tests/printf.t \
-				tests/iobasic.t tests/stream.t tests/tpool.t
+				tests/iobasic.t tests/stream.t tests/tpool.t \
+				tests/bench/iopipes.t
 noinst_PROGRAMS = $(TESTS)
 
 # generate a rule that we can use to ensure that
@@ -78,3 +79,5 @@ tests_stream_t_LDADD = $(TEST_LDADD)
 tests_tpool_t_CPPFLAGS = $(TEST_CPPFLAGS)
 tests_tpool_t_LDADD = $(TEST_LDADD)
 
+tests_bench_iopipes_t_CPPFLAGS = $(TEST_CPPFLAGS)
+tests_bench_iopipes_t_LDADD = $(TEST_LDADD)

@@ -22,6 +22,7 @@ include/phenom/config.h.in
 include/phenom/config.h
 compile
 tests/*.t
+tests/bench/*.t
 .dirstamp
 *.a
 *.rpm
