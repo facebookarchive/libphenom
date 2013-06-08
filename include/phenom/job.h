@@ -77,9 +77,6 @@ struct ph_job {
   ph_socket_t fd;
   struct timeval   timeout;
   struct ph_timerwheel_timer timer;
-  ph_thread_t *owner;
-  uint32_t vers;
-  uint32_t tvers;
 
   ph_thread_pool_t *pool;
 };
@@ -183,8 +180,12 @@ struct ph_thread_pool_stats {
 void ph_thread_pool_stat(ph_thread_pool_t *pool,
     struct ph_thread_pool_stats *stats);
 
-ph_result_t ph_nbio_init(uint32_t sched_cores);
-ph_result_t ph_job_pool_init(void);
+/** Start the run loop.  Must be called from the main thread */
+ph_result_t ph_sched_run(void);
+
+/** Requests that the run loop be halted.
+ * Can be called from any thread */
+void ph_sched_stop(void);
 
 /* ----
  * the following are implementation specific and shouldn't
@@ -192,8 +193,9 @@ ph_result_t ph_job_pool_init(void);
  */
 void ph_job_pool_shutdown(void);
 void ph_job_pool_apply_deferred_items(ph_thread_t *me);
-ph_result_t ph_sched_run(void);
-void ph_sched_stop(void);
+
+ph_result_t ph_nbio_init(uint32_t sched_cores);
+ph_result_t ph_job_pool_init(void);
 
 void _ph_job_set_pool_immediate(ph_job_t *job, ph_thread_t *me);
 void _ph_job_pool_start_threads(void);

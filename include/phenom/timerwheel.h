@@ -41,7 +41,7 @@
 #include <phenom/defs.h>
 #include <phenom/thread.h>
 #include <phenom/queue.h>
-#include <ck_spinlock.h>
+#include <ck_rwlock.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -53,8 +53,12 @@ PH_LIST_HEAD(
 
 struct ph_timerwheel_timer {
   PH_LIST_ENTRY(ph_timerwheel_timer) t;
+  struct ph_timerwheel_list *list;
   struct timeval due;
-  uint32_t generation, wheel_gen, active;
+  int enable;
+#define PH_TIMER_DISABLED    0
+#define PH_TIMER_ENABLED     1
+#define PH_TIMER_LOCKED      2
 };
 
 #define PHENOM_WHEEL_BITS 8
@@ -64,7 +68,7 @@ struct ph_timerwheel_timer {
 struct ph_timerwheel {
   struct timeval next_run;
   uint32_t tick_resolution;
-  ck_spinlock_t lock;
+  ck_rwlock_t lock;
   struct {
     struct ph_timerwheel_list lists[PHENOM_WHEEL_SIZE];
   } buckets[4];
@@ -80,12 +84,20 @@ ph_result_t ph_timerwheel_init(
     struct timeval now,
     uint32_t tick_resolution);
 
-/** Insert an element into the timerweel */
-ph_result_t ph_timerwheel_insert(
+/** Disable a timer that is already in the timerwheel.
+ * It remains in the timerwheel until removed.
+ * You may re-enable it using ph_timerwheel_enable().
+ * If the wheel ticks and dispatches a disabled timer,
+ * it simply skips over it.
+ */
+ph_result_t ph_timerwheel_disable(
     ph_timerwheel_t *wheel,
     struct ph_timerwheel_timer *timer);
 
-ph_result_t ph_timerwheel_insert_unlocked(
+/** Enable a timer.
+ * Can be used to insert a new timer or re-enable a disabled timer.
+ * */
+ph_result_t ph_timerwheel_enable(
     ph_timerwheel_t *wheel,
     struct ph_timerwheel_timer *timer);
 
@@ -94,10 +106,18 @@ ph_result_t ph_timerwheel_remove(
     ph_timerwheel_t *wheel,
     struct ph_timerwheel_timer *timer);
 
-ph_result_t ph_timerwheel_remove_unlocked(
+/** Called by the wheel to advise that a timer will be dispatched
+ * imminently.  This gives you the opportunity to take steps to make
+ * this safe.  Return true to allow the timer to be dispatched or
+ * false to ignore it.  Returning false deactivates the timer.
+ * This is called under the wheel lock */
+typedef bool (*ph_timerwheel_should_dispatch_func_t)(
     ph_timerwheel_t *wheel,
-    struct ph_timerwheel_timer *timer);
+    struct ph_timerwheel_timer *timer,
+    struct timeval now,
+    void *arg);
 
+/** Called by the wheel to actually dispatch a timer */
 typedef void (*ph_timerwheel_dispatch_func_t)(
     ph_timerwheel_t *wheel,
     struct ph_timerwheel_timer *timer,
@@ -119,11 +139,9 @@ typedef void (*ph_timerwheel_dispatch_func_t)(
 uint32_t ph_timerwheel_tick(
     ph_timerwheel_t *wheel,
     struct timeval now,
+    ph_timerwheel_should_dispatch_func_t should_dispatch,
     ph_timerwheel_dispatch_func_t dispatch,
     void *arg);
-
-bool ph_timerwheel_timer_was_modified(
-    struct ph_timerwheel_timer *timer);
 
 #ifdef __cplusplus
 }

@@ -87,7 +87,7 @@ void ph_log(uint8_t level, const char *fmt, ...)
 # include <execinfo.h>
 #endif
 
- void ph_log_stacktrace(uint8_t level)
+void ph_log_stacktrace(uint8_t level)
 {
 #if defined(HAVE_BACKTRACE) && defined(HAVE_BACKTRACE_SYMBOLS)
   void *array[24];

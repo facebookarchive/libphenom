@@ -34,7 +34,7 @@ ph_result_t ph_timerwheel_init(
 {
   int i;
 
-  ck_spinlock_init(&wheel->lock);
+  ck_rwlock_init(&wheel->lock);
   wheel->tick_resolution = tick_resolution;
 
   tval_add_res(wheel, &now, &wheel->next_run);
@@ -49,33 +49,13 @@ ph_result_t ph_timerwheel_init(
   return PH_OK;
 }
 
-ph_result_t ph_timerwheel_insert(
-    ph_timerwheel_t *wheel,
-    struct ph_timerwheel_timer *timer)
-{
-  ph_result_t res;
-
-  ck_spinlock_lock(&wheel->lock);
-  if (timer->active) {
-    ck_spinlock_unlock(&wheel->lock);
-    return PH_BUSY;
-  }
-
-  ck_pr_faa_32(&timer->generation, 1);
-  ck_pr_store_32(&timer->active, 1);
-  res = ph_timerwheel_insert_unlocked(wheel, timer);
-  ck_spinlock_unlock(&wheel->lock);
-
-  return res;
-}
-
 static inline uint64_t tval_to_tick(ph_timerwheel_t *wheel, struct timeval tv)
 {
   return (tv.tv_sec * 1000 / wheel->tick_resolution) +
          (tv.tv_usec / (wheel->tick_resolution * 1000));
 }
 
-ph_result_t ph_timerwheel_insert_unlocked(
+static inline struct ph_timerwheel_list *compute_list(
     ph_timerwheel_t *wheel,
     struct ph_timerwheel_timer *timer)
 {
@@ -109,7 +89,64 @@ ph_result_t ph_timerwheel_insert_unlocked(
             ((due >> (3*PHENOM_WHEEL_BITS)) & PHENOM_WHEEL_MASK);
   }
 
-  PH_LIST_INSERT_HEAD(list, timer, t);
+  return list;
+}
+
+ph_result_t ph_timerwheel_disable(
+    ph_timerwheel_t *wheel,
+    struct ph_timerwheel_timer *timer)
+{
+  unused_parameter(wheel);
+
+  if (ck_pr_load_int(&timer->enable) == PH_TIMER_DISABLED) {
+    return PH_OK;
+  }
+
+  if (ck_pr_cas_int(&timer->enable, PH_TIMER_ENABLED, PH_TIMER_DISABLED)) {
+    return PH_OK;
+  }
+
+  return PH_BUSY;
+}
+
+ph_result_t ph_timerwheel_enable(
+    ph_timerwheel_t *wheel,
+    struct ph_timerwheel_timer *timer)
+{
+  struct ph_timerwheel_list *list;
+
+  if (!ck_pr_cas_int(&timer->enable, PH_TIMER_DISABLED, PH_TIMER_LOCKED)) {
+    return PH_BUSY;
+  }
+
+  if (ck_pr_load_ptr(&timer->list)) {
+    ck_rwlock_read_lock(&wheel->lock);
+    {
+      list = compute_list(wheel, timer);
+      if (list == timer->list) {
+        ck_pr_store_int(&timer->enable, PH_TIMER_ENABLED);
+        ck_rwlock_read_unlock(&wheel->lock);
+        return PH_OK;
+      }
+    }
+    ck_rwlock_read_unlock(&wheel->lock);
+  }
+
+  // Need to recompute as the time may have changed since
+  // we released the reader and obtained the writer lock
+
+  ck_rwlock_write_lock(&wheel->lock);
+  {
+    if (timer->list) {
+      PH_LIST_REMOVE(timer, t);
+    }
+    list = compute_list(wheel, timer);
+
+    timer->list = list;
+    ck_pr_store_int(&timer->enable, PH_TIMER_ENABLED);
+    PH_LIST_INSERT_HEAD(list, timer, t);
+  }
+  ck_rwlock_write_unlock(&wheel->lock);
 
   return PH_OK;
 }
@@ -120,26 +157,21 @@ ph_result_t ph_timerwheel_remove(
 {
   ph_result_t res;
 
-  if (!ck_pr_load_32(&timer->active)) {
-    return PH_OK;
+  if (!ck_pr_load_ptr(&timer->list)) {
+    return PH_NOENT;
   }
 
-  ck_spinlock_lock(&wheel->lock);
-  ck_pr_faa_32(&timer->generation, 1);
-  res = ph_timerwheel_remove_unlocked(wheel, timer);
-  ck_spinlock_unlock(&wheel->lock);
+  res = ph_timerwheel_disable(wheel, timer);
+  if (res != PH_OK) {
+    return res;
+  }
 
-  return res;
-}
-
-ph_result_t ph_timerwheel_remove_unlocked(
-    ph_timerwheel_t *wheel,
-    struct ph_timerwheel_timer *timer)
-{
-  unused_parameter(wheel);
-
-  ck_pr_store_32(&timer->active, 0);
-  PH_LIST_REMOVE(timer, t);
+  ck_rwlock_write_lock(&wheel->lock);
+  {
+    PH_LIST_REMOVE(timer, t);
+    ck_pr_store_ptr(&timer->list, 0);
+  }
+  ck_rwlock_write_unlock(&wheel->lock);
 
   return PH_OK;
 }
@@ -149,7 +181,7 @@ ph_result_t ph_timerwheel_remove_unlocked(
 static bool cascade_timer(ph_timerwheel_t *wheel,
     struct ph_timerwheel_list *from, int slot)
 {
-  struct ph_timerwheel_list list;
+  struct ph_timerwheel_list list, *target;
   struct ph_timerwheel_timer *timer, *tmp;
 
   /* steal all items from the the origin list */
@@ -161,27 +193,31 @@ static bool cascade_timer(ph_timerwheel_t *wheel,
   PH_LIST_FOREACH_SAFE(timer, &list, t, tmp) {
     /* we're called under the wheel.lock */
     PH_LIST_REMOVE(timer, t);
-    ph_timerwheel_insert_unlocked(wheel, timer);
+
+    if (ck_pr_load_int(&timer->enable) == PH_TIMER_DISABLED) {
+      // They'll need to recompute when they are enabled anyway,
+      // so don't both re-inserting now
+      ck_pr_store_ptr(&timer->list, 0);
+      continue;
+    }
+
+    target = compute_list(wheel, timer);
+    timer->list = target;
+    PH_LIST_INSERT_HEAD(target, timer, t);
   }
 
   return slot == 0;
 }
 
-bool ph_timerwheel_timer_was_modified(
-    struct ph_timerwheel_timer *timer)
-{
-  return ck_pr_load_32(&timer->generation) !=
-    ck_pr_load_32(&timer->wheel_gen);
-}
-
 uint32_t ph_timerwheel_tick(
     ph_timerwheel_t *wheel,
     struct timeval now,
+    ph_timerwheel_should_dispatch_func_t should_dispatch,
     ph_timerwheel_dispatch_func_t dispatch,
     void *arg)
 {
   struct ph_timerwheel_list list;
-  struct ph_timerwheel_timer *timer;
+  struct ph_timerwheel_timer *timer, *tmptimer;
   int idx;
   uint64_t tick, nowtick;
   uint32_t ticked = 0;
@@ -191,7 +227,7 @@ uint32_t ph_timerwheel_tick(
 
   PH_LIST_INIT(&list);
 
-  ck_spinlock_lock(&wheel->lock);
+  ck_rwlock_write_lock(&wheel->lock);
   {
     if (nowtick <= tick) {
       idx = nowtick & PHENOM_WHEEL_MASK;
@@ -214,30 +250,43 @@ uint32_t ph_timerwheel_tick(
 
       tval_add_res(wheel, &wheel->next_run, &wheel->next_run);
 
-      PH_LIST_FOREACH(timer, &wheel->buckets[0].lists[idx], t) {
-        /* observe the generation number so we can
-         * detect a change in the timer state */
-        ck_pr_store_32(&timer->wheel_gen,
-            ck_pr_load_32(&timer->generation));
-      }
       /* claim the timers */
       PH_LIST_SWAP(&list, &wheel->buckets[0].lists[idx],
           ph_timerwheel_timer, t);
+
+      PH_LIST_FOREACH_SAFE(timer, &list, t, tmptimer) {
+        bool disp = true;
+
+        if (!ck_pr_cas_int(&timer->enable, PH_TIMER_ENABLED,
+              PH_TIMER_LOCKED)) {
+          // Wasn't enabled, so we remove it and skip it
+          disp = false;
+        } else if (should_dispatch && !should_dispatch(wheel,
+              timer, now, arg)) {
+          disp = false;
+        }
+
+        if (!disp) {
+          PH_LIST_REMOVE(timer, t);
+          ck_pr_store_ptr(&timer->list, 0);
+        }
+      }
     }
   }
-  ck_spinlock_unlock(&wheel->lock);
+  ck_rwlock_write_unlock(&wheel->lock);
 
+  // Everything in list is in PH_TIMER_LOCKED state
   for (;;) {
     timer = PH_LIST_FIRST(&list);
     if (!timer) break;
 
     ticked++;
-    ck_pr_store_32(&timer->active, 0);
-    PH_LIST_REMOVE(timer, t);
 
-    if (!ph_timerwheel_timer_was_modified(timer)) {
-      dispatch(wheel, timer, now, arg);
-    }
+    PH_LIST_REMOVE(timer, t);
+    timer->list = NULL;
+    timer->enable = PH_TIMER_DISABLED;
+
+    dispatch(wheel, timer, now, arg);
   }
 
   return ticked;

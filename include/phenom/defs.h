@@ -162,6 +162,7 @@ typedef uint32_t ph_result_t;
 #define PH_NOMEM   1
 #define PH_BUSY    2
 #define PH_ERR     3 /* programmer too lazy */
+#define PH_NOENT   4
 
 
 #ifdef __cplusplus

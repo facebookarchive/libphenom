@@ -21,7 +21,6 @@
 #include "phenom/queue.h"
 #include "phenom/memory.h"
 #include "phenom/queue.h"
-#include "ck_fifo.h"
 #include "ck_stack.h"
 #include "ck_queue.h"
 
@@ -62,13 +61,6 @@ struct ph_thread {
 
   // Name for debugging purposes
   char name[16];
-};
-
-struct ph_thread_pool_job_entry {
-  ck_fifo_mpmc_entry_t fifo;
-  struct ph_job *job;
-  uint32_t vers;
-  ck_stack_entry_t spare;
 };
 
 struct ph_thread_pool;

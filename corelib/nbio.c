@@ -43,26 +43,44 @@ static timer_t port_timer;
 static int kq_fd;
 #endif
 
-static ph_result_t trigger_now(ph_thread_t *thr,
+static ph_result_t apply_io_mask(ph_job_t *job, ph_iomask_t mask);
+
+static inline void trigger_now(
     ph_job_t *job, ph_iomask_t why)
 {
-  if (!ck_pr_cas_ptr(&job->owner, NULL, thr)) {
-    ph_log(PH_LOG_ERR, "trigger_now: can't claim job %p", (void*)job);
-    return PH_BUSY;
+  if (why != PH_IOMASK_TIME &&
+      ph_timerwheel_disable(&wheel, &job->timer) == PH_BUSY) {
+    // timer is currently dispatching this: it wins
+    return;
   }
-  if (why == PH_IOMASK_TIME && job->tvers != job->vers) {
-    ph_log(PH_LOG_ERR, "trigger_now: wrong job vers %p", (void*)job);
-    // Something changed since timer was last scheduled
-    ck_pr_store_ptr(&job->owner, NULL);
-    return PH_BUSY;
-  }
-
-  ck_pr_inc_32(&job->vers);
-  ck_pr_store_ptr(&job->owner, NULL);
-
   job->callback(job, why, job->data);
+}
 
-  return PH_OK;
+// map the timer address back to that of its containing
+// work item
+static inline ph_job_t *job_from_timer(struct ph_timerwheel_timer *timer)
+{
+  return (ph_job_t*)(((char*)timer) - ph_offsetof(ph_job_t, timer));
+}
+
+static bool before_dispatch_timer(
+    ph_timerwheel_t *w,
+    struct ph_timerwheel_timer *timer,
+    struct timeval now,
+    void *arg)
+{
+  ph_job_t *job;
+
+  unused_parameter(w);
+  unused_parameter(now);
+  unused_parameter(arg);
+
+  job = job_from_timer(timer);
+
+  // Turn off any pending kernel notification
+  apply_io_mask(job, 0);
+
+  return true;
 }
 
 static void dispatch_timer(
@@ -72,17 +90,16 @@ static void dispatch_timer(
     void *arg)
 {
   ph_job_t *job;
-  ph_thread_t *thr = arg;
 
   unused_parameter(w);
   unused_parameter(now);
+  unused_parameter(arg);
 
   // map the timer address back to that of its containing
   // work item
-  job = (ph_job_t*)
-    (((char*)timer) - ph_offsetof(ph_job_t, timer));
+  job = job_from_timer(timer);
 
-  trigger_now(thr, job, PH_IOMASK_TIME);
+  trigger_now(job, PH_IOMASK_TIME);
 }
 
 #ifdef HAVE_EPOLL_CREATE
@@ -99,7 +116,7 @@ static void tick_epoll(ph_job_t *job, ph_iomask_t why, void *data)
   if (read(timer_fd, &expirations, sizeof(expirations)) > 0) {
     if (expirations) {
       ph_timerwheel_tick(&wheel, ph_time_now(),
-          dispatch_timer, ph_thread_self());
+          before_dispatch_timer, dispatch_timer, ph_thread_self());
     }
   }
 
@@ -255,7 +272,7 @@ static void epoll_emitter(ph_thread_t *thread)
       if (event.events & (EPOLLERR|EPOLLHUP)) {
         mask |= PH_IOMASK_ERR;
       }
-      trigger_now(thread, job, mask);
+      trigger_now(job, mask);
       if (ph_job_have_deferred_items(thread)) {
         ph_job_pool_apply_deferred_items(thread);
       }
@@ -291,7 +308,8 @@ static void port_emitter(ph_thread_t *thread)
       case PORT_SOURCE_TIMER:
         gettimeofday(&thread->now, NULL);
         thread->refresh_time = false;
-        ph_timerwheel_tick(&wheel, thread->now, dispatch_timer, thread);
+        ph_timerwheel_tick(&wheel, thread->now, before_dispatch_timer,
+            dispatch_timer, thread);
         break;
 
       case PORT_SOURCE_USER:
@@ -311,7 +329,7 @@ static void port_emitter(ph_thread_t *thread)
         if (event.portev_events & (POLLERR|POLLHUP)) {
           mask |= PH_IOMASK_ERR;
         }
-        trigger_now(thread, job, mask);
+        trigger_now(job, mask);
         break;
     }
 
@@ -344,7 +362,8 @@ static void kqueue_emitter(ph_thread_t *thread)
       case EVFILT_TIMER:
         gettimeofday(&thread->now, NULL);
         thread->refresh_time = false;
-        ph_timerwheel_tick(&wheel, thread->now, dispatch_timer, thread);
+        ph_timerwheel_tick(&wheel, thread->now, before_dispatch_timer,
+            dispatch_timer, thread);
         break;
 
       case EVFILT_READ:
@@ -355,12 +374,12 @@ static void kqueue_emitter(ph_thread_t *thread)
         }
 
         thread->refresh_time = true;
-        trigger_now(thread, event.udata, mask);
+        trigger_now(event.udata, mask);
         break;
 
       case EVFILT_WRITE:
         thread->refresh_time = true;
-        trigger_now(thread, event.udata, PH_IOMASK_WRITE);
+        trigger_now(event.udata, PH_IOMASK_WRITE);
         break;
     }
 
@@ -548,13 +567,6 @@ static ph_result_t apply_io_mask(ph_job_t *job, ph_iomask_t mask)
 #endif
 }
 
-static void cancel_timer(ph_job_t *job)
-{
-  if (timerisset(&job->timer.due)) {
-    ph_timerwheel_remove(&wheel, &job->timer);
-  }
-}
-
 void ph_job_pool_apply_deferred_items(ph_thread_t *me)
 {
   ph_job_t *job, *tmp;
@@ -572,12 +584,10 @@ void ph_job_pool_apply_deferred_items(ph_thread_t *me)
     // Swap out the mask so that we can apply it safely
     mask = job->mask;
     job->mask = 0;
-    // Release claim
-    ck_pr_store_ptr(&job->owner, NULL);
 
     // Enable
     if (timerisset(&job->timer.due)) {
-      ph_timerwheel_insert(&wheel, &job->timer);
+      ph_timerwheel_enable(&wheel, &job->timer);
     }
     apply_io_mask(job, mask);
   }
@@ -601,17 +611,7 @@ ph_result_t ph_job_set_nbio(ph_job_t *job, ph_iomask_t mask,
 
   // Claim the job; if it is alread owned, we do nothing
   me = ph_thread_self();
-  if (!ck_pr_cas_ptr(&job->owner, NULL, me)) {
-    ph_log(PH_LOG_ERR, "fd=%d can't claim job", job->fd);
-    return PH_BUSY;
-  }
 
-  // We've claimed the job. Increment the configuration version;
-  // this will cause concurrent actors to recognize that something
-  // changed
-  ck_pr_inc_32(&job->vers);
-
-  cancel_timer(job);
   job->pool = NULL;
 
   job->mask = mask;
@@ -619,19 +619,12 @@ ph_result_t ph_job_set_nbio(ph_job_t *job, ph_iomask_t mask,
     job->timer.due = *timeout;
   } else {
     timerclear(&job->timer.due);
-  }
-  if (timerisset(&job->timer.due)) {
-    ck_pr_store_32(&job->tvers, job->vers);
+    ph_timerwheel_remove(&wheel, &job->timer);
   }
 
   if (!me->is_worker) {
-    // Release our claim; the vers increment protects our update,
-    // and we don't want to risk having the item trigger before
-    // we release the claim.
-    ck_pr_store_ptr(&job->owner, NULL);
-
     if (timerisset(&job->timer.due)) {
-      ph_timerwheel_insert(&wheel, &job->timer);
+      ph_timerwheel_enable(&wheel, &job->timer);
     }
     apply_io_mask(job, mask);
 
@@ -641,8 +634,6 @@ ph_result_t ph_job_set_nbio(ph_job_t *job, ph_iomask_t mask,
   // queue to our deferred list
   PH_STAILQ_INSERT_TAIL(&me->pending_dispatch, job, q_ent);
 
-  // Leave while asserting ownership; the worker will
-  // apply the changes
   return PH_OK;
 }
 
