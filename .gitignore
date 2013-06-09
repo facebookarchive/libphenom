@@ -29,3 +29,4 @@ tests/bench/*.t
 *.dSYM
 .DS_Store
 .nfs*
+core

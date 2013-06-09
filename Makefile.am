@@ -79,5 +79,8 @@ tests_stream_t_LDADD = $(TEST_LDADD)
 tests_tpool_t_CPPFLAGS = $(TEST_CPPFLAGS)
 tests_tpool_t_LDADD = $(TEST_LDADD)
 
+if HAVE_LIBEVENT
+LIBEVENT=-levent
+endif
 tests_bench_iopipes_t_CPPFLAGS = $(TEST_CPPFLAGS)
-tests_bench_iopipes_t_LDADD = $(TEST_LDADD)
+tests_bench_iopipes_t_LDADD = $(TEST_LDADD) $(LIBEVENT)

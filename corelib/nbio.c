@@ -43,18 +43,82 @@ static ph_thread_t **scheduler_threads;
 static int ep_fd = -1;
 static int timer_fd;
 static ph_job_t timer_job;
+#define DEFAULT_POLL_MASK EPOLLHUP|EPOLLERR|EPOLLONESHOT
 #endif
 
 #ifdef HAVE_PORT_CREATE
 static int port_fd;
 static timer_t port_timer;
+#define DEFAULT_POLL_MASK POLLHUP|POLLERR
 #endif
 
 #ifdef HAVE_KQUEUE
 static int kq_fd;
+
+struct kq_event_set {
+  int size;
+  int used;
+  struct kevent *events;
+  struct kevent base[16];
+};
+
+static inline void init_kq_set(struct kq_event_set *set)
+{
+  set->used = 0;
+  set->events = set->base;
+  set->size = sizeof(set->base) / sizeof(set->base[0]);
+}
+
+static void grow_kq_set(struct kq_event_set *set)
+{
+  struct kevent *k;
+
+  if (set->events == set->base) {
+    k = malloc(set->size * 2 * sizeof(*k));
+    if (!k) {
+      ph_panic("OOM");
+    }
+    memcpy(k, set->events, set->used * sizeof(*k));
+    set->events = k;
+  } else {
+    k = realloc(set->events, set->size * 2 * sizeof(*k));
+    if (!k) {
+      ph_panic("OOM");
+    }
+    set->events = k;
+  }
+  set->size *= 2;
+}
+
+static inline void add_kq_set(struct kq_event_set *set,
+    uintptr_t ident,
+    int16_t filter,
+    uint16_t flags,
+    uint32_t fflags,
+    intptr_t data,
+    void *udata)
+{
+  int n;
+
+  if (set->used + 1 >= set->size) {
+    grow_kq_set(set);
+  }
+
+  n = set->used++;
+  EV_SET(&set->events[n], ident, filter, flags, fflags, data, udata);
+}
+
+static inline void dispose_kq_set(struct kq_event_set *set)
+{
+  if (set->events == set->base) {
+    return;
+  }
+  free(set->events);
+}
 #endif
 
-static ph_result_t apply_io_mask(ph_job_t *job, ph_iomask_t mask);
+static ph_result_t apply_io_mask(ph_job_t *job, ph_iomask_t mask, void *impl);
+static void process_deferred(ph_thread_t *me, void *impl);
 
 static inline void trigger_now(
     ph_counter_block_t *cblock,
@@ -91,8 +155,10 @@ static bool before_dispatch_timer(
 
   job = job_from_timer(timer);
 
-  // Turn off any pending kernel notification
-  apply_io_mask(job, 0);
+  if (job->fd != -1) {
+    // Turn off any pending kernel notification
+    apply_io_mask(job, 0, NULL);
+  }
 
   return true;
 }
@@ -230,7 +296,8 @@ ph_result_t ph_nbio_init(uint32_t sched_cores)
   ph_thread_t *me;
 
   if (sched_cores == 0) {
-    sched_cores = ph_num_cores() / 4;
+    /* Pick a reasonable default */
+    sched_cores = ph_num_cores() / 2;
   }
   if (sched_cores < 1) {
     sched_cores = 1;
@@ -257,6 +324,9 @@ ph_result_t ph_nbio_init(uint32_t sched_cores)
   ph_counter_scope_register_counter_block(
       counter_scope, sizeof(counter_names)/sizeof(counter_names[0]),
       0, counter_names);
+
+  ph_log(PH_LOG_NOTICE, "ioscheduler initialized with %d threads",
+      num_schedulers);
 
 #ifdef HAVE_EPOLL_CREATE
   return do_epoll_init();
@@ -286,18 +356,26 @@ static void epoll_emitter(ph_counter_block_t *cblock, ph_thread_t *thread)
       ph_iomask_t mask = 0;
       ph_job_t *job = event.data.ptr;
 
-      if (event.events & EPOLLIN) {
-        mask |= PH_IOMASK_READ;
+      switch (event.events & (EPOLLIN|EPOLLOUT|EPOLLERR|EPOLLHUP)) {
+        case EPOLLIN:
+          mask = PH_IOMASK_READ;
+          break;
+        case EPOLLOUT:
+          mask = PH_IOMASK_WRITE;
+          break;
+        case EPOLLIN|EPOLLOUT:
+          mask = PH_IOMASK_READ|PH_IOMASK_WRITE;
+          break;
+        default:
+          mask = PH_IOMASK_ERR;
       }
-      if (event.events & EPOLLOUT) {
-        mask |= PH_IOMASK_WRITE;
-      }
-      if (event.events & (EPOLLERR|EPOLLHUP)) {
-        mask |= PH_IOMASK_ERR;
-      }
+      // We can't just clear kmask completely because ONESHOT retains
+      // the existence of the item; we need to know it is there so that
+      // we can MOD it instead of ADD it later.
+      job->kmask = DEFAULT_POLL_MASK;
       trigger_now(cblock, job, mask);
       if (ph_job_have_deferred_items(thread)) {
-        ph_job_pool_apply_deferred_items(thread);
+        process_deferred(thread, NULL);
       }
     }
   }
@@ -343,37 +421,100 @@ static void port_emitter(ph_counter_block_t *cblock, ph_thread_t *thread)
       case PORT_SOURCE_FD:
         thread->refresh_time = true;
         job = event.portev_user;
-        mask = 0;
 
-        if (event.portev_events & POLLIN) {
-          mask |= PH_IOMASK_READ;
+        switch (event.portev_events & (POLLIN|POLLOUT|POLLERR|POLLHUP)) {
+          case POLLIN:
+            mask = PH_IOMASK_READ;
+            break;
+          case POLLOUT:
+            mask = PH_IOMASK_WRITE;
+            break;
+          case POLLIN|POLLOUT:
+            mask = PH_IOMASK_READ|PH_IOMASK_WRITE;
+            break;
+          default:
+            mask = PH_IOMASK_ERR;
         }
-        if (event.portev_events & POLLOUT) {
-          mask |= PH_IOMASK_WRITE;
-        }
-        if (event.portev_events & (POLLERR|POLLHUP)) {
-          mask |= PH_IOMASK_ERR;
-        }
+        job->kmask = 0;
         trigger_now(cblock, job, mask);
         break;
     }
 
     if (ph_job_have_deferred_items(thread)) {
-      ph_job_pool_apply_deferred_items(thread);
+      process_deferred(thread, NULL);
     }
   }
 }
 #endif
 
 #ifdef HAVE_KQUEUE
+static inline void dispatch_kevent(ph_counter_block_t *cblock,
+    ph_thread_t *thread, struct kevent *event)
+{
+  ph_iomask_t mask;
+  ph_job_t *job;
+
+  if (event->filter != EVFILT_TIMER && (event->flags & EV_ERROR) != 0) {
+    // We're pretty strict about errors at this stage to try to
+    // ensure that we're doing the right thing.  There may be
+    // cases that we should ignore
+    ph_panic("kqueue error on fd:%d `Pe%d",
+        (int)event->ident, (int)event->data);
+  }
+
+  switch (event->filter) {
+    case EVFILT_TIMER:
+      gettimeofday(&thread->now, NULL);
+      thread->refresh_time = false;
+      ph_counter_block_add(cblock, SLOT_TIMER_TICK, 1);
+      ph_timerwheel_tick(&wheel, thread->now, before_dispatch_timer,
+          dispatch_timer, cblock);
+      break;
+
+    case EVFILT_READ:
+      mask = PH_IOMASK_READ;
+
+      if (event->flags & EV_EOF) {
+        mask |= PH_IOMASK_ERR;
+      }
+
+      thread->refresh_time = true;
+      job = event->udata;
+      job->kmask = 0;
+      trigger_now(cblock, job, mask);
+      break;
+
+    case EVFILT_WRITE:
+      thread->refresh_time = true;
+      job = event->udata;
+      job->kmask = 0;
+      trigger_now(cblock, job, PH_IOMASK_WRITE);
+      break;
+  }
+}
+
 static void kqueue_emitter(ph_counter_block_t *cblock, ph_thread_t *thread)
 {
-  struct kevent event;
-  int n;
-  ph_iomask_t mask;
+  int n, i;
+  struct kq_event_set set;
+  int max_chunk;
+
+  init_kq_set(&set);
+
+  // Try to balance work across multiple threads; if we claim too many
+  // events and take a while dispatching them, the other threads will
+  // sit idle when they could be doing work.  Converseley, if we're
+  // the only thread, we should try to consume as many as possible to
+  // reduce the number of syscalls that we need.
+  // Finally, we want to limit the number we'll process in a loop to
+  // minimize the latency of rescheduling events.
+  // TODO: This should be a property of the scheduler pool and be something
+  // that we apply to the epoll and portfs schedulers
+  max_chunk = num_schedulers == 1 ? 1024 : 128;
 
   while (ck_pr_load_int(&_ph_run_loop)) {
-    n = kevent(kq_fd, NULL, 0, &event, 1, NULL);
+    n = kevent(kq_fd, set.events, set.used,
+          set.events, MIN(set.size, max_chunk), NULL);
 
     if (n < 0 && errno != EINTR) {
       ph_panic("kevent: `Pe%d", errno);
@@ -383,36 +524,21 @@ static void kqueue_emitter(ph_counter_block_t *cblock, ph_thread_t *thread)
       continue;
     }
 
-    switch (event.filter) {
-      case EVFILT_TIMER:
-        gettimeofday(&thread->now, NULL);
-        thread->refresh_time = false;
-        ph_counter_block_add(cblock, SLOT_TIMER_TICK, 1);
-        ph_timerwheel_tick(&wheel, thread->now, before_dispatch_timer,
-            dispatch_timer, cblock);
-        break;
-
-      case EVFILT_READ:
-        mask = PH_IOMASK_READ;
-
-        if (event.flags & EV_EOF) {
-          mask |= PH_IOMASK_ERR;
-        }
-
-        thread->refresh_time = true;
-        trigger_now(cblock, event.udata, mask);
-        break;
-
-      case EVFILT_WRITE:
-        thread->refresh_time = true;
-        trigger_now(cblock, event.udata, PH_IOMASK_WRITE);
-        break;
+    for (i = 0; i < n; i++) {
+      dispatch_kevent(cblock, thread, &set.events[i]);
     }
+
+    if (n + 1 >= set.size) {
+      grow_kq_set(&set);
+    }
+    set.used = 0;
 
     if (ph_job_have_deferred_items(thread)) {
-      ph_job_pool_apply_deferred_items(thread);
+      process_deferred(thread, &set);
     }
   }
+  ph_log(PH_LOG_INFO, "kqueue set size=%d", set.size);
+  dispose_kq_set(&set);
 }
 #endif
 
@@ -421,6 +547,7 @@ static void *sched_loop(void *arg)
   ph_thread_t *me = ph_thread_self();
   ph_counter_block_t *cblock;
 
+  me->is_worker = true;
   unused_parameter(arg);
 
   if (!ph_thread_set_affinity(me, me->tid % ph_num_cores())) {
@@ -465,7 +592,7 @@ ph_result_t ph_sched_run(void)
   }
 
   _ph_job_pool_start_threads();
-  ph_job_pool_apply_deferred_items(me);
+  process_deferred(me, NULL);
   sched_loop(NULL);
 
   for (i = 1; i < num_schedulers; i++) {
@@ -483,135 +610,177 @@ void ph_sched_stop(void)
   ck_pr_store_int(&_ph_run_loop, 0);
 }
 
-static ph_result_t apply_io_mask(ph_job_t *job, ph_iomask_t mask)
+static ph_result_t apply_io_mask(ph_job_t *job, ph_iomask_t mask, void *impl)
 {
 #ifdef HAVE_EPOLL_CREATE
   struct epoll_event evt;
   int res;
+  int want_mask;
+  unused_parameter(impl);
 
   if (job->fd == -1) {
     return PH_OK;
   }
 
-  if ((mask & (PH_IOMASK_READ|PH_IOMASK_WRITE)) == 0) {
+  switch (mask & (PH_IOMASK_READ|PH_IOMASK_WRITE)) {
+    case PH_IOMASK_READ|PH_IOMASK_WRITE:
+      want_mask = EPOLLIN|EPOLLOUT|DEFAULT_POLL_MASK;
+      break;
+    case PH_IOMASK_READ:
+      want_mask = EPOLLIN|DEFAULT_POLL_MASK;
+      break;
+    case PH_IOMASK_WRITE:
+      want_mask = EPOLLOUT|DEFAULT_POLL_MASK;
+      break;
+    case 0:
+    default:
+      want_mask = 0;
+      break;
+  }
+
+  if (want_mask == job->kmask) {
+    return PH_OK;
+  }
+
+  if (want_mask == 0) {
     res = epoll_ctl(ep_fd, EPOLL_CTL_DEL, job->fd, &evt);
     if (res < 0 && errno == ENOENT) {
       res = 0;
     }
   } else {
-    evt.events = EPOLLHUP|EPOLLERR|EPOLLONESHOT;
+    int op = job->kmask ? EPOLL_CTL_MOD : EPOLL_CTL_ADD;
+    evt.events = want_mask;
     evt.data.ptr = job;
 
-    if (mask & PH_IOMASK_READ) {
-      evt.events |= EPOLLIN;
-    }
-    if (mask & PH_IOMASK_WRITE) {
-      evt.events |= EPOLLOUT;
-    }
-
-    // Majority of transitions are for descriptors that are already tracked
-    // by the epoll instance, so try to modify first, then add if it wasn't
-    // tracked yet.  This makes the common case 1 epoll syscall per update.
-    res = epoll_ctl(ep_fd, EPOLL_CTL_MOD, job->fd, &evt);
-    if (res < 0 && errno == ENOENT) {
-      res = epoll_ctl(ep_fd, EPOLL_CTL_ADD, job->fd, &evt);
-    }
+    // Set the masks on the job before we epoll_ctl as it
+    // may arrive at another thread *before* epoll_ctl returns
+    job->kmask = want_mask;
+    job->mask = mask;
+    res = epoll_ctl(ep_fd, op, job->fd, &evt);
   }
 
-  if (res) {
+  if (res == -1) {
     ph_panic("epoll_ctl: setting mask to %02x on fd %d -> `Pe%d",
         mask, job->fd, errno);
     return PH_ERR;
   }
-  job->mask = mask;
   return PH_OK;
 
 #endif
 #ifdef HAVE_PORT_CREATE
+  int res;
+  int want_mask = 0;
+  unused_parameter(impl);
+
+  if (job->fd == -1) {
+    return PH_OK;
+  }
+
+  switch (mask & (PH_IOMASK_READ|PH_IOMASK_WRITE)) {
+    case PH_IOMASK_READ:
+      want_mask = POLLIN|DEFAULT_POLL_MASK;
+      break;
+    case PH_IOMASK_WRITE:
+      want_mask = POLLOUT|DEFAULT_POLL_MASK;
+      break;
+    case PH_IOMASK_READ|PH_IOMASK_WRITE:
+      want_mask = POLLIN|POLLOUT|DEFAULT_POLL_MASK;
+      break;
+    case 0:
+    default:
+      want_mask = 0;
+  }
+
+  if (want_mask == job->kmask) {
+    return PH_OK;
+  }
+
+  switch (want_mask) {
+    case 0:
+      res = port_dissociate(port_fd, PORT_SOURCE_FD, job->fd);
+      if (res != 0 && errno == ENOENT) {
+        res = 0;
+      }
+      if (res != 0) {
+        ph_panic("port_dissociate: setting mask to %02x on fd %d -> `Pe%d",
+            mask, job->fd, errno);
+      }
+      job->kmask = 0;
+      job->mask = 0;
+      break;
+
+    default:
+      job->mask = mask;
+      job->kmask = want_mask;
+      res = port_associate(port_fd, PORT_SOURCE_FD, job->fd,
+          want_mask, job);
+      if (res != 0) {
+        ph_panic("port_associate: setting mask to %02x on fd %d -> `Pe%d",
+            mask, job->fd, errno);
+        return PH_ERR;
+      }
+  }
+  return PH_OK;
+
+#endif
+#ifdef HAVE_KQUEUE
+  struct kq_event_set *set = impl, local_set;
   int res;
 
   if (job->fd == -1) {
     return PH_OK;
   }
 
-  if ((mask & (PH_IOMASK_READ|PH_IOMASK_WRITE)) == 0) {
-    res = port_dissociate(port_fd, PORT_SOURCE_FD, job->fd);
-    if (res != 0 && errno == ENOENT) {
-      res = 0;
-    }
-    if (res != 0) {
-      ph_panic("port_dissociate: setting mask to %02x on fd %d -> `Pe%d",
-          mask, job->fd, errno);
-    }
-  } else {
-    int events = POLLHUP|POLLERR;
-
-    if (mask & PH_IOMASK_READ) {
-      events |= POLLIN;
-    }
-    if (mask & PH_IOMASK_WRITE) {
-      events |= POLLOUT;
-    }
-    res = port_associate(port_fd, PORT_SOURCE_FD, job->fd,
-          events, job);
-    if (res != 0) {
-      ph_panic("port_associate: setting mask to %02x on fd %d -> `Pe%d",
-          mask, job->fd, errno);
-      return PH_ERR;
-    }
-  }
-  job->mask = mask;
-  return PH_OK;
-
-#endif
-#ifdef HAVE_KQUEUE
-  struct kevent ev[2];
-  int res, n = 0;
-
-  if (job->fd == -1) {
+  if (mask == job->kmask) {
     return PH_OK;
   }
 
-  if (mask & PH_IOMASK_READ) {
-    EV_SET(&ev[n], job->fd, EVFILT_READ, EV_ADD|EV_ONESHOT, 0, 0, job);
-    n++;
-  }
-  if (mask & PH_IOMASK_WRITE) {
-    EV_SET(&ev[n], job->fd, EVFILT_WRITE, EV_ADD|EV_ONESHOT, 0, 0, job);
-    n++;
-  }
-  if (n == 0) {
-    // Neither read nor write -> delete
-    EV_SET(&ev[n], job->fd, EVFILT_READ, EV_DELETE, 0, 0, job);
-    n++;
-    EV_SET(&ev[n], job->fd, EVFILT_WRITE, EV_DELETE, 0, 0, job);
-    n++;
+  if (!set) {
+    init_kq_set(&local_set);
+    set = &local_set;
   }
 
-  res = kevent(kq_fd, ev, n, NULL, 0, NULL);
-  if (res != 0) {
-    ph_panic("kevent: setting mask to %02x on fd %d -> `Pe%d",
-        mask, job->fd, errno);
-    return PH_ERR;
+  if (mask & PH_IOMASK_READ) {
+    add_kq_set(set, job->fd, EVFILT_READ, EV_ADD|EV_ONESHOT, 0, 0, job);
   }
+  if (mask & PH_IOMASK_WRITE) {
+    add_kq_set(set, job->fd, EVFILT_WRITE, EV_ADD|EV_ONESHOT, 0, 0, job);
+  }
+  if ((mask & (PH_IOMASK_READ|PH_IOMASK_WRITE)) == 0) {
+    // Neither read nor write -> delete
+    add_kq_set(set, job->fd, EVFILT_READ, EV_DELETE, 0, 0, job);
+    add_kq_set(set, job->fd, EVFILT_WRITE, EV_DELETE, 0, 0, job);
+  }
+
+  job->kmask = mask;
   job->mask = mask;
+
+  if (set == &local_set) {
+    // Apply it immediately
+    res = kevent(kq_fd, set->events, set->used, NULL, 0, NULL);
+    if (res != 0) {
+      ph_panic("kevent: setting mask to %02x on fd %d with %d slots -> `Pe%d",
+          mask, job->fd, set->used, errno);
+      return PH_ERR;
+    }
+  }
   return PH_OK;
 #endif
 }
 
-void ph_job_pool_apply_deferred_items(ph_thread_t *me)
+static void process_deferred(ph_thread_t *me, void *impl)
 {
   ph_job_t *job, *tmp;
 
-  PH_STAILQ_FOREACH_SAFE(job, &me->pending_dispatch, q_ent, tmp) {
+  PH_STAILQ_FOREACH_SAFE(job, &me->pending_pool, q_ent, tmp) {
+    PH_STAILQ_REMOVE(&me->pending_pool, job, ph_job, q_ent);
+    _ph_job_set_pool_immediate(job, me);
+  }
+
+  PH_STAILQ_FOREACH_SAFE(job, &me->pending_nbio, q_ent, tmp) {
     ph_iomask_t mask;
 
-    PH_STAILQ_REMOVE(&me->pending_dispatch, job, ph_job, q_ent);
-
-    if (job->pool) {
-      _ph_job_set_pool_immediate(job, me);
-      continue;
-    }
+    PH_STAILQ_REMOVE(&me->pending_nbio, job, ph_job, q_ent);
 
     // Swap out the mask so that we can apply it safely
     mask = job->mask;
@@ -621,8 +790,13 @@ void ph_job_pool_apply_deferred_items(ph_thread_t *me)
     if (timerisset(&job->timer.due)) {
       ph_timerwheel_enable(&wheel, &job->timer);
     }
-    apply_io_mask(job, mask);
+    apply_io_mask(job, mask, impl);
   }
+}
+
+void ph_job_pool_apply_deferred_items(ph_thread_t *me)
+{
+  process_deferred(me, NULL);
 }
 
 ph_result_t ph_job_set_nbio(ph_job_t *job, ph_iomask_t mask,
@@ -630,18 +804,6 @@ ph_result_t ph_job_set_nbio(ph_job_t *job, ph_iomask_t mask,
 {
   ph_thread_t *me;
 
-  if (unlikely((mask & (PH_IOMASK_READ|PH_IOMASK_WRITE)) && job->fd == -1)) {
-    ph_panic("set_nbio: requested mask requires an fd");
-  }
-
-  if (unlikely(timeout && ((mask & PH_IOMASK_TIME) == 0))) {
-    ph_panic("set_nbio: requested a timeout but didn't set TIME in the mask");
-  }
-  if (unlikely(timeout == 0 && ((mask & PH_IOMASK_TIME) != 0))) {
-    ph_panic("set_nbio: set TIME in mask but didn't set a timeout value");
-  }
-
-  // Claim the job; if it is alread owned, we do nothing
   me = ph_thread_self();
 
   job->pool = NULL;
@@ -650,21 +812,21 @@ ph_result_t ph_job_set_nbio(ph_job_t *job, ph_iomask_t mask,
   if (timeout) {
     job->timer.due = *timeout;
   } else {
+    ph_timerwheel_disable(&wheel, &job->timer);
     timerclear(&job->timer.due);
-    ph_timerwheel_remove(&wheel, &job->timer);
   }
 
   if (!me->is_worker) {
     if (timerisset(&job->timer.due)) {
       ph_timerwheel_enable(&wheel, &job->timer);
     }
-    apply_io_mask(job, mask);
+    apply_io_mask(job, mask, NULL);
 
     return PH_OK;
   }
 
   // queue to our deferred list
-  PH_STAILQ_INSERT_TAIL(&me->pending_dispatch, job, q_ent);
+  PH_STAILQ_INSERT_TAIL(&me->pending_nbio, job, q_ent);
 
   return PH_OK;
 }
@@ -731,6 +893,7 @@ void ph_socket_set_nonblock(ph_socket_t fd, bool enable)
 
 void ph_nbio_stat(struct ph_nbio_stats *stats)
 {
+  stats->num_threads = num_schedulers;
   ph_counter_scope_get_view(counter_scope,
       sizeof(counter_names)/sizeof(counter_names[0]),
       &stats->num_dispatched, NULL);

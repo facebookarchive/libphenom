@@ -39,7 +39,7 @@ struct ph_thread {
   // internal monotonic thread id
   uint32_t tid;
 
-  PH_STAILQ_HEAD(pdisp, ph_job) pending_dispatch;
+  PH_STAILQ_HEAD(pdisp, ph_job) pending_nbio, pending_pool;
 
   bool is_worker;
   bool is_init;

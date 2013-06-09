@@ -503,7 +503,7 @@ ph_result_t ph_job_set_pool(
   if (!me->is_worker) {
     do_set_pool(job, me);
   } else {
-    PH_STAILQ_INSERT_TAIL(&me->pending_dispatch, job, q_ent);
+    PH_STAILQ_INSERT_TAIL(&me->pending_pool, job, q_ent);
   }
 
   return PH_OK;

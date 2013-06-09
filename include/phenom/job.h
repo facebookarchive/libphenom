@@ -53,9 +53,6 @@ typedef uint8_t ph_iomask_t;
 /** NBIO did not dispatch before timeout was met */
 #define PH_IOMASK_TIME  8
 
-#define PH_RUNCLASS_NONE  0
-#define PH_RUNCLASS_NBIO  1
-
 struct ph_job;
 typedef struct ph_job ph_job_t;
 
@@ -74,6 +71,8 @@ struct ph_job {
 
   /** for PH_RUNCLASS_NBIO, trigger mask */
   ph_iomask_t mask;
+  int kmask;
+
   ph_socket_t fd;
   struct timeval   timeout;
   struct ph_timerwheel_timer timer;
@@ -182,8 +181,14 @@ void ph_thread_pool_stat(ph_thread_pool_t *pool,
 
 /** io scheduler thread pool stats */
 struct ph_nbio_stats {
+  /** how many threads are servicing NBIO */
+  int num_threads;
+  /** how many NBIO dispatches have happened */
   int64_t num_dispatched;
+  /** how many timer ticks since process start (~1 every 100ms) */
   int64_t timer_ticks;
+  /** how many timer vs. event dispatch conflicts were detected,
+   * should be rare */
   int64_t timer_busy;
 };
 
@@ -211,7 +216,8 @@ void _ph_job_pool_start_threads(void);
 
 static inline bool ph_job_have_deferred_items(ph_thread_t *me)
 {
-  return PH_STAILQ_FIRST(&me->pending_dispatch);
+  return PH_STAILQ_FIRST(&me->pending_nbio) ||
+         PH_STAILQ_FIRST(&me->pending_pool);
 }
 
 #ifdef __cplusplus

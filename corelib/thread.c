@@ -128,7 +128,8 @@ static void init_thread(ph_thread_t *thr)
   thr->is_init = true;
 #endif
 
-  PH_STAILQ_INIT(&thr->pending_dispatch);
+  PH_STAILQ_INIT(&thr->pending_nbio);
+  PH_STAILQ_INIT(&thr->pending_pool);
 
   thr->tid = ck_pr_faa_32(&next_tid, 1);
   thr->thr = pthread_self();

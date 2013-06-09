@@ -7,6 +7,10 @@
 #include <sys/socket.h>
 #include <sys/resource.h>
 
+#ifdef HAVE_LIBEVENT
+# include <event.h>
+#endif
+
 static char *commaprint(uint64_t n, char *retbuf, uint32_t size)
 {
   char *p = retbuf + size - 1;
@@ -29,15 +33,39 @@ static char *commaprint(uint64_t n, char *retbuf, uint32_t size)
 struct timeval start_time, end_time, elapsed_time;
 static ph_job_t deadline;
 
-static struct ph_nbio_stats stats;
+static struct ph_nbio_stats stats = {0, 0, 0, 0};
 
 int num_socks = 100;
 int num_active = 1;
 int time_duration = 1000;
 int io_threads = 0;
+int use_libevent = 0;
 
 ph_job_t *events = NULL;
+#ifdef HAVE_LIBEVENT
+struct event *levents = NULL;
+#endif
 int *write_ends = NULL;
+
+#ifdef HAVE_LIBEVENT
+static void lev_read(int fd, short which, void *arg)
+{
+  ph_job_t *job = arg;
+  char buf[10];
+  ptrdiff_t off;
+
+  off = job - events;
+
+  unused_parameter(which);
+
+  ignore_result(read(fd, buf, sizeof(buf)));
+  ignore_result(write(write_ends[off], "y", 1));
+
+  event_add(&levents[off], NULL);
+
+  stats.num_dispatched++;
+}
+#endif
 
 static void deadline_reached(ph_job_t *job, ph_iomask_t why, void *data)
 {
@@ -72,8 +100,8 @@ int main(int argc, char **argv)
   int i;
   struct rlimit rl;
 
-  io_threads = ph_num_cores();
-  while ((c = getopt(argc, argv, "n:a:c:t:")) != -1) {
+  io_threads = 0;
+  while ((c = getopt(argc, argv, "n:a:c:t:e")) != -1) {
     switch (c) {
       case 'n':
         num_socks = atoi(optarg);
@@ -87,21 +115,38 @@ int main(int argc, char **argv)
       case 't':
         time_duration = atoi(optarg) * 1000;
         break;
+      case 'e':
+        use_libevent = 1;
+#ifdef HAVE_LIBEVENT
+        event_init();
+#endif
+        break;
       default:
         fprintf(stderr, "Illegal arguments %c\n", c);
         exit(EX_USAGE);
     }
   }
 
+  if (use_libevent) {
+    io_threads = 1;
+  }
+
+  ph_log_level_set(PH_LOG_INFO);
   ph_nbio_init(io_threads);
+  ph_nbio_stat(&stats);
+  io_threads = stats.num_threads;
 
   events = calloc(num_socks, sizeof(*events));
   write_ends = calloc(num_socks, sizeof(*write_ends));
+#ifdef HAVE_LIBEVENT
+  levents = calloc(num_socks, sizeof(*levents));
+#endif
 
   rl.rlim_cur = rl.rlim_max = num_socks * 2 + 64;
   if (setrlimit(RLIMIT_NOFILE, &rl)) {
     perror("setrlimit");
-    exit(EX_OSERR);
+    // Don't exit: valgrind causes this to fail and terminating
+    // here stops us from collecting anything useful
   }
 
   for (i = 0; i < num_socks; i++) {
@@ -119,36 +164,74 @@ int main(int argc, char **argv)
     ph_socket_set_nonblock(pair[1], true);
 
     events[i].callback = consume_data;
-    ph_job_set_nbio(&events[i], PH_IOMASK_READ, 0);
+
+    if (use_libevent) {
+#ifdef HAVE_LIBEVENT
+      event_set(&levents[i], events[i].fd, EV_READ, lev_read, &events[i]);
+      event_add(&levents[i], NULL);
+#endif
+    } else {
+      ph_job_set_nbio(&events[i], PH_IOMASK_READ, 0);
+    }
 
     ignore_result(write(write_ends[i], "x", 1));
   }
 
-  ph_job_init(&deadline);
-  deadline.callback = deadline_reached;
-  ph_job_set_timer_in_ms(&deadline, time_duration);
+  if (use_libevent) {
+#ifdef HAVE_LIBEVENT
+    struct timeval dead = { time_duration / 1000, 0 };
+    event_loopexit(&dead);
 
-  ph_log(PH_LOG_ERR, "Created %d events, using %d cores\n",
+    ph_log(PH_LOG_INFO, "Using libevent\n");
+#else
+    ph_panic("No libevent support");
+#endif
+  } else {
+    ph_job_init(&deadline);
+    deadline.callback = deadline_reached;
+    ph_job_set_timer_in_ms(&deadline, time_duration);
+  }
+
+  ph_log(PH_LOG_INFO, "Created %d events, using %d threads\n",
       num_socks, io_threads);
 
   gettimeofday(&start_time, NULL);
-  ph_sched_run();
+  if (use_libevent) {
+#ifdef HAVE_LIBEVENT
+    event_loop(0);
+    gettimeofday(&end_time, NULL);
+#endif
+  } else {
+    ph_sched_run();
+  }
 
   {
     double duration;
     double rate;
     char cbuf[64];
 
-    ph_log(PH_LOG_ERR, "%" PRIi64 " timer ticks\n", stats.timer_ticks);
+    ph_log(PH_LOG_INFO, "%" PRIi64 " timer ticks\n", stats.timer_ticks);
     timersub(&end_time, &start_time, &elapsed_time);
     duration = elapsed_time.tv_sec + (elapsed_time.tv_usec/1000000.0f);
     rate = stats.num_dispatched / duration;
 
-    ph_log(PH_LOG_ERR, "Over %.3fs, fired %s events/s",
+    ph_log(PH_LOG_INFO, "Over %.3fs, fired %s events/s",
         duration,
         commaprint((uint64_t)rate, cbuf, sizeof(cbuf))
     );
+    ph_log(PH_LOG_INFO, "Over %.3fs, fired %s events/core/s",
+        duration,
+        commaprint((uint64_t)(rate/io_threads), cbuf, sizeof(cbuf))
+    );
   }
+
+#ifdef __APPLE__
+  // OS/X "mysteriously" spins CPU cycles somewhere in the kernel after we've
+  // exit'd to close out descriptors.  Let folks know that that is what is
+  // going on (very noticeable above 100k events).  We could close them here,
+  // but it doesn't make it go faster and it is just more code to run.
+  ph_log(PH_LOG_INFO, "Kernel may spin closing descriptors. Enjoy!");
+#endif
 
   return EX_OK;
 }

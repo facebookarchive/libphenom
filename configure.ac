@@ -54,6 +54,15 @@ AC_SEARCH_LIBS([pthread_create], [pthread])
 AC_SEARCH_LIBS([socket], [socket])
 AC_SEARCH_LIBS([clock_gettime], [rt])
 
+dnl for comparitive benchmarking
+SAVE_LIBS="$LIBS"
+AC_SEARCH_LIBS([event_add], [event],[
+  HAVE_LIBEVENT=yes
+  AC_DEFINE(HAVE_LIBEVENT, 1, have libevent)
+])
+LIBS="$SAVE_LIBS"
+AM_CONDITIONAL(HAVE_LIBEVENT, test "x$HAVE_LIBEVENT" = xyes)
+
 have_thread=no
 AC_TRY_COMPILE([__thread int tls;],[tls;],
                [have_thread=yes])
