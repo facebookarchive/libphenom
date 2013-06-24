@@ -15,9 +15,9 @@
  */
 
 #include "phenom/counter.h"
+#include "phenom/murmurhash.h"
 #include "phenom/sysutil.h"
 #include <ck_hs.h>
-#include <ck_ht.h>
 #include <ck_stack.h>
 #include <ck_spinlock.h>
 
@@ -69,7 +69,7 @@ CK_STACK_CONTAINER(struct ph_counter_head,
  * The CK hash set is single producer, multi-consumer,
  * meaning that we only need to serialize write operations
  * on the hash table; reads can proceed safely without a lock. */
-static ck_ht_t scope_map;
+static ck_hs_t scope_map;
 static ck_spinlock_t scope_map_lock = CK_SPINLOCK_INITIALIZER;
 
 /** key to TLS for finding counter block instances */
@@ -113,18 +113,18 @@ static struct ck_malloc ht_allocator = {
 /* Tear things down and make valgrind happy that we didn't leak */
 static void counter_destroy(void)
 {
-  ck_ht_iterator_t iter;
-  ck_ht_entry_t *entry;
+  ck_hs_iterator_t iter;
   ck_stack_entry_t *stack_entry;
   struct ph_counter_head *head;
   struct ph_counter_block *block;
+  ph_counter_scope_t *scope;
 
   while ((stack_entry = ck_stack_pop_npsc(&all_heads)) != NULL) {
     ck_hs_iterator_t hiter;
 
     head = ph_counter_head_from_stack_entry(stack_entry);
     ck_hs_iterator_init(&hiter);
-    while (ck_hs_next(&head->ht, &hiter, (void*)&block)) {
+    while (ck_hs_next(&head->ht, &hiter, (void**)&block)) {
       ph_counter_block_delref(block);
     }
 
@@ -132,14 +132,29 @@ static void counter_destroy(void)
     free(head);
   }
 
-  ck_ht_iterator_init(&iter);
-  while (ck_ht_next(&scope_map, &iter, &entry)) {
-    ph_counter_scope_t *scope = (ph_counter_scope_t*)entry->value;
-
+  ck_hs_iterator_init(&iter);
+  while (ck_hs_next(&scope_map, &iter, (void**)&scope)) {
     ph_counter_scope_delref(scope);
   }
 
-  ck_ht_destroy(&scope_map);
+  ck_hs_destroy(&scope_map);
+}
+
+static bool scope_map_compare(const void *a, const void *b)
+{
+  const ph_counter_scope_t *sa = a, *sb = b;
+
+  return strcmp(sa->full_scope_name, sb->full_scope_name);
+}
+
+static unsigned long scope_map_hash(const void *key,
+    unsigned long seed)
+{
+  const ph_counter_scope_t *sk = key;
+  uint64_t h[2];
+
+  MurmurHash3_x64_128(sk->full_scope_name, strlen(sk->full_scope_name), seed, h);
+  return h[0];
 }
 
 static void ph_counter_init(void)
@@ -147,18 +162,18 @@ static void ph_counter_init(void)
   pthread_key_create(&tls_key, ph_counter_tls_dtor);
 
   if (sizeof(struct ph_counter_scope_iterator) !=
-      sizeof(struct ck_ht_iterator)) {
+      sizeof(struct ck_hs_iterator)) {
     /* ideally, we'd let the compiler catch this, but we
      * don't want to pollute ph_counter.h with the CK
      * functions, because C++ compilers hate it.
      * If you're seeing this abort trigger, you need to
      * update struct ph_counter_scope_iterator to
-     * have the same size as struct ck_ht_iterator */
+     * have the same size as struct ck_hs_iterator */
     abort();
   }
 
-  if (!ck_ht_init(&scope_map, CK_HT_MODE_BYTESTRING, NULL,
-      &ht_allocator, 65536, lrand48())) {
+  if (!ck_hs_init(&scope_map, CK_HS_MODE_SPMC | CK_HS_MODE_OBJECT,
+      scope_map_hash, scope_map_compare, &ht_allocator, 65536, lrand48())) {
     // If this fails, we're screwed
     abort();
   }
@@ -220,10 +235,9 @@ ph_counter_scope_t *ph_counter_scope_define(
     uint8_t max_counters)
 {
   ph_counter_scope_t *scope;
+  unsigned long hash = 0;
   int full_name_len = 0;
   int fail = 0;
-  ck_ht_hash_t hash;
-  struct ck_ht_entry entry;
 
   if (!is_valid_name(path)) {
     return NULL;
@@ -265,7 +279,6 @@ ph_counter_scope_t *ph_counter_scope_define(
 
   if (full_name_len == 0) {
     scope->full_scope_name = scope->scope_name;
-    full_name_len = strlen(scope->scope_name);
   } else {
     // name lives right after scope->scope_name
     scope->full_scope_name = scope->scope_name + strlen(path) + 1;
@@ -276,15 +289,11 @@ ph_counter_scope_t *ph_counter_scope_define(
   // Record in the map
 
   // compute hash
-  ck_ht_hash(&hash, &scope_map, scope->full_scope_name,
-      full_name_len);
-  // prepare hash entry
-  ck_ht_entry_set(&entry, hash, scope->full_scope_name,
-      full_name_len, scope);
+  hash = CK_HS_HASH(&scope_map, scope_map_hash, scope->full_scope_name);
 
   ck_spinlock_lock(&scope_map_lock);
   {
-    if (ck_ht_put_spmc(&scope_map, hash, &entry)) {
+    if (ck_hs_put(&scope_map, hash, scope->full_scope_name)) {
       // map owns a new ref
       ph_refcnt_add(&scope->refcnt);
     } else {
@@ -307,23 +316,21 @@ ph_counter_scope_t *ph_counter_scope_resolve(
     const char *path)
 {
   char *full_name = NULL;
-  int len;
-  ck_ht_hash_t hash;
-  struct ck_ht_entry entry;
+  unsigned long hash = 0;
   ph_counter_scope_t *scope = NULL;
+  ph_counter_scope_t search;
 
   if (parent) {
-    len = ph_asprintf(&full_name, "%s/%s",
+    ph_asprintf(&full_name, "%s/%s",
         parent->full_scope_name, path);
   } else {
     full_name = (char*)path;
-    len = strlen(path);
   }
-  ck_ht_hash(&hash, &scope_map, full_name, len);
-  ck_ht_entry_key_set(&entry, full_name, len);
-  if (ck_ht_get_spmc(&scope_map, hash, &entry)) {
-    // Got it
-    scope = (ph_counter_scope_t*)entry.value;
+
+  hash = CK_HS_HASH(&scope_map, scope_map_hash, full_name); 
+  search.full_scope_name = full_name;
+  scope = ck_hs_get(&scope_map, hash, &search);
+  if (scope != NULL) {
     // Note: if we ever allow removing scopes from the map,
     // we will need to find a way to make adding this ref
     // race free wrt. that removal operation
@@ -598,20 +605,20 @@ uint8_t ph_counter_scope_get_view(
 void ph_counter_scope_iterator_init(
     ph_counter_scope_iterator_t *iter)
 {
-  ck_ht_iterator_init((ck_ht_iterator_t*)iter);
+  ck_hs_iterator_init((ck_hs_iterator_t*)iter);
 }
 
 ph_counter_scope_t *ph_counter_scope_iterator_next(
     ph_counter_scope_iterator_t *iter)
 {
-  ck_ht_entry_t *entry;
+  ph_counter_scope_t *scope;
+  void *i;
 
-  if (!ck_ht_next(&scope_map, (ck_ht_iterator_t*)iter,
-        &entry)) {
+  if (!ck_hs_next(&scope_map, (ck_hs_iterator_t*)iter, &i)) {
     return NULL;
   }
 
-  ph_counter_scope_t *scope = (ph_counter_scope_t*)entry->value;
+  scope = i;
   ph_refcnt_add(&scope->refcnt);
   return scope;
 }

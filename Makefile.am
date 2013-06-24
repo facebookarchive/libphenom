@@ -23,6 +23,7 @@ libphenom_a_SOURCES = \
 	corelib/error.c \
 	corelib/log.c \
 	corelib/memory.c \
+	corelib/murmurhash.c \
 	corelib/pingfd.c \
 	corelib/pipe2.c \
 	corelib/pprintf.c \
