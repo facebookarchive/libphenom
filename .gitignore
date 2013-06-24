@@ -10,7 +10,7 @@ config.log
 config.guess
 config.sub
 .deps/
-*.in
+Makefile.in
 Makefile
 *.o
 config.status
