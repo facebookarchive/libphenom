@@ -1,0 +1,9 @@
+CC=@CC@
+MAKE=make
+SRC_DIR=@SRC_DIR@
+BUILD_DIR=@BUILD_DIR@
+CFLAGS=@CFLAGS@ -I$(SRC_DIR)/include -I$(BUILD_DIR)/include
+LDFLAGS=@LDFLAGS@
+LD=@LD@
+
+include $(BUILD_DIR)/build/ck.build.@PROFILE@
