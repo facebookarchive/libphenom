@@ -142,7 +142,12 @@ static void ph_counter_epoch_tls_dtor(void *ptr)
   ck_epoch_unregister(&ph_counter_epoch, er);
 }
 
-static void *ht_malloc(size_t size)
+/** We need to allocate space for our epoch-based SMR to manage its stack
+ * of outstanding allocations. Since that data is not managed by the caller
+ * of the allocation, but by the SMR manager itself, we don't provide that
+ * region to the caller.
+ */
+static void *hs_malloc(size_t size)
 {
   ck_epoch_entry_t *e;
 
@@ -157,25 +162,24 @@ static void ph_counter_epoch_free(ck_epoch_entry_t *e)
   free(e);
 }
 
-static void ht_free(void *p, size_t b, bool r)
+static void hs_free(void *p, size_t b, bool r)
 {
   ck_epoch_entry_t *e = p;
+  e--; /* See comment above hs_malloc */
 
   unused_parameter(b);
 
   if (r == true) {
-#ifndef HAVE___THREAD
-    ck_epoch_record_t *epoch_record = pthread_getspecific(epoch_key);
-#endif
-    ck_epoch_call(&ph_counter_epoch, epoch_record, --e, ph_counter_epoch_free);
+    /* Freeing requires same memory reclamation */
+    ck_epoch_call(&ph_counter_epoch, ph_get_epoch_record(), e, ph_counter_epoch_free);
   } else {
-    free(--e);
+    free(e);
   }
 }
 
-static struct ck_malloc ht_allocator = {
-  .malloc = ht_malloc,
-  .free = ht_free
+static struct ck_malloc hs_allocator = {
+  .malloc = hs_malloc,
+  .free = hs_free
 };
 
 /* Tear things down and make valgrind happy that we didn't leak */
@@ -261,7 +265,7 @@ static void ph_counter_tls_init(void)
   }
 
   if (!ck_hs_init(&scope_map, CK_HS_MODE_SPMC | CK_HS_MODE_OBJECT,
-      scope_map_hash, scope_map_compare, &ht_allocator, 65536, lrand48())) {
+      scope_map_hash, scope_map_compare, &hs_allocator, 65536, lrand48())) {
     // If this fails, we're screwed
     abort();
   }
@@ -528,7 +532,7 @@ static struct ph_counter_head *init_head(void)
   }
 
   if (!ck_hs_init(&head->ht, CK_HS_MODE_SPMC|CK_HS_MODE_OBJECT,
-        scope_id_hash, scope_id_compare, &ht_allocator, 32, 0)) {
+        scope_id_hash, scope_id_compare, &hs_allocator, 32, 0)) {
     free(head);
     return NULL;
   }
