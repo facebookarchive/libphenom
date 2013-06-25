@@ -74,25 +74,72 @@ static ck_spinlock_t scope_map_lock = CK_SPINLOCK_INITIALIZER;
 
 /** key to TLS for finding counter block instances */
 static pthread_key_t tls_key;
+/** TLS key for finding our SMR records */
 static pthread_key_t epoch_key;
+static ck_epoch_t ph_counter_epoch;
+
 static pthread_once_t done_tls_init = PTHREAD_ONCE_INIT;
+
 #ifdef HAVE___THREAD
 static __thread struct ph_counter_head *myhead = NULL;
 static __thread ck_epoch_record_t *epoch_record = NULL;
 #endif
+
+static CK_CC_INLINE struct ph_counter_head *ph_get_counter_head(void)
+{
+#ifdef HAVE___THREAD
+  return myhead;
+#else
+  return pthread_getspecific(tls_key);
+#endif
+}
+
+static CK_CC_INLINE ck_epoch_record_t *ph_get_epoch_record(void)
+{
+#ifndef HAVE___THREAD
+  ck_epoch_record_t *er = pthread_getspecific(epoch_key);
+#else
+  ck_epoch_record_t *er = epoch_record;
+#endif
+
+  if (er == NULL) {
+    er = ck_epoch_recycle(&ph_counter_epoch);
+    if (er == NULL) {
+      er = malloc(sizeof(*epoch_record));
+#ifndef HAVE___THREAD
+      pthread_setspecific(epoch_key, er);
+#else
+      epoch_record = er;
+#endif
+      ck_epoch_register(&ph_counter_epoch, er);
+    }
+  }
+
+  return er;
+}
+
 static ck_stack_t all_heads = CK_STACK_INITIALIZER;
-static ck_epoch_t ph_counter_epoch;
 
 /** atomic scope identifier */
 static uint32_t next_scope_id = 0;
 
-static void ph_counter_tls_dtor(void *ptr)
+static void ph_counter_head_tls_dtor(void *ptr)
 {
   struct ph_counter_head *head = ptr;
 
   unused_parameter(head);
 
   // TODO: mark it dead, reapable
+}
+
+static void ph_counter_epoch_tls_dtor(void *ptr)
+{
+  struct ck_epoch_record *er = ptr;
+
+  /** Thread is exiting, so let's try to reclaim memory. We don't need to
+   * free the epoch_record because it will be reused by ck_epoch_recycle. */
+  ck_epoch_barrier(&ph_counter_epoch, er);
+  ck_epoch_unregister(&ph_counter_epoch, er);
 }
 
 static void *ht_malloc(size_t size)
@@ -164,10 +211,10 @@ static void counter_destroy(void)
 static bool scope_map_compare(const void *a, const void *b)
 {
   const ph_counter_scope_t *sa = a, *sb = b;
-  const size_t lena, lenb;
+  size_t lena, lenb;
 
-  lena = strlen(sa);
-  lenb = strlen(sb);
+  lena = strlen(sa->full_scope_name);
+  lenb = strlen(sb->full_scope_name);
 
   if (lena != lenb) {
     return 0;
@@ -190,12 +237,9 @@ static unsigned long scope_map_hash(const void *key,
 
 static void ph_counter_tls_init(void)
 {
-#ifndef HAVE___THREAD
-  ck_epoch_record_t *epoch_record = NULL;
-#endif
 
-  pthread_key_create(&tls_key, ph_counter_tls_dtor);
-  pthread_key_create(&epoch_key, ph_counter_tls_dtor);
+  pthread_key_create(&tls_key, ph_counter_head_tls_dtor);
+  pthread_key_create(&epoch_key, ph_counter_epoch_tls_dtor);
 
   if (sizeof(struct ph_counter_scope_iterator) !=
       sizeof(struct ck_hs_iterator)) {
@@ -213,17 +257,6 @@ static void ph_counter_tls_init(void)
     // If this fails, we're screwed
     abort();
   }
-
-  if (epoch_record == NULL) {
-    epoch_record = ck_epoch_recycle(&ph_counter_epoch);
-    if (epoch_record == NULL) {
-      epoch_record = malloc(sizeof(*epoch_record));
-      ck_epoch_register(&ph_counter_epoch, epoch_record);
-    }
-  }
-#ifndef HAVE___THREAD
-  pthread_setspecific(epoch_key, epoch_record);
-#endif
 
   atexit(counter_destroy);
 }
@@ -282,7 +315,7 @@ ph_counter_scope_t *ph_counter_scope_define(
     uint8_t max_counters)
 {
   ph_counter_scope_t *scope;
-  unsigned long hash = 0;
+  uint64_t hash = 0;
   int full_name_len = 0;
   int fail = 0;
 
@@ -337,16 +370,13 @@ ph_counter_scope_t *ph_counter_scope_define(
 
   // compute hash
   hash = CK_HS_HASH(&scope_map, scope_map_hash, scope);
-
   ck_spinlock_lock(&scope_map_lock);
   {
-#ifndef HAVE___THREAD
-    ck_epoch_record_t *epoch_record = pthread_getspecific(epoch_key);
-#endif
+    ck_epoch_record_t *er = ph_get_epoch_record();
 
-    ck_epoch_begin(&ph_counter_epoch, epoch_record);
+    ck_epoch_begin(&ph_counter_epoch, er);
     if (ck_hs_get(&scope_map, hash, scope) != NULL) {
-      ck_epoch_end(&ph_counter_epoch, epoch_record);
+      ck_epoch_end(&ph_counter_epoch, er);
       ck_spinlock_unlock(&scope_map_lock);
       return NULL;
     }
@@ -355,10 +385,9 @@ ph_counter_scope_t *ph_counter_scope_define(
       // map owns a new ref
       ph_refcnt_add(&scope->refcnt);
     } else {
-      // already exists
       fail = 1;
     }
-    ck_epoch_end(&ph_counter_epoch, epoch_record);
+    ck_epoch_end(&ph_counter_epoch, er);
   }
   ck_spinlock_unlock(&scope_map_lock);
 
@@ -375,12 +404,10 @@ ph_counter_scope_t *ph_counter_scope_resolve(
     const char *path)
 {
   char *full_name = NULL;
-  unsigned long hash = 0;
+  uint64_t hash = 0;
   ph_counter_scope_t *scope = NULL;
   ph_counter_scope_t search;
-#ifndef HAVE___THREAD
-  ck_epoch_record_t *epoch_record = pthread_getspecific(epoch_key);
-#endif
+  ck_epoch_record_t *er = ph_get_epoch_record();
 
   if (parent) {
     ph_asprintf(&full_name, "%s/%s",
@@ -391,7 +418,7 @@ ph_counter_scope_t *ph_counter_scope_resolve(
 
   search.full_scope_name = full_name;
   hash = CK_HS_HASH(&scope_map, scope_map_hash, &search); 
-  ck_epoch_begin(&ph_counter_epoch, epoch_record);
+  ck_epoch_begin(&ph_counter_epoch, er);
   scope = ck_hs_get(&scope_map, hash, &search);
   if (scope != NULL) {
     // Note: if we ever allow removing scopes from the map,
@@ -399,7 +426,7 @@ ph_counter_scope_t *ph_counter_scope_resolve(
     // race free wrt. that removal operation
     ph_refcnt_add(&scope->refcnt);
   }
-  ck_epoch_end(&ph_counter_epoch, epoch_record);
+  ck_epoch_end(&ph_counter_epoch, er);
 
   if (full_name != path) {
     free(full_name);
@@ -410,10 +437,8 @@ ph_counter_scope_t *ph_counter_scope_resolve(
 
 void ph_counter_scope_delref(ph_counter_scope_t *scope)
 {
+  ck_epoch_record_t *er = ph_get_epoch_record();
   int i;
-#ifndef HAVE___THREAD
-  ck_epoch_record_t *epoch_record = pthread_getspecific(epoch_key);
-#endif
 
   if (!ph_refcnt_del(&scope->refcnt)) {
     return;
@@ -423,18 +448,18 @@ void ph_counter_scope_delref(ph_counter_scope_t *scope)
     free(scope->slot_names[i]);
   }
 
-  ck_epoch_begin(&ph_counter_epoch, epoch_record);
+  ck_epoch_begin(&ph_counter_epoch, er);
   ck_spinlock_lock(&scope_map_lock);
   {
-    unsigned long hash;
+    uint64_t hash;
 
     hash = CK_HS_HASH(&scope_map, scope_map_hash, scope); 
     ck_hs_remove(&scope_map, hash, scope);
     free(scope);
   }
   ck_spinlock_unlock(&scope_map_lock);
-  ck_epoch_end(&ph_counter_epoch, epoch_record);
-  ck_epoch_barrier(&ph_counter_epoch, epoch_record);
+  ck_epoch_end(&ph_counter_epoch, er);
+  ck_epoch_barrier(&ph_counter_epoch, er);
 }
 
 uint8_t ph_counter_scope_register_counter(
@@ -510,11 +535,7 @@ static ph_counter_block_t *get_block_for_scope(
   struct ph_counter_head *head;
   struct ph_counter_block *block = NULL;
 
-#ifdef HAVE___THREAD
-  head = myhead;
-#else
-  head = pthread_getspecific(tls_key);
-#endif
+  head = ph_get_counter_head();
 
   if (unlikely(!head)) {
     head = init_head();
@@ -643,9 +664,7 @@ uint8_t ph_counter_scope_get_view(
   struct ph_counter_block *block;
   unsigned int vers;
   int64_t *local_slots;
-#ifndef HAVE___THREAD
-  ck_epoch_record_t *epoch_record = pthread_getspecific(epoch_key);
-#endif
+  ck_epoch_record_t *er = ph_get_epoch_record();
 
   if (num_slots > scope->num_slots) {
     num_slots = scope->num_slots;
@@ -657,7 +676,7 @@ uint8_t ph_counter_scope_get_view(
   local_slots = alloca(num_slots * sizeof(int64_t));
   memset(slots, 0, sizeof(*slots) * num_slots);
 
-  ck_epoch_begin(&ph_counter_epoch, epoch_record);
+  ck_epoch_begin(&ph_counter_epoch, er);
   CK_STACK_FOREACH(&all_heads, stack_entry) {
     head = ph_counter_head_from_stack_entry(stack_entry);
 
@@ -676,7 +695,7 @@ uint8_t ph_counter_scope_get_view(
       slots[i] += local_slots[i];
     }
   }
-  ck_epoch_end(&ph_counter_epoch, epoch_record);
+  ck_epoch_end(&ph_counter_epoch, er);
 
   if (names) {
     memcpy(names, scope->slot_names, num_slots * sizeof(char*));
@@ -694,18 +713,16 @@ void ph_counter_scope_iterator_init(
 ph_counter_scope_t *ph_counter_scope_iterator_next(
     ph_counter_scope_iterator_t *iter)
 {
+  ck_epoch_record_t *er = ph_get_epoch_record();
   ph_counter_scope_t *scope;
   void *i;
-#ifndef HAVE___THREAD
-  ck_epoch_record_t *epoch_record = pthread_getspecific(epoch_key);
-#endif
 
-  ck_epoch_begin(&ph_counter_epoch, epoch_record);
+  ck_epoch_begin(&ph_counter_epoch, er);
   if (!ck_hs_next(&scope_map, (ck_hs_iterator_t*)iter, &i)) {
-    ck_epoch_end(&ph_counter_epoch, epoch_record);
+    ck_epoch_end(&ph_counter_epoch, er);
     return NULL;
   }
-  ck_epoch_end(&ph_counter_epoch, epoch_record);
+  ck_epoch_end(&ph_counter_epoch, er);
 
   scope = i;
   ph_refcnt_add(&scope->refcnt);
