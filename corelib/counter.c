@@ -376,8 +376,16 @@ ph_counter_scope_t *ph_counter_scope_define(
 
     ck_epoch_begin(&ph_counter_epoch, er);
     if (ck_hs_get(&scope_map, hash, scope) != NULL) {
+      int i;
+
       ck_epoch_end(&ph_counter_epoch, er);
       ck_spinlock_unlock(&scope_map_lock);
+
+      for (i = 0; i < scope->next_slot; i++) {
+        free(scope->slot_names[i]);
+      }
+      free(scope);
+
       return NULL;
     }
 
