@@ -23,7 +23,6 @@ libphenom_a_SOURCES = \
 	corelib/error.c \
 	corelib/log.c \
 	corelib/memory.c \
-	corelib/murmurhash.c \
 	corelib/pingfd.c \
 	corelib/pipe2.c \
 	corelib/pprintf.c \
@@ -32,6 +31,7 @@ libphenom_a_SOURCES = \
 	corelib/thread.c \
 	corelib/timerwheel.c \
 	corelib/vprintf.c \
+	corelib/hash/murmur.c \
 	corelib/streams/make.c \
 	corelib/streams/read.c \
 	corelib/streams/write.c \

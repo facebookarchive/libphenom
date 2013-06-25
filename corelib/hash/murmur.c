@@ -2,7 +2,7 @@
  * Murmur Hash is in the public domain. This version from Peter Scott,
  * translated from the original version from Austin Appleby.
  */
-#include "phenom/murmurhash.h"
+#include "phenom/sysutil.h"
 #include <stdint.h>
 #include <ck_cc.h>
 
@@ -29,7 +29,7 @@ fmix64(uint64_t k)
 }
 
 void
-MurmurHash3_x64_128(const void *key, const int len, const uint32_t seed, void *out)
+ph_hash_bytes_murmur(const void *key, const int len, const uint32_t seed, void *out)
 {
   const uint8_t * data = (const uint8_t*)key;
   const int nblocks = len / 16;
