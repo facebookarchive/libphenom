@@ -186,14 +186,16 @@ static void counter_destroy(void)
   struct ph_counter_head *head;
   struct ph_counter_block *block;
   ph_counter_scope_t *scope;
+  ck_epoch_record_t *er = ph_get_epoch_record();
 
+  ck_epoch_begin(&ph_counter_epoch, er);
   while ((stack_entry = ck_stack_pop_npsc(&all_heads)) != NULL) {
     ck_hs_iterator_t hiter;
 
     head = ph_counter_head_from_stack_entry(stack_entry);
     ck_hs_iterator_init(&hiter);
     while (ck_hs_next(&head->ht, &hiter, (void**)&block)) {
-      ph_counter_block_delref(block);
+      free(block);
     }
 
     ck_hs_destroy(&head->ht);
@@ -202,10 +204,16 @@ static void counter_destroy(void)
 
   ck_hs_iterator_init(&iter);
   while (ck_hs_next(&scope_map, &iter, (void**)&scope)) {
-    ph_counter_scope_delref(scope);
+    int i;
+    for (i = 0; i < scope->next_slot; i++) {
+      free(scope->slot_names[i]);
+    }
+    free(scope);
   }
 
   ck_hs_destroy(&scope_map);
+  ck_epoch_end(&ph_counter_epoch, er);
+  ck_epoch_barrier(&ph_counter_epoch, er);
 }
 
 static bool scope_map_compare(const void *a, const void *b)
