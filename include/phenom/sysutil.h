@@ -169,6 +169,11 @@ int ph_mtsprintf(ph_memtype_t memtype, char **strp,
 #endif
   ;
 
+/** 128-bit murmur hash implementation; result goes into out (which
+ * can just be a uint64_t[2]). */
+void ph_hash_bytes_murmur(const void *key, const int len,
+    const uint32_t seed, void *out);
+
 #ifdef __cplusplus
 }
 #endif

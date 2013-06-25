@@ -15,7 +15,6 @@
  */
 
 #include "phenom/counter.h"
-#include "phenom/murmurhash.h"
 #include "phenom/sysutil.h"
 #include <ck_epoch.h>
 #include <ck_hs.h>
@@ -165,8 +164,17 @@ static void counter_destroy(void)
 static bool scope_map_compare(const void *a, const void *b)
 {
   const ph_counter_scope_t *sa = a, *sb = b;
+  const size_t lena, lenb;
 
-  return !!!strcmp(sa->full_scope_name, sb->full_scope_name);
+  lena = strlen(sa);
+  lenb = strlen(sb);
+
+  if (lena != lenb) {
+    return 0;
+  }
+
+  /* !!! guarantees correct boolean representation where 0 is the truth value */
+  return !!!memcmp(sa->full_scope_name, sb->full_scope_name, lena);
 }
 
 static unsigned long scope_map_hash(const void *key,
@@ -175,7 +183,8 @@ static unsigned long scope_map_hash(const void *key,
   const ph_counter_scope_t *sk = key;
   uint64_t h[2];
 
-  MurmurHash3_x64_128(sk->full_scope_name, strlen(sk->full_scope_name), seed, h);
+  ph_hash_bytes_murmur(sk->full_scope_name, strlen(sk->full_scope_name),
+      seed, h);
   return h[0];
 }
 
