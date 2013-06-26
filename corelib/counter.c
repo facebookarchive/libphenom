@@ -16,6 +16,7 @@
 
 #include "phenom/counter.h"
 #include "phenom/sysutil.h"
+#include "phenom/queue.h"
 #include <ck_epoch.h>
 #include <ck_hs.h>
 #include <ck_stack.h>
@@ -58,6 +59,8 @@ struct ph_counter_head {
   ck_stack_entry_t stack_entry;
   /* maps counter_id to a block instance in this thread */
   ck_hs_t ht;
+  /* for SMR */
+  ck_epoch_record_t epoch_record;
 };
 
 /* This defines a function called ph_counter_head_from_stack_entry
@@ -74,15 +77,12 @@ static ck_spinlock_t scope_map_lock = CK_SPINLOCK_INITIALIZER;
 
 /** key to TLS for finding counter block instances */
 static pthread_key_t tls_key;
-/** TLS key for finding our SMR records */
-static pthread_key_t epoch_key;
 static ck_epoch_t ph_counter_epoch;
 
 static pthread_once_t done_tls_init = PTHREAD_ONCE_INIT;
 
 #ifdef HAVE___THREAD
 static __thread struct ph_counter_head *myhead = NULL;
-static __thread ck_epoch_record_t *epoch_record = NULL;
 #endif
 
 static CK_CC_INLINE struct ph_counter_head *get_counter_head(void)
@@ -94,27 +94,19 @@ static CK_CC_INLINE struct ph_counter_head *get_counter_head(void)
 #endif
 }
 
+static struct ph_counter_head *init_head(void);
 static CK_CC_INLINE ck_epoch_record_t *get_epoch_record(void)
 {
-#ifndef HAVE___THREAD
-  ck_epoch_record_t *er = pthread_getspecific(epoch_key);
-#else
-  ck_epoch_record_t *er = epoch_record;
-#endif
+  struct ph_counter_head *head = get_counter_head();
 
-  if (er == NULL) {
-    er = ck_epoch_recycle(&ph_counter_epoch);
-    if (er == NULL) {
-      er = malloc(sizeof(*er));
-      pthread_setspecific(epoch_key, er);
-#ifdef HAVE___THREAD
-      epoch_record = er;
-#endif
-      ck_epoch_register(&ph_counter_epoch, er);
+  if (unlikely(!head)) {
+    head = init_head();
+    if (!head) {
+      return NULL;
     }
   }
 
-  return er;
+  return &head->epoch_record;
 }
 
 static ck_stack_t all_heads = CK_STACK_INITIALIZER;
@@ -126,19 +118,11 @@ static void ph_counter_head_tls_dtor(void *ptr)
 {
   struct ph_counter_head *head = ptr;
 
-  unused_parameter(head);
-
-  // TODO: mark it dead, reapable
-}
-
-static void ph_counter_epoch_tls_dtor(void *ptr)
-{
-  struct ck_epoch_record *er = ptr;
-
-  /** Thread is exiting, so let's try to reclaim memory. We don't need to
-   * free the epoch_record because it will be reused by ck_epoch_recycle. */
-  ck_epoch_barrier(&ph_counter_epoch, er);
-  ck_epoch_unregister(&ph_counter_epoch, er);
+  // Thread is exiting.  We don't care about reclaiming the memory
+  // from around the scope maps as we're recycling the record anyway and if we
+  // try something like a barrier here, we can deadlock all threads on
+  // scheduler shutdown
+  ck_epoch_unregister(&ph_counter_epoch, &head->epoch_record);
 }
 
 /** We need to allocate space for our epoch-based SMR to manage its stack
@@ -190,9 +174,11 @@ static void counter_destroy(void)
   struct ph_counter_head *head;
   struct ph_counter_block *block;
   ph_counter_scope_t *scope;
-  ck_epoch_record_t *er = get_epoch_record();
 
-  ck_epoch_begin(&ph_counter_epoch, er);
+  // Nuke all the heads and their associated epoch_records.
+  // This is by definition unsafe but we're the last thread standing
+  // at this point; we don't need to (and must not!) use the epoch
+  // functions to reclaim this memory; just free with prejudice
   while ((stack_entry = ck_stack_pop_npsc(&all_heads)) != NULL) {
     ck_hs_iterator_t hiter;
 
@@ -216,8 +202,6 @@ static void counter_destroy(void)
   }
 
   ck_hs_destroy(&scope_map);
-  ck_epoch_end(&ph_counter_epoch, er);
-  ck_epoch_barrier(&ph_counter_epoch, er);
 }
 
 static bool scope_map_compare(const void *a, const void *b)
@@ -249,9 +233,8 @@ static unsigned long scope_map_hash(const void *key,
 
 static void ph_counter_init(void)
 {
-  pthread_key_create(&tls_key, ph_counter_head_tls_dtor);
-  pthread_key_create(&epoch_key, ph_counter_epoch_tls_dtor);
   ck_epoch_init(&ph_counter_epoch);
+  pthread_key_create(&tls_key, ph_counter_head_tls_dtor);
 
   if (sizeof(struct ph_counter_scope_iterator) !=
       sizeof(struct ck_hs_iterator)) {
@@ -525,20 +508,33 @@ bool ph_counter_scope_register_counter_block(
 
 static struct ph_counter_head *init_head(void)
 {
-  struct ph_counter_head *head = calloc(1, sizeof(*head));
+  struct ph_counter_head *head;
+  ck_epoch_record_t *er;
 
-  if (!head) {
-    return NULL;
-  }
+  // Try to recycle a head from a dead thread
+  er = ck_epoch_recycle(&ph_counter_epoch);
+  if (er) {
+    head = (struct ph_counter_head*)
+           ((char*)er - ph_offsetof(struct ph_counter_head, epoch_record));
+  } else {
+    // Otherwise, make a new one and prep it
+    head = calloc(1, sizeof(*head));
 
-  if (!ck_hs_init(&head->ht, CK_HS_MODE_SPMC|CK_HS_MODE_OBJECT,
+    if (!head) {
+      return NULL;
+    }
+
+    if (!ck_hs_init(&head->ht, CK_HS_MODE_SPMC|CK_HS_MODE_OBJECT,
         scope_id_hash, scope_id_compare, &hs_allocator, 32, 0)) {
-    free(head);
-    return NULL;
-  }
+      free(head);
+      return NULL;
+    }
 
-  /* make it visible to stat consumers */
-  ck_stack_push_upmc(&all_heads, &head->stack_entry);
+    ck_epoch_register(&ph_counter_epoch, &head->epoch_record);
+
+    /* make it visible to stat consumers */
+    ck_stack_push_upmc(&all_heads, &head->stack_entry);
+  }
 
   pthread_setspecific(tls_key, head);
 #ifdef HAVE___THREAD
