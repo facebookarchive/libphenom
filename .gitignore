@@ -30,3 +30,4 @@ tests/bench/*.t
 .DS_Store
 .nfs*
 core
+docs

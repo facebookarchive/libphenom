@@ -1,0 +1,20 @@
+# Doxyfile 1.8.4
+DOXYFILE_ENCODING      = UTF-8
+PROJECT_NAME           = "Phenom"
+PROJECT_BRIEF          = "library of awesome for C apps"
+OUTPUT_DIRECTORY       = docs
+OUTPUT_LANGUAGE        = English
+FULL_PATH_NAMES        = NO
+STRIP_FROM_PATH        =
+STRIP_FROM_INC_PATH    = include
+SHORT_NAMES            = NO
+OPTIMIZE_OUTPUT_FOR_C  = YES
+EXTENSION_MAPPING      = h=C
+MARKDOWN_SUPPORT       = YES
+CASE_SENSE_NAMES       = NO
+EXCLUDE = thirdparty corelib/vprintf.c corelib/dtoa.c tests/ \
+  corelib/pprintf.c arcanist
+INPUT = include
+GENERATE_LATEX = NO
+GENERATE_MAN = NO
+RECURSIVE = YES
