@@ -223,7 +223,6 @@ int main(int argc, char** argv)
   unused_parameter(argv);
 
   plan_tests(39);
-  ph_counter_init();
   basicCounterFunctionality();
   concurrentCounters();
 

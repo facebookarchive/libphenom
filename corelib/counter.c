@@ -247,11 +247,11 @@ static unsigned long scope_map_hash(const void *key,
   return h[0];
 }
 
-static void ph_counter_tls_init(void)
+static void ph_counter_init(void)
 {
-
   pthread_key_create(&tls_key, ph_counter_head_tls_dtor);
   pthread_key_create(&epoch_key, ph_counter_epoch_tls_dtor);
+  ck_epoch_init(&ph_counter_epoch);
 
   if (sizeof(struct ph_counter_scope_iterator) !=
       sizeof(struct ck_hs_iterator)) {
@@ -335,7 +335,7 @@ ph_counter_scope_t *ph_counter_scope_define(
     return NULL;
   }
 
-  pthread_once(&done_tls_init, ph_counter_tls_init);
+  pthread_once(&done_tls_init, ph_counter_init);
 
   if (parent) {
     full_name_len = strlen(path) + 1 /* '/' */ +
@@ -747,11 +747,6 @@ ph_counter_scope_t *ph_counter_scope_iterator_next(
   scope = i;
   ph_refcnt_add(&scope->refcnt);
   return scope;
-}
-
-void ph_counter_init(void)
-{
-  ck_epoch_init(&ph_counter_epoch);
 }
 
 /* vim:ts=2:sw=2:et:

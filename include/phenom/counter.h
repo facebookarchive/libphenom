@@ -377,14 +377,6 @@ void ph_counter_scope_iterator_init(
 ph_counter_scope_t *ph_counter_scope_iterator_next(
     ph_counter_scope_iterator_t *iter);
 
-/** initialize subsystem
- *
- * Initialization is required to happen once from the main thread before
- * using the counter subsystem. This is due to safe memory reclamation
- * requirements of the underlying datastructures.
- */
-void ph_counter_init(void);
-
 #ifdef __cplusplus
 }
 #endif
