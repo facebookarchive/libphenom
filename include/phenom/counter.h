@@ -15,6 +15,7 @@
  */
 
 /**
+ * # Counters
  * The phenom counter subsystem provides a set of functions that
  * allows the application to build a hierarchy of 64-bit
  * counter values.
@@ -56,15 +57,15 @@ typedef struct ph_counter_block ph_counter_block_t;
  * individual counter values and a mechanism for reading a
  * consistent snapshot of the counter values in the scope.
  *
- * @param parent optional relative counter scope. May be NULL.
- * @param path scope name for this set of counters. Must not be NULL.
- * @param max_counters hint as to the max number of counters that must
+ * * `parent` - optional relative counter scope. May be NULL.
+ * * `path` - scope name for this set of counters. Must not be NULL.
+ * * `max_counters` - hint as to the max number of counters that must
  *        be available for use in this counter scope.  The system
  *        only guarantees that this many slots are available, which
  *        may restrict the number of counters that can be dynamically
  *        added later.
  *
- * @return a counter scope instance.  The caller owns a reference
+ * Returns a counter scope instance.  The caller owns a reference
  * to this instance and must release it via ph_counter_scope_delref()
  * when it is no longer needed.
  */
@@ -76,9 +77,11 @@ ph_counter_scope_t *ph_counter_scope_define(
 /** Resolve a named counter scope
  *
  * Given a relative scope and name, resolves it to a scope instance.
- * @param parent option relative counter scope. May be NULL.
- * @param path scope name to be resolved. Must not be NULL.
- * @return a counter scope instance.  The caller owns a reference
+ *
+ * * `parent` - optional relative counter scope. May be NULL.
+ * * `path` - scope name to be resolved. Must not be NULL.
+ *
+ * Returns a counter scope instance.  The caller owns a reference
  * to this instance and must release it via ph_counter_scope_delref().
  */
 ph_counter_scope_t *ph_counter_scope_resolve(
@@ -90,7 +93,8 @@ ph_counter_scope_t *ph_counter_scope_resolve(
  * When no more references to a scope remain, it is destroyed.
  * To delete a counter scope from the counter subsystem, it must be
  * unlinked from its parent scope (not currently supported).
- * @param scope the scope to be released
+ *
+ * * `scope` - the scope to be released
  */
 void ph_counter_scope_delref(ph_counter_scope_t *scope);
 
@@ -98,14 +102,15 @@ void ph_counter_scope_delref(ph_counter_scope_t *scope);
 
 /** Registers a counter name in a counter scope.
  *
- * @returns a counter slot offset or PHENOM_COUNTER_INVALID
- * @param scope the scope in which the counter should be registered
- * @param name the name of the counter
+ * Returns a counter slot offset or `PHENOM_COUNTER_INVALID`
+ *
+ * * `scope` - the scope in which the counter should be registered
+ * * `name` - the name of the counter
  *
  * It is an error to register a counter with the same name as a child
  * scope.
  *
- * If the counter cannot be registered, returns PHENOM_COUNTER_INVALID.
+ * If the counter cannot be registered, returns `PHENOM_COUNTER_INVALID`.
  */
 uint8_t ph_counter_scope_register_counter(
     ph_counter_scope_t *scope,
@@ -113,19 +118,22 @@ uint8_t ph_counter_scope_register_counter(
 
 /** Registers a block of counter names and values in a counter scope.
  *
- * @returns true if the registration matched the desired slots, false otherwise
- * @param scope the scope in which the counters should be registered.
- * @param num_slots the number of slots being registered
- * @param first_slot the desired slot value for the first slot being registered
- * @param slot_names an array of slot name strings to be registered.
+ * Returns true if the registration matched the desired slots, false otherwise
+ *
+ * * `scope` - the scope in which the counters should be registered.
+ * * `num_slots` - the number of slots being registered
+ * * `first_slot` - the desired slot value for the first slot being registered
+ * * `slot_names` - an array of slot name strings to be registered.
  *
  * This function registers a set of counter names in the specified scope.
  * For example, if you have a set of counters, say "sent" and "recvd" and
  * you want to register them, you'd write something like:
-\code
+
+```
 const char *names[2] = {"sent", "recvd"};
 ph_counter_scope_register_counter_block(scope, 2, 0, names);
-\endcode
+```
+
  *
  * If the requested first_slot is not yet allocated, then it will allocate
  * the counters to the names you've specified and return true.  Otherwise
@@ -145,9 +153,9 @@ bool ph_counter_scope_register_counter_block(
  * Adds the specified value to the current counter value.
  * Note that you may add a negative counter value to decrement it.
  *
- * @param scope the scope of the counter
- * @param slot the counter slot offset
- * @param value the value to add to the current counter value.
+ * * `scope` - the scope of the counter
+ * * `slot` - the counter slot offset
+ * * `value` - the value to add to the current counter value.
  */
 void ph_counter_scope_add(
     ph_counter_scope_t *scope,
@@ -157,6 +165,7 @@ void ph_counter_scope_add(
 /** Open a handle on the set of counters for the current thread
  *
  * The handle is useful in two main situations:
+ *
  * 1. The same thread is making very frequent updates to counter
  *    values and wants to shave off the TLS overheads.
  *    See ph_counter_block_add().
@@ -171,8 +180,9 @@ void ph_counter_scope_add(
  * You must call ph_counter_block_delref() on the handle when
  * it is no longer needed.
  *
- * @param scope the scope to open
- * @return a thread local counter block.
+ * * `scope the scope to open
+ *
+ * Returns a thread local counter block.
  */
 ph_counter_block_t *ph_counter_block_open(
     ph_counter_scope_t *scope);
@@ -182,9 +192,9 @@ ph_counter_block_t *ph_counter_block_open(
  * Adds the specified value to the current counter value.
  * Note that you may add a negative counter value to decrement it.
  *
- * @param block the block containing the counters
- * @param slot the counter slot offset
- * @param value the value to add to the current counter value.
+ * * `block` - the block containing the counters
+ * * `slot` - the counter slot offset
+ * * `value` - the value to add to the current counter value.
  */
 #if 0
 void ph_counter_block_add(
@@ -222,7 +232,7 @@ static inline void ph_counter_block_add(
 
 /** Release a counter block
  *
- * @param block the block to be released.
+ * * `block` - the block to be released.
  */
 void ph_counter_block_delref(
     ph_counter_block_t *block);
@@ -240,10 +250,10 @@ void ph_counter_block_delref(
  * If you frequently update a set of related counters together,
  * it is recommended that you use this interface.
  *
- * @param block the counter block for this thread
- * @param num_slots the number of slots being manipulated
- * @param slots an array of num_slots slot offsets
- * @param values an array of num_slots values
+ * * `block` - the counter block for this thread
+ * * `num_slots` - the number of slots being manipulated
+ * * `slots` - an array of num_slots slot offsets
+ * * `values` - an array of num_slots values
  *
  * NOTE: passing an invalid slot offset leads to undefined behavior.
  * It is the callers responsibility to ensure that the offsets are
@@ -267,13 +277,13 @@ static inline void ph_counter_block_bulk_add(
 
 /** Returns a current counter value.
  *
- * @returns the current value associated with a counter slot in the
+ * Returns the current value associated with a counter slot in the
  * specified scope.
  *
  * If the offset is invalid, returns 0.
  *
- * @param scope the containing scope
- * @param slot the counter slot offset
+ * * `scope` - the containing scope
+ * * `slot` - the counter slot offset
  */
 int64_t ph_counter_scope_get(
     ph_counter_scope_t *scope,
@@ -293,11 +303,12 @@ int64_t ph_counter_scope_get(
  * that will be populated with the names of the counters registered
  * in the scope.
  *
- * @returns the number of slots populated.
- * @param scope the containing scope
- * @param num_slots the number of slots to read
- * @param slots an array of size num_slots to hold the values
- * @param names an optional array to receive the counter names
+ * Returns the number of slots populated.
+ *
+ * * `scope` - the containing scope
+ * * `num_slots` - the number of slots to read
+ * * `slots` - an array of size num_slots to hold the values
+ * * `names` - an optional array to receive the counter names
  */
 uint8_t ph_counter_scope_get_view(
     ph_counter_scope_t *scope,
@@ -308,7 +319,9 @@ uint8_t ph_counter_scope_get_view(
 /** Returns the fully qualified name of the counter scope
  *
  * Introspects the provided scope and returns its full path name.
- * @return the name
+ *
+ * Returns the name.
+ *
  * The returned string is only valid while the scope reference is
  * maintained; once you delref, the name pointer value is undefined.
  */
@@ -321,8 +334,9 @@ const char *ph_counter_scope_get_name(
  * that have been allocated.  This is useful when dynamically examining
  * a scope to render the counter values.
  *
- * @param scope the scope being inspected
- * @return the number of allocated slots
+ * * `scope` - the scope being inspected
+ *
+ * Returns the number of allocated slots
  */
 uint8_t ph_counter_scope_get_num_slots(
     ph_counter_scope_t *scope);
@@ -335,14 +349,17 @@ struct ph_counter_scope_iterator {
 typedef struct ph_counter_scope_iterator ph_counter_scope_iterator_t;
 
 /** Initialize a scope iterator.
- * @param iter the iterator to be initialized
+ *
+ * * `iter` - the iterator to be initialized
  */
 void ph_counter_scope_iterator_init(
     ph_counter_scope_iterator_t *iter);
 
 /** iterate scopes
- * @param iter the iterator
- * @returns The next scope in the iteration, or NULL if the end has been
+ *
+ * * `iter` - the iterator
+ *
+ * Returns The next scope in the iteration, or NULL if the end has been
  * reached.
  *
  * Iteration is thread safe; no locks are required, but iteration may not
