@@ -85,7 +85,8 @@ HTML;
   <div class="container">
     <div class="row">
       <div class="span4 docs-sidebar">
-        <ul class="nav nav-list" data-spy="affix" data-offset-top="0"></ul>
+        <ul class="nav nav-list" data-spy="affix"
+          data-offset-top="0" id="sidenav"></ul>
       </div>
       <div class="span8">
         <textarea id="doc">
