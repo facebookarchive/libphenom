@@ -17,38 +17,33 @@
 #ifndef PHENOM_STREAM_H
 #define PHENOM_STREAM_H
 
+/**
+ * # Streams
+ *
+ * Phenom provides a portable layer over streaming IO
+ */
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 struct ph_stream;
 typedef struct ph_stream ph_stream_t;
+struct ph_stream_funcs;
 
-/** Defines a stream implementation.
- *
- * If any of these return false, it indicates an error.
- * The implementation must set stm->last_err to the corresponding
- * errno value in that case (and only in the failure case).
- */
-struct ph_stream_funcs {
-  bool (*close)(ph_stream_t *stm);
-  bool (*readv)(ph_stream_t *stm, const struct iovec *iov,
-      int iovcnt, uint64_t *nread);
-  bool (*writev)(ph_stream_t *stm, const struct iovec *iov,
-      int iovcnt, uint64_t *nwrote);
-  bool (*seek)(ph_stream_t *stm, int64_t delta,
-      int whence, uint64_t *newpos);
-};
-
-/** size of unget buffer */
+/* size of unget buffer */
 #define PH_STM_UNGET      8
 
-/** size of default stream buffer */
+/* size of default stream buffer */
 #define PH_STM_BUFSIZE    8192
 
-/** If set in flags, the stream instance must not be freed */
+/* If set in flags, the stream instance must not be freed */
 #define PH_STM_FLAG_ONSTACK    1
 
+/** Represents a stream
+ *
+ * Streams maintain a buffer for read/write operations.
+ */
 struct ph_stream {
   const struct ph_stream_funcs *funcs;
   void *cookie;
@@ -108,6 +103,7 @@ int ph_stm_printf(ph_stream_t *stm, const char *fmt, ...)
 #endif
   ;
 
+/** Flush buffers */
 bool ph_stm_flush(ph_stream_t *stm);
 
 /** Reposition the file offset
@@ -139,17 +135,6 @@ static inline int ph_stm_errno(ph_stream_t *stm) {
   return stm->last_err;
 }
 
-/** Construct a stream.
- * If bufsize is 0, the stream will be unbuffered
- */
-ph_stream_t *ph_stm_make(const struct ph_stream_funcs *funcs,
-    void *cookie, int sflags, uint32_t bufsize);
-
-/** Destruct a stream.
- * Does not call close, forces destruction of the stm.
- */
-void ph_stm_destroy(ph_stream_t *stm);
-
 /** Construct a stream around a pre-existing file descriptor */
 ph_stream_t *ph_stm_fd_open(int fd, int sflags, uint32_t bufsize);
 
@@ -162,11 +147,45 @@ void ph_stm_unlock(ph_stream_t *stm);
  */
 ph_stream_t *ph_stm_file_open(const char *filename, int oflags, int mode);
 
+/**
+ * # Implementation Details
+ *
+ * If you're simply consuming streams, you can stop reading now.
+ */
+
+/** Defines a stream implementation.
+ *
+ * If any of these return false, it indicates an error.
+ * The implementation must set stm->last_err to the corresponding
+ * errno value in that case (and only in the failure case).
+ */
+struct ph_stream_funcs {
+  bool (*close)(ph_stream_t *stm);
+  bool (*readv)(ph_stream_t *stm, const struct iovec *iov,
+      int iovcnt, uint64_t *nread);
+  bool (*writev)(ph_stream_t *stm, const struct iovec *iov,
+      int iovcnt, uint64_t *nwrote);
+  bool (*seek)(ph_stream_t *stm, int64_t delta,
+      int whence, uint64_t *newpos);
+};
+
+/** Construct a stream.
+ * If bufsize is 0, the stream will be unbuffered
+ */
+ph_stream_t *ph_stm_make(const struct ph_stream_funcs *funcs,
+    void *cookie, int sflags, uint32_t bufsize);
+
+/** Destruct a stream.
+ * Does not call close, forces destruction of the stm.
+ */
+void ph_stm_destroy(ph_stream_t *stm);
+
 /** initialize the stream layer */
 ph_result_t ph_stm_init(void);
 
-/** functions that operate on a file descriptor */
+/* functions that operate on a file descriptor */
 extern struct ph_stream_funcs ph_stm_funcs_fd;
+
 
 #ifdef __cplusplus
 }

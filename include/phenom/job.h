@@ -27,30 +27,29 @@
 extern "C" {
 #endif
 
-/* Phenom Jobs
+/**
+ * # Phenom Jobs
  * Jobs describe a parcel of work.  Jobs may be triggered or dispatched
  * in one of a number of "run classes".  There are three run classes:
  *
- * - Immediate.  The work is dispatched immediately on the calling thread.
- * - NBIO.       The work is dispatched when a descriptor is signalled
- *               for I/O.
- * - Pool.       The work is queued to a thread pool and is dispatched
- *               as soon as a worker becomes available.
- *               Phenom allows multiple pools to be defined to better
- *               partition and prioritize your workload.
+ * - Immediate. The work is dispatched immediately on the calling thread.
+ * - NBIO. The work is dispatched when a descriptor is signalled for I/O.
+ * - Pool. The work is queued to a thread pool and is dispatched as soon as a
+ *   worker becomes available.  Phenom allows multiple pools to be defined to
+ *   better partition and prioritize your workload.
  */
 
-/** NBIO trigger mask */
+/* NBIO trigger mask */
 typedef uint8_t ph_iomask_t;
-/** NBIO is disabled or not applicable */
+/* NBIO is disabled or not applicable */
 #define PH_IOMASK_NONE  0
-/** NBIO will/did dispatch for readable events */
+/* NBIO will/did dispatch for readable events */
 #define PH_IOMASK_READ  1
-/** NBIO will/did dispatch for writable events */
+/* NBIO will/did dispatch for writable events */
 #define PH_IOMASK_WRITE 2
-/** NBIO dispatched due to IO error */
+/* NBIO dispatched due to IO error */
 #define PH_IOMASK_ERR   4
-/** NBIO did not dispatch before timeout was met */
+/* NBIO did not dispatch before timeout was met */
 #define PH_IOMASK_TIME  8
 
 struct ph_job;
@@ -63,13 +62,13 @@ typedef void (*ph_job_func_t)(
 );
 
 struct ph_job {
-  /** data associated with job */
+  /* data associated with job */
   void *data;
   ph_job_func_t callback;
-  /** deferred apply list */
+  /* deferred apply list */
   PH_STAILQ_ENTRY(ph_job) q_ent;
 
-  /** for PH_RUNCLASS_NBIO, trigger mask */
+  /* for PH_RUNCLASS_NBIO, trigger mask */
   ph_iomask_t mask;
   int kmask;
 
@@ -160,7 +159,7 @@ ph_thread_pool_t *ph_thread_pool_define(
  */
 ph_thread_pool_t *ph_thread_pool_by_name(const char *name);
 
-/** thread pool stats.
+/**
  * These are accumulated using ph_counter under the covers.
  * This means that the numbers are a snapshot across a number
  * of per-thread views.
@@ -179,15 +178,15 @@ struct ph_thread_pool_stats {
 void ph_thread_pool_stat(ph_thread_pool_t *pool,
     struct ph_thread_pool_stats *stats);
 
-/** io scheduler thread pool stats */
+/* io scheduler thread pool stats */
 struct ph_nbio_stats {
-  /** how many threads are servicing NBIO */
+  /* how many threads are servicing NBIO */
   int num_threads;
-  /** how many NBIO dispatches have happened */
+  /* how many NBIO dispatches have happened */
   int64_t num_dispatched;
-  /** how many timer ticks since process start (~1 every 100ms) */
+  /* how many timer ticks since process start (~1 every 100ms) */
   int64_t timer_ticks;
-  /** how many timer vs. event dispatch conflicts were detected,
+  /* how many timer vs. event dispatch conflicts were detected,
    * should be rare */
   int64_t timer_busy;
 };

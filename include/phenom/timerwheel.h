@@ -14,7 +14,10 @@
  * limitations under the License.
  */
 
-/* This borrows from the concepts explored in the paper:
+/**
+ * # Timer Wheel
+ *
+ * This borrows from the concepts explored in the paper:
  * "Hashed and Hierarchical Timing Wheels: Effcient
  * Data Structures for Implementing a Timer Facility by
  * George Varghese and Anthony Lauck"

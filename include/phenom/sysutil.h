@@ -20,6 +20,12 @@
 #include "phenom/defs.h"
 #include "phenom/memory.h"
 
+/**
+ * # Utility Functions
+ *
+ * A slightly random set of helper functions.
+ */
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -32,12 +38,20 @@ extern "C" {
 #endif
 
 typedef int ph_socket_t;
+
+/** Set or disable non-blocking mode for a file descriptor */
 void ph_socket_set_nonblock(ph_socket_t fd, bool enable);
 
 #define PH_PIPE_NONBLOCK 1
 #define PH_PIPE_CLOEXEC  2
+/** Create a pipe and optional set flags.
+ *
+ * The flags parameter can be one or more of:
+ * * `PH_PIPE_NONBLOCK` - set non-blocking IO
+ * * `PH_PIPE_CLOEXEC` - set the CLOEXEC flag
+ * or'd together.
+ */
 ph_result_t ph_pipe(ph_socket_t fds[2], int flags);
-
 
 struct ph_pingfd {
   ph_socket_t fds[2];
@@ -58,6 +72,7 @@ double ph_strtod(const char *s00, const char **se);
 
 struct timeval ph_time_now(void);
 
+/** round up to next power of 2 */
 static inline uint32_t ph_power_2(uint32_t n)
 {
   n |= (n >> 16);
@@ -68,6 +83,7 @@ static inline uint32_t ph_power_2(uint32_t n)
   return n + 1;
 }
 
+/** Return the number of physical cores in the system */
 uint32_t ph_num_cores(void);
 
 /** Generate a unique temporary file name and open it.
@@ -95,13 +111,14 @@ struct ph_vprintf_funcs {
 
 /** Thread-safe errno value to string conversion */
 const char *ph_strerror(int errval);
+/** Thread-safe errno value to string conversion */
 const char *ph_strerror_r(int errval, char *buf, size_t len);
 
 /** Portable string formatting.
  * This handles things like NULL string pointers without faulting.
  * It does not support long doubles nor does it support hex double
  * formatting.  It does not support locale for decimal points;
- * we always print those as ".".
+ * we always print those as `.`
  *
  * Extensions: some helpers are provided to format information
  * from the phenom library.  These extensions are designed such
@@ -112,11 +129,14 @@ const char *ph_strerror_r(int errval, char *buf, size_t len);
  * For instance, "`Pe%d" is seen as "%d" by GCC's checker
  * but the entire "`Pe%d" is replaced by the strerror expansion.
  *
+ * ```
  *  `Pe%d -   replaced by the return from strerror(arg), using
  *            strerror_r() when present, where arg is an errno
  *            argument supplied by you.
  *  `Pv%s%p - recursively expands a format string and a va_list.
  *            Arguments are a char* and ph_vaptr(va_list)
+ * ```
+ *
  */
 int ph_vprintf_core(void *print_arg,
     const struct ph_vprintf_funcs *print_funcs,

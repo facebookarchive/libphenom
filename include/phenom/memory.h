@@ -40,7 +40,10 @@ typedef int ph_memtype_t;
 /* panic if memory could not be allocated */
 #define PH_MEM_FLAGS_PANIC 2
 
-/* defines a memory type */
+/** defines a memory type.
+ *
+ * This data structure is used to define a named memory type.
+ */
 struct ph_memtype_def {
   /* General category of allocations.
    * Convention is to name it after the module or subsystem.
@@ -58,14 +61,20 @@ struct ph_memtype_def {
    * If the item_size is zero, then allocations may be
    * of any size */
   uint64_t item_size;
-  /* One of the PH_MEM_FLAGS above */
+  /* One of the PH_MEM_FLAGS:
+   * PH_MEM_FLAGS_ZERO - implicitly zero out the memory before
+   *   returning it from ph_mem_alloc() or ph_mem_alloc_size()
+   * PH_MEM_FLAGS_PANIC - if the allocation fails, call `ph_panic`.
+   *   Use this only for extremely critical allocations with no reasonable
+   *   recovery path.
+   */
   unsigned flags;
 };
 typedef struct ph_memtype_def ph_memtype_def_t;
 
 /** Registers a memtype
  *
- * @return the memtype identifier, or PH_MEMTYPE_INVALID if
+ * Returns the memtype identifier, or PH_MEMTYPE_INVALID if
  * registration failed.
  */
 ph_memtype_t ph_memtype_register(const ph_memtype_def_t *def);
@@ -83,7 +92,8 @@ ph_memtype_t ph_memtype_register(const ph_memtype_def_t *def);
  * memtypes.
  *
  * This function always assigns a contiguous block of memtype identifiers.
- * @return the memtype identifier corresponding to the first definition, or
+ *
+ * Returns the memtype identifier corresponding to the first definition, or
  * PH_MEMTYPE_INVALID if the registration failed.
 ```
 ph_memtype_def_t defs[] = {
@@ -165,7 +175,10 @@ void *ph_mem_realloc(ph_memtype_t memtype, void *ptr, uint64_t size);
  */
 void ph_mem_free(ph_memtype_t memtype, void *ptr);
 
-/* Data structure for querying memory usage information */
+/** Data structure for querying memory usage information.
+ *
+ * This is implemented on top of the counter subsytem
+ */
 struct ph_mem_stats {
   /* the definition */
   const ph_memtype_def_t *def;
@@ -185,27 +198,29 @@ typedef struct ph_mem_stats ph_mem_stats_t;
 
 /** Queries information about the specified memtype.
  *
- * @param memtype the memtype being interrogated
- * @param[out] stats receives the usage information
+ * * `memtype` - the memtype being interrogated
+ * * `stats` - receives the usage information
  */
 bool ph_mem_stat(ph_memtype_t memtype, ph_mem_stats_t *stats);
 
 /** Queries information about memtypes in the specified facility.
  *
- * @param facility the facility name of interest
- * @param num_stats the number of elements in the stats array
- * @param[out] stats array of num_stats elements, receives the stats
- * @return the number of stats that were populated.
+ * * `facility` - the facility name of interest
+ * * `num_stats` - the number of elements in the stats array
+ * * `stats` - array of num_stats elements, receives the stats
+ *
+ * Returns the number of stats that were populated.
  */
 int ph_mem_stat_facility(const char *facility,
     int num_stats, ph_mem_stats_t *stats);
 
 /** Queries information about a range of memtypes in the system.
  *
- * @param start starting memtype in the range
- * @param end ending memtype of the range (exclusive)
- * @param[out] stats array of (end - start) elements to receive stats
- * @return the number of stats that were populated.
+ * * `start` - starting memtype in the range
+ * * `end` - ending memtype of the range (exclusive)
+ * * `stats` - array of (end - start) elements to receive stats
+ *
+ * Returns the number of stats that were populated.
  * A short return value indicates that there are no more memtypes beyond
  * the "end" parameter.
  */

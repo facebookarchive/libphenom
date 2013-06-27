@@ -137,9 +137,10 @@ function process_include($incname, &$docs) {
     $decl = '';
     $title = '';
 
-    if (preg_match(',^[^/]+;,s',
-        substr($incfile, $offset + strlen($comment)),
-        $declm)) {
+    $remainder = ltrim(substr($incfile, $offset + strlen($comment)));
+    if (preg_match(',^[^/;]+;,s', $remainder, $declm)) {
+      $decl = is_plausible_decl($declm[0], $title);
+    } else if (preg_match(',^struct(.*?)\n\};,s', $remainder, $declm)) {
       $decl = is_plausible_decl($declm[0], $title);
     }
     $extracted = extract_from_comment($comment, $title);
@@ -191,7 +192,9 @@ function is_plausible_decl($text, &$title) {
   $text = trim($text);
 
   // Look for what is probably the function name
-  if (preg_match(',(ph_[a-z0-9_]+)\(,', $text, $matches)) {
+  if (preg_match(',(ph_[a-zA-Z0-9_]+)\(,', $text, $matches)) {
+    $title = $matches[1];
+  } else if (preg_match(',(struct\s+\S+),', $text, $matches)) {
     $title = $matches[1];
   }
 

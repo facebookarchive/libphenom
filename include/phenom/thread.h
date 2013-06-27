@@ -68,8 +68,12 @@ typedef struct ph_thread_pool ph_thread_pool_t;
 
 typedef void *(*ph_thread_func)(void *arg);
 
+/** Spawn a thread */
 ph_thread_t *ph_thread_spawn(ph_thread_func func, void *arg);
+
+/** Wait for a thread to complete */
 int ph_thread_join(ph_thread_t *thr, void **res);
+
 bool ph_thread_init(void);
 
 ph_thread_t *ph_thread_self_slow(void);
@@ -83,10 +87,14 @@ extern __thread ph_thread_t __ph_thread_self;
   ((ph_thread_t*)pthread_getspecific(__ph_thread_key))
 #endif
 
-/** If you create a thread for yourself, not using ph_thread_spawn(),
+/** Return my own thread handle.
+ *
+ * If you create a thread for yourself, not using ph_thread_spawn(),
  * you must call ph_thread_self_slow() at least once prior to calling
- * any phenom function.  This restriction avoids a conditional
- * branch on every ph_thread_self() call */
+ * any phenom function in that thread.
+ *
+ * This restriction avoids a conditional branch on every ph_thread_self() call
+ **/
 static inline ph_thread_t *ph_thread_self(void)
 {
   ph_thread_t *me = ph_thread_self_fast();
@@ -99,13 +107,13 @@ static inline ph_thread_t *ph_thread_self(void)
   return me;
 }
 
-/* Set the name of the currently executing thread.
+/** Set the name of the currently executing thread.
  * Used for debugging.  Phenom will set this up
  * when initializing thread pools, you probably don't
  * need to call it */
 void ph_thread_set_name(const char *name);
 
-/* Set the affinity of a thread */
+/** Set the affinity of a thread */
 bool ph_thread_set_affinity(ph_thread_t *thr, int affinity);
 
 #ifdef __cplusplus
