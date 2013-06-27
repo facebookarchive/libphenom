@@ -57,7 +57,18 @@ noinst_PROGRAMS = $(TESTS)
 # generate a rule that we can use to ensure that
 # the test programs are built
 build-tests: $(TESTS)
-.PHONY: build-tests
+.PHONY: build-tests docs clean-docs
+
+all-local: docs
+clean-local: clean-docs
+
+clean-docs:
+	rm docs/*.html docs/*.markdown
+
+docs: docs/*.html
+
+docs/*.html: mkdoc.php include/phenom/*.h
+	php mkdoc.php
 
 tests_counter_t_CPPFLAGS = $(TEST_CPPFLAGS)
 tests_counter_t_LDADD = $(TEST_LDADD)

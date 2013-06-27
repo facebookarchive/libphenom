@@ -48,8 +48,11 @@ function render_html($filename, $doc, $docs) {
 <html>
   <head>
     <title>$title</title>
+    <link href="http://netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/css/bootstrap-combined.min.css" rel="stylesheet">
+    <link href="style.css" rel="stylesheet"></style>
+    <link href="http://netdna.bootstrapcdn.com/bootswatch/2.3.2/cerulean/bootstrap.min.css" rel="stylesheet">
   </head>
-  <body>
+  <body data-spy="scroll" data-target=".docs-sidebar">
   <div class='navbar navbar-fixed-top'>
     <div class="navbar-inner">
       <div class='container'>
@@ -79,20 +82,30 @@ HTML;
     </div>
   </div>
 
-  <xmp theme="cerulean" style="display:none">
+  <div class="container">
+    <div class="row">
+      <div class="span4 docs-sidebar">
+        <ul class="nav nav-list" data-spy="affix" data-offset-top="0"></ul>
+      </div>
+      <div class="span8">
+        <textarea id="doc">
 HTML;
-
   $html .= $doc['content'];
   $html .= <<<HTML
-  </xmp>
-  <script src="http://strapdownjs.com/v/0.2/strapdown.js"></script>
+        </textarea>
+      </div>
+    </div>
+  </div>
+  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.1/jquery.min.js"></script>
+  <script src="http://netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/js/bootstrap.min.js"></script>
+  <script src="marked.js"></script>
+  <script src="https://google-code-prettify.googlecode.com/svn/loader/prettify.js"></script>
+  <script src="activate.js"></script>
 </body>
 </html>
 HTML;
 
   file_put_contents($filename, $html);
-
-
 }
 
 function process_include($incname, &$docs) {
@@ -102,6 +115,8 @@ function process_include($incname, &$docs) {
   $target = $matches[1];
 
   $md = array();
+
+  $decl_titles = array();
 
   $page_title = null;
 
@@ -129,6 +144,8 @@ function process_include($incname, &$docs) {
       $md[] = "\n* * *\n";
     }
     if ($title) {
+      $decl_titles[] = $title;
+
       $md[] = sprintf("\n### %s\n", $title);
     }
 
@@ -145,6 +162,7 @@ function process_include($incname, &$docs) {
     'name' => $target,
     'title' => $target, //$page_title,
     'content' => implode('', $md),
+    'decl_titles' => $decl_titles,
   );
 }
 
