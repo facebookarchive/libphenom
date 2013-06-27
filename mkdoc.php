@@ -23,21 +23,87 @@ $files = array_diff_key($files, $suppress);
 if (!is_dir('docs')) {
   mkdir('docs');
 }
+
+ksort($files);
+
+// First pass to extract the content
+$docs = array();
 foreach ($files as $incname => $_) {
-  process_include($incname);
+  process_include($incname, $docs);
+}
+
+foreach ($docs as $doc) {
+  // Now generate markdown files
+  file_put_contents("docs/$doc[name].markdown", $doc['content']);
+  // and HTML
+  render_html("docs/$doc[name].html", $doc, $docs);
 }
 
 exit(0);
 
-function process_include($incname) {
+function render_html($filename, $doc, $docs) {
+  $title = htmlentities($doc['title'], ENT_QUOTES, 'utf-8');
+  $html = <<<HTML
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>$title</title>
+  </head>
+  <body>
+  <div class='navbar navbar-fixed-top'>
+    <div class="navbar-inner">
+      <div class='container'>
+        <a class="brand" href="#">Phenom</a>
+        <ul class="nav">
+HTML;
+
+  // Compute nav
+  foreach ($docs as $navdoc) {
+    $active = $navdoc['name'] == $doc['name'];
+
+    if ($active) {
+      $class = ' class="active"';
+    } else {
+      $class = '';
+    }
+
+    $navtitle = htmlentities($navdoc['title'], ENT_QUOTES, 'utf-8');
+    $target = $navdoc['name'].'.html';
+
+    $html .= "<li$class><a href=\"$target\">$navtitle</a></li>\n";
+  }
+
+  $html .= <<<HTML
+        </ul>
+      </div>
+    </div>
+  </div>
+
+  <xmp theme="cerulean" style="display:none">
+HTML;
+
+  $html .= $doc['content'];
+  $html .= <<<HTML
+  </xmp>
+  <script src="http://strapdownjs.com/v/0.2/strapdown.js"></script>
+</body>
+</html>
+HTML;
+
+  file_put_contents($filename, $html);
+
+
+}
+
+function process_include($incname, &$docs) {
   $incfile = file_get_contents($incname);
 
-  $target = preg_replace(
-    ',^include/phenom/(.*)\.h$,',
-    'docs/\\1.markdown',
-    $incname);
+  preg_match(',^include/phenom/(.*)\.h$,', $incname, $matches);
+  $target = $matches[1];
 
-  $out = fopen($target, 'w');
+  $md = array();
+
+  $page_title = null;
 
   preg_match_all(',/\*\*.*?\*/,s', $incfile, $matches, PREG_OFFSET_CAPTURE);
   foreach ($matches[0] as $i => $entry) {
@@ -53,25 +119,33 @@ function process_include($incname) {
     }
     $extracted = extract_from_comment($comment, $title);
 
+    if ($title && !$page_title) {
+      $page_title = $title;
+    }
+
     // If we're not the first section and we don't have a title,
     // emit a horizontal rule to separate the content
     if ($i && !$title) {
-      fprintf($out, "\n* * *\n");
+      $md[] = "\n* * *\n";
     }
     if ($title) {
-      fprintf($out, "\n### %s\n", $title);
+      $md[] = sprintf("\n### %s\n", $title);
     }
 
     // If we found a declaration, emit a code block for it
     if ($decl) {
-      fprintf($out, "\n```c\n%s\n```\n\n", $decl);
+      $md[] = sprintf("\n```c\n%s\n```\n\n", $decl);
     }
 
     // and the docblock content
-    fprintf($out, "\n%s\n", $extracted);
+    $md[] = sprintf("\n%s\n", $extracted);
   }
 
-  fclose($out);
+  $docs[$target] = array(
+    'name' => $target,
+    'title' => $target, //$page_title,
+    'content' => implode('', $md),
+  );
 }
 
 function is_plausible_decl($text, &$title) {
