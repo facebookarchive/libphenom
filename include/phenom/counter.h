@@ -26,6 +26,10 @@
  * related counters can be read consistently.  Note that the system does
  * not provide a means for snapshotting the entire counter hierarchy.
  *
+ * Phenom counters are implemented such that individual threads may
+ * manipulate their values uncontested (with no locking!), but allowing
+ * for a reader to obtain a consistent view of a related set of counters.
+ *
  * ## Overview
  *
  * First establish the counter scope, and register counter nodes within

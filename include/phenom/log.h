@@ -14,6 +14,29 @@
  * limitations under the License.
  */
 
+/**
+ * # Logging
+ * Phenom provides simple but useful logging utilities.
+ *
+ * Each logged message is associated with one of the following
+ * severity levels:
+ *
+ * * `PH_LOG_PANIC` - the world is going to end
+ * * `PH_LOG_ALERT` - take notice this is very import
+ * * `PH_LOG_CRIT`  - almost as important as alert
+ * * `PH_LOG_ERR`   - something bad happened; you should probably look at it
+ * * `PH_LOG_WARN`  - something happened but it may not be actionable
+ * * `PH_LOG_NOTICE` - somewhat noisy notification about something
+ * * `PH_LOG_INFO` - rather more noisy notification of something
+ * * `PH_LOG_DEBUG` - noisy diagnostic mode
+ *
+ * The system has an overall log level that specifies the threshold for
+ * which log messages will be allowed to hit the underyling logs.
+ *
+ * The default is `PH_LOG_ERR`, meaning that a log event must be `PH_LOG_ERR`
+ * or higher for the message to hit the logs.
+ */
+
 #ifndef PHENOM_LOG_H
 #define PHENOM_LOG_H
 
@@ -30,17 +53,47 @@ extern "C" {
 #define PH_LOG_INFO     6
 #define PH_LOG_DEBUG    7
 
+/** set the logging level */
 uint8_t ph_log_level_set(uint8_t level);
+
+/** get the logging level */
 uint8_t ph_log_level_get(void);
 
+/** log something
+ *
+ * * `level` - the severity level of the event
+ * * `fmt` - a ph_printf compatible format string
+ *
+ * Expands the format string and decorates it with the
+ * current timestamp, executing thread name and id,
+ * normalizes the line (a missing newline will be added)
+ * and sends the result to the log.
+ */
 void ph_log(uint8_t level, const char *fmt, ...)
 #ifdef __GNUC__
   __attribute__((format(printf, 2, 3)))
 #endif
   ;
+
+/** log something (va_list)
+ *
+ * Exactly like `ph_log` but accepts a `va_list` for simpler
+ * use in composing functions that also log things.
+ *
+ * * `level` - the severity level
+ * * `fmt` - the ph_printf compatible format string
+ * * `ap` - a va_list representing the arguments for the format string
+ */
 void ph_logv(uint8_t level, const char *fmt, va_list ap);
 
-/** Log a PH_LOG_PANIC level message, then abort() */
+/** Log a PH_LOG_PANIC level message, then abort()
+ *
+ * This logs a PANIC level message, logs the current stacktrace
+ * and then calls `abort()`.
+ *
+ * It is intended to be used in situations where the world must
+ * have an immediate end.
+ * */
 void ph_panic(const char *fmt, ...)
 #ifdef __GNUC__
   __attribute__((format(printf, 1, 2)))

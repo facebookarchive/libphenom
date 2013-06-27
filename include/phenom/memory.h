@@ -14,7 +14,8 @@
  * limitations under the License.
  */
 
-/** Memory management facility.
+/**
+ * # Memory management facility
  *
  * It is important for long-running infrastructure software to maintain
  * information about its memory usage.  This facility allows named memory
@@ -29,35 +30,35 @@
 extern "C" {
 #endif
 
-/** represents a registered memory type */
+/* represents a registered memory type */
 typedef int ph_memtype_t;
 #define PH_MEMTYPE_INVALID -1
 
-/** requests that allocations are zero'd out before being returned */
+/* requests that allocations are zero'd out before being returned */
 #define PH_MEM_FLAGS_ZERO 1
 
-/** panic if memory could not be allocated */
+/* panic if memory could not be allocated */
 #define PH_MEM_FLAGS_PANIC 2
 
-/** defines a memory type */
+/* defines a memory type */
 struct ph_memtype_def {
-  /** General category of allocations.
+  /* General category of allocations.
    * Convention is to name it after the module or subsystem.
    * This will be used to construct a counter name of the form:
    * memory/<facility>/<name>
    */
   const char *facility;
-  /** Name of this memtype.
+  /* Name of this memtype.
    * See note in facility above */
   const char *name;
-  /** Size of each distinct object of this type of memory.
+  /* Size of each distinct object of this type of memory.
    * This may be used as a hint to the underlying allocator,
    * and impacts the metrics that are collected about the
    * allocations.
    * If the item_size is zero, then allocations may be
    * of any size */
   uint64_t item_size;
-  /** One of the PH_MEM_FLAGS above */
+  /* One of the PH_MEM_FLAGS above */
   unsigned flags;
 };
 typedef struct ph_memtype_def ph_memtype_def_t;
@@ -84,7 +85,7 @@ ph_memtype_t ph_memtype_register(const ph_memtype_def_t *def);
  * This function always assigns a contiguous block of memtype identifiers.
  * @return the memtype identifier corresponding to the first definition, or
  * PH_MEMTYPE_INVALID if the registration failed.
-\code
+```
 ph_memtype_def_t defs[] = {
   { "example", "one", 0, 0 },
   { "example", "two", 0, 0 }
@@ -97,7 +98,7 @@ ph_memtype_register_block(
   defs,
   &mt.one);
 // Now I can use mt.one and mt.two to allocate
-\endcode
+```
  */
 ph_memtype_t ph_memtype_register_block(
     uint8_t num_types,
@@ -164,19 +165,19 @@ void *ph_mem_realloc(ph_memtype_t memtype, void *ptr, uint64_t size);
  */
 void ph_mem_free(ph_memtype_t memtype, void *ptr);
 
-/** Data structure for querying memory usage information */
+/* Data structure for querying memory usage information */
 struct ph_mem_stats {
-  /** the definition */
+  /* the definition */
   const ph_memtype_def_t *def;
-  /** current amount of allocated memory in bytes */
+  /* current amount of allocated memory in bytes */
   uint64_t bytes;
-  /** total number of out-of-memory events (allocation failures) */
+  /* total number of out-of-memory events (allocation failures) */
   uint64_t oom;
-  /** total number of successful allocation events */
+  /* total number of successful allocation events */
   uint64_t allocs;
-  /** total number of calls to free */
+  /* total number of calls to free */
   uint64_t frees;
-  /** total number of calls to realloc (that are not themselves
+  /* total number of calls to realloc (that are not themselves
    * equivalent to an alloc or free) */
   uint64_t reallocs;
 };

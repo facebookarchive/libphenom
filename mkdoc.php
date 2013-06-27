@@ -127,7 +127,6 @@ function process_include($incname, &$docs) {
   $md = array();
 
   $decl_titles = array();
-
   $page_title = null;
 
   preg_match_all(',/\*\*.*?\*/,s', $incfile, $matches, PREG_OFFSET_CAPTURE);
@@ -138,8 +137,9 @@ function process_include($incname, &$docs) {
     $decl = '';
     $title = '';
 
-    if (preg_match(',[^/]+;,s', $incfile, $declm,
-        0, $offset + strlen($comment))) {
+    if (preg_match(',^[^/]+;,s',
+        substr($incfile, $offset + strlen($comment)),
+        $declm)) {
       $decl = is_plausible_decl($declm[0], $title);
     }
     $extracted = extract_from_comment($comment, $title);
@@ -207,6 +207,7 @@ function extract_from_comment($comment, &$title) {
 
   // First line is the summary.  We render it with emphasis
   $first = array_shift($lines);
+  $first = preg_replace(',\*/\s*$,', '', $first);
   $first = '*' . trim(substr($first, 3)) . "*\n";
   if ($first != "**\n") {
     $munged[] = $first;
