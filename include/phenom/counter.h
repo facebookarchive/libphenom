@@ -26,10 +26,49 @@
  * related counters can be read consistently.  Note that the system does
  * not provide a means for snapshotting the entire counter hierarchy.
  *
- * Note that this doesn't replace the common/stats functionality that
- * is used by other C++/Thrift service implementations; it is present
- * primarily to record memory stats in an efficient way.
- * These can then be exported via Thrift if desired.
+ * ## Overview
+ *
+ * First establish the counter scope, and register counter nodes within
+ * it:
+ *
+ * ```
+ * ph_counter_scope_t *myscope = ph_counter_scope_define(NULL, "myscope", 8);
+ * const char *names[2] = {"sent", "recvd"};
+ * #define MY_SENT_COUNTER_SLOT 0
+ * #define MY_RECVD_COUNTER_SLOT 1
+ * ph_counter_scope_register_counter_block(myscope, 2, 0, names);
+ * ```
+ *
+ * Then, elsewhere in you program, adjust the counter values.  There are
+ * two interfaces for this; one is the slow and convenient way:
+ *
+ * ```
+ * // Bump the sent counter by 1.  Slower and more convenient
+ * ph_counter_scope_add(myscope, MY_SENT_COUNTER_SLOT, 1);
+ * ```
+ *
+ * The preferred approach is to open a handle to your thread-local
+ * counter block.  This is ideal if you are driving your thread and
+ * can maintain that block handle in a local variable.  Alternatively,
+ * if you are running a tight loop or are updating a series of counters,
+ * you should prefer to open the block in this way.  **Note that the block
+ * returned can only have its counters modified on the same thread that
+ * obtained the block**:
+ *
+ * ```
+ * ph_counter_block_t *block = ph_counter_block_open(myscope);
+ * // Bump the sent counter by 1
+ * ph_counter_block_add(block, MY_SENT_COUNTER_SLOT, 1);
+ * ```
+ *
+ * To make an update to multiple counters at once:
+ *
+ * ```
+ * uint8_t slots[2] = { MY_SENT_COUNTER_SLOT, MY_RECVD_COUNTER_SLOT };
+ * int64_t values[2] = { 4, 5 };
+ * // adds 4 to the sent counter and 5 to the recvd counter
+ * ph_counter_block_bulk_add(block, 2, slots, values);
+ * ```
  */
 
 #ifndef PHENOM_COUNTER_H
@@ -180,28 +219,13 @@ void ph_counter_scope_add(
  * You must call ph_counter_block_delref() on the handle when
  * it is no longer needed.
  *
- * * `scope the scope to open
+ * * `scope` - the scope to open
  *
  * Returns a thread local counter block.
  */
 ph_counter_block_t *ph_counter_block_open(
     ph_counter_scope_t *scope);
 
-/** Modify a counter value in a thread local block
- *
- * Adds the specified value to the current counter value.
- * Note that you may add a negative counter value to decrement it.
- *
- * * `block` - the block containing the counters
- * * `slot` - the counter slot offset
- * * `value` - the value to add to the current counter value.
- */
-#if 0
-void ph_counter_block_add(
-    ph_counter_block_t *block,
-    uint8_t offset,
-    int64_t value);
-#endif
 struct ph_counter_block {
   /* must be first in the struct so that we can cast the return
    * value from ck_hs_get() */
@@ -221,6 +245,15 @@ static inline void ph_counter_block_record_write(
   block->seqno += 2;
 }
 
+/** Modify a counter value in a thread local block
+ *
+ * Adds the specified value to the current counter value.
+ * Note that you may add a negative counter value to decrement it.
+ *
+ * * `block` - the block containing the counters
+ * * `slot` - the counter slot offset
+ * * `value` - the value to add to the current counter value.
+ */
 static inline void ph_counter_block_add(
     ph_counter_block_t *block,
     uint8_t offset,
@@ -341,7 +374,7 @@ const char *ph_counter_scope_get_name(
 uint8_t ph_counter_scope_get_num_slots(
     ph_counter_scope_t *scope);
 
-/** an iterator for scopes */
+/* an iterator for scopes */
 struct ph_counter_scope_iterator {
   void *ptr;
   uint64_t offset;
