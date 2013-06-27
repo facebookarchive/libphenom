@@ -67,7 +67,7 @@ clean-docs:
 
 docs: docs/*.html
 
-docs/*.html: mkdoc.php include/phenom/*.h
+docs/*.html: mkdoc.php include/phenom/*.h README.markdown
 	php mkdoc.php
 
 tests_counter_t_CPPFLAGS = $(TEST_CPPFLAGS)

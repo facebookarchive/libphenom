@@ -28,6 +28,15 @@ ksort($files);
 
 // First pass to extract the content
 $docs = array();
+
+// Synthesize the main page from the top-level readme
+$docs['README'] = array(
+  'name' => 'index',
+  'title' => 'README',
+  'content' => file_get_contents('README.markdown'),
+  'decl_titles' => array(),
+);
+
 foreach ($files as $incname => $_) {
   process_include($incname, $docs);
 }
