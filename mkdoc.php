@@ -57,9 +57,9 @@ function render_html($filename, $doc, $docs) {
 <html>
   <head>
     <title>$title</title>
-    <link href="http://netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/css/bootstrap-combined.min.css" rel="stylesheet">
+    <link href="bootstrap-combined.min.css" rel="stylesheet">
     <link href="style.css" rel="stylesheet"></style>
-    <link href="http://netdna.bootstrapcdn.com/bootswatch/2.3.2/cerulean/bootstrap.min.css" rel="stylesheet">
+    <link href="cerulean.min.css" rel="stylesheet">
   </head>
   <body data-spy="scroll" data-target=".docs-sidebar">
   <div class='navbar navbar-fixed-top'>
@@ -106,10 +106,10 @@ HTML;
       </div>
     </div>
   </div>
-  <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.1/jquery.min.js"></script>
-  <script src="http://netdna.bootstrapcdn.com/twitter-bootstrap/2.3.2/js/bootstrap.min.js"></script>
+  <script src="jquery.min.js"></script>
+  <script src="bootstrap.min.js"></script>
   <script src="marked.js"></script>
-  <script src="https://google-code-prettify.googlecode.com/svn/loader/prettify.js"></script>
+  <script src="prettify.js"></script>
   <script src="activate.js"></script>
 </body>
 </html>

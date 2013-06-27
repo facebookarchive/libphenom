@@ -30,4 +30,5 @@ tests/bench/*.t
 .DS_Store
 .nfs*
 core
-docs
+docs/*.html
+docs/*.markdown
