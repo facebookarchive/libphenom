@@ -1,16 +1,62 @@
+@import url(http://fonts.googleapis.com/css?family=Alef:400,700);
+
 body {
   padding-top: 60px;
   padding-bottom: 40px;
   font-size: 15px;
   line-height: 150%;
+  background: #f9f9f9;
+  font-weight: 400;
+}
+
+h1,h2,h3,h4,h5,h6,body {
+  font-family: "Alef", "Helvetica Neue",Helvetica,Arial,sans-serif;
+  /* why would we want anything else? */
+  text-rendering: optimizelegibility;
+}
+h1,h2,h3,h4,h5,h6 {
+  font-weight: 700;
+}
+
+/* Hack for anchors and navbar positioning */
+h1,h2,h3,h4,h5,h6 {
+  padding-top: 60px;
+  margin-top: -60px;
+}
+
+/* Give some space between titles.  Measured negative so that
+ * it doesn't break the anchor hack above */
+h1:not(:first-child),
+h2:not(:first-child),
+h3:not(:first-child),
+h4:not(:first-child),
+h5:not(:first-child),
+h6:not(:first-child) {
+  margin-top: -20px;
 }
 
 .docs-sidebar {
   overflow-x: hidden;
 }
-
 #sidenav {
   overflow-x: hidden;
+}
+
+#sidenav a {
+  color: #666;
+  font-size: 13px;
+  line-height: 125%;
+}
+
+#sidenav.nav-list>li.active>a {
+  background-color: transparent;
+  color: #c05b4d;
+  font-weight: 700;
+}
+
+#sidenav li.active a, #sidenav a:hover, #sidenav a:focus {
+  color: #c05b4d;
+  background-color: transparent;
 }
 
 #sidenav.affix-botom {

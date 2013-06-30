@@ -62,10 +62,10 @@ function render_html($filename, $doc, $docs) {
     <link href="bootstrap-responsive.min.css" rel="stylesheet">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
   </head>
-  <body data-spy="scroll" data-target=".docs-sidebar">
-  <div class='navbar navbar-fixed-top'>
+  <body data-spy="scroll" data-offset="70" data-target=".docs-sidebar">
+  <div class='navbar navbar-inverse navbar-fixed-top'>
     <div class="navbar-inner">
-      <div class='container-fluid'>
+      <div class='container'>
         <button type='button' class='btn btn-navbar'
             data-toggle='collapse' data-target='.nav-collapse'>
           <span class='icon-bar'></span>
@@ -103,7 +103,9 @@ HTML;
   <div class="container">
     <div class="row">
       <div class="span4 docs-sidebar">
-        <ul class="nav nav-list" id="sidenav"></ul>
+        <ul class="nav nav-list" id="sidenav" data-spy="affix"
+          data-offset-top="0">
+        </ul>
       </div>
       <div class="span8">
         <textarea id="doc">
