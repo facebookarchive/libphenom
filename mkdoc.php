@@ -57,16 +57,24 @@ function render_html($filename, $doc, $docs) {
 <html>
   <head>
     <title>$title</title>
-    <link href="bootstrap-combined.min.css" rel="stylesheet">
-    <link href="style.css" rel="stylesheet"></style>
-    <link href="cerulean.min.css" rel="stylesheet">
+    <link href="bootstrap.min.css" rel="stylesheet">
+    <link href="style.css" rel="stylesheet">
+    <link href="bootstrap-responsive.min.css" rel="stylesheet">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
   </head>
   <body data-spy="scroll" data-target=".docs-sidebar">
   <div class='navbar navbar-fixed-top'>
     <div class="navbar-inner">
-      <div class='container'>
-        <a class="brand" href="#">Phenom</a>
-        <ul class="nav">
+      <div class='container-fluid'>
+        <button type='button' class='btn btn-navbar'
+            data-toggle='collapse' data-target='.nav-collapse'>
+          <span class='icon-bar'></span>
+          <span class='icon-bar'></span>
+          <span class='icon-bar'></span>
+        </button>
+        <a class="brand" href="index.html">Phenom</a>
+        <div class='nav-collapse collapse'>
+          <ul class="nav">
 HTML;
 
   // Compute nav
@@ -86,7 +94,8 @@ HTML;
   }
 
   $html .= <<<HTML
-        </ul>
+          </ul>
+        </div>
       </div>
     </div>
   </div>
@@ -94,8 +103,7 @@ HTML;
   <div class="container">
     <div class="row">
       <div class="span4 docs-sidebar">
-        <ul class="nav nav-list" data-spy="affix"
-          data-offset-top="0" id="sidenav"></ul>
+        <ul class="nav nav-list" id="sidenav"></ul>
       </div>
       <div class="span8">
         <textarea id="doc">

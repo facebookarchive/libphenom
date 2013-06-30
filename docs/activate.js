@@ -1,5 +1,15 @@
 
 $(document).ready(function () {
+  var $window = $(window);
+  setTimeout(function () {
+    $('#sidenav').affix({
+      offset: {
+        top: function () { $window.width() <= 980 ? 70 : 0 },
+        bottom: 60
+      }
+    })
+  }, 100)
+
 var doc = $('#doc');
 var html = marked(doc.html(), {
   highlight: function (code, lang) {

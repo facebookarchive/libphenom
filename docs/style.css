@@ -5,6 +5,41 @@ body {
   line-height: 150%;
 }
 
+.docs-sidebar {
+  overflow-x: hidden;
+}
+
+#sidenav {
+  overflow-x: hidden;
+}
+
+#sidenav.affix-botom {
+  position: absolute;
+  top: auto;
+  bottom: 80px;
+}
+
+#sidenav.affix {
+  top: 60px;
+  width: 270px;
+}
+
+/* Tablet */
+@media (max-width: 767px) {
+  /* Fix in position at top of doc when we're too narrow */
+  #sidenav.affix {
+    width: auto;
+    position: static;
+  }
+}
+
+@media (max-width: 979px) and (min-width: 768px) {
+  #sidenav.affix {
+    width: 208px;
+  }
+}
+
+
 /* Pretty printing styles. Used with prettify.js. */
 
 /* SPAN elements with the classes below are added by prettyprint. */
