@@ -47,9 +47,10 @@ void ph_socket_set_nonblock(ph_socket_t fd, bool enable);
 /** Create a pipe and optional set flags.
  *
  * The flags parameter can be one or more of:
+ *
  * * `PH_PIPE_NONBLOCK` - set non-blocking IO
  * * `PH_PIPE_CLOEXEC` - set the CLOEXEC flag
- * or'd together.
+ *   or'd together.
  */
 ph_result_t ph_pipe(ph_socket_t fds[2], int flags);
 
@@ -87,19 +88,22 @@ static inline uint32_t ph_power_2(uint32_t n)
 uint32_t ph_num_cores(void);
 
 /** Generate a unique temporary file name and open it.
- * nametemplate must be of the form /path/to/fileXXXXXX.  The
+ * nametemplate must be of the form `/path/to/fileXXXXXX`.  The
  * 'X' characters will be replaced by randomized characters.
- * flags is passed to the underlying open(2) call
+ * flags is passed to the underlying open(2) call.
+ *
  * Returns the opened file descriptor, or -1 on error
  */
 int ph_mkostemp(char *nametemplate, int flags);
 
 /** Generate a unique temporary name with a suffix and open it.
  * nametemplate must not be NULL; it must be of the form
- * /path/to/fileXXXXXsuffix.  The 'X' characters will be replaced
+ * `/path/to/fileXXXXXsuffix.`  The 'X' characters will be replaced
  * by randomized characters.  suffixlen identifies the length of
  * the filename suffix.
- * flags is passed ot the underlying open(2) call.
+ *
+ * flags is passed to the underlying open(2) call.
+ *
  * Returns the opened file descriptor, or -1 on error
  */
 int ph_mkostemps(char *nametemplate, int suffixlen, int flags);
@@ -126,10 +130,10 @@ const char *ph_strerror_r(int errval, char *buf, size_t len);
  * we prefix the extended format specifier with a backtick and
  * a 'P' character.
  *
- * For instance, "`Pe%d" is seen as "%d" by GCC's checker
- * but the entire "`Pe%d" is replaced by the strerror expansion.
+ * For instance, \`Pe%d is seen as `%d` by GCC's checker
+ * but the entire \`Pe%d is replaced by the strerror expansion.
  *
- * ```
+ * ```none
  *  `Pe%d -   replaced by the return from strerror(arg), using
  *            strerror_r() when present, where arg is an errno
  *            argument supplied by you.

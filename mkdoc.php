@@ -187,6 +187,12 @@ function process_include($incname, &$docs) {
   );
 }
 
+function strip_comments($text) {
+  $text = preg_replace(',/\*(.*?)\*/,s', '', $text);
+  $text = preg_replace(",//[^\n]+,s", '', $text);
+  return $text;
+}
+
 function is_plausible_decl($text, &$title) {
   // Don't go too far into inline functions
   if (preg_match('/^\s*static inline (.*?)\{/s', $text, $matches)) {
@@ -202,9 +208,10 @@ function is_plausible_decl($text, &$title) {
   $text = trim($text);
 
   // Look for what is probably the function name
-  if (preg_match(',(ph_[a-zA-Z0-9_]+)\(,', $text, $matches)) {
+  $stripped = strip_comments($text);
+  if (preg_match(',(ph_[a-zA-Z0-9_]+)\(,', $stripped, $matches)) {
     $title = $matches[1];
-  } else if (preg_match(',(struct\s+\S+),', $text, $matches)) {
+  } else if (preg_match(',(struct\s+\S+),', $stripped, $matches)) {
     $title = $matches[1];
   }
 

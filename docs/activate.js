@@ -3,9 +3,12 @@ $(document).ready(function () {
   var doc = $('#doc');
   var html = marked(doc.html(), {
     highlight: function (code, lang) {
-      var res = prettyPrintOne(code, lang);
-      if (res) {
-        return res;
+      // allow ```none to signal that we shouldn't highlight a block at all
+      if (lang != 'none') {
+        var res = prettyPrintOne(code, lang);
+        if (res) {
+          return res;
+        }
       }
       return code;
     }

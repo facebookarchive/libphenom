@@ -103,10 +103,10 @@ typedef struct ph_counter_block ph_counter_block_t;
  * * `parent` - optional relative counter scope. May be NULL.
  * * `path` - scope name for this set of counters. Must not be NULL.
  * * `max_counters` - hint as to the max number of counters that must
- *        be available for use in this counter scope.  The system
- *        only guarantees that this many slots are available, which
- *        may restrict the number of counters that can be dynamically
- *        added later.
+ *    be available for use in this counter scope.  The system
+ *    only guarantees that this many slots are available, which
+ *    may restrict the number of counters that can be dynamically
+ *    added later.
  *
  * Returns a counter scope instance.  The caller owns a reference
  * to this instance and must release it via ph_counter_scope_delref()
