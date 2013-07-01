@@ -139,6 +139,9 @@ const char *ph_strerror_r(int errval, char *buf, size_t len);
  *            argument supplied by you.
  *  `Pv%s%p - recursively expands a format string and a va_list.
  *            Arguments are a char* and ph_vaptr(va_list)
+ *  `Ps%p -   replaced by the contents of the ph_string_t* argument
+ *  `Ps%d%p - replaced by the first n bytes specified by the integer
+ *            argument of the ph_string_t* argument.
  * ```
  *
  */

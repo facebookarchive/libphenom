@@ -32,7 +32,7 @@ struct sized_header {
 } CK_CC_ALIGN(HEADER_RESERVATION);
 
 static uint32_t memtypes_size = 0;
-static ph_memtype_t next_memtype = 0;
+static ph_memtype_t next_memtype = PH_MEMTYPE_FIRST;
 
 static struct mem_type *memtypes = NULL;
 static ph_counter_scope_t *memory_scope = NULL;
@@ -68,9 +68,10 @@ static void memory_destroy(void)
 
   ph_counter_scope_delref(memory_scope);
 
-  for (i = 0; i < next_memtype; i++) {
+  for (i = PH_MEMTYPE_FIRST; i < next_memtype; i++) {
     ph_counter_scope_delref(memtypes[i].scope);
-    if (i == 0 || memtypes[i].def.facility != memtypes[i-1].def.facility) {
+    if (i == PH_MEMTYPE_FIRST ||
+        memtypes[i].def.facility != memtypes[i-1].def.facility) {
       free((char*)memtypes[i].def.facility);
     }
     free((char*)memtypes[i].def.name);
@@ -238,7 +239,7 @@ ph_memtype_t ph_memtype_register_block(
 
 static inline struct mem_type *resolve_mt(ph_memtype_t mt)
 {
-  if (mt < 0 || mt >= next_memtype) {
+  if (mt < PH_MEMTYPE_FIRST || mt >= next_memtype) {
     abort();
   }
   return &memtypes[mt];
@@ -436,7 +437,7 @@ bool ph_mem_stat(ph_memtype_t mt, ph_mem_stats_t *stats)
   int64_t values[MEM_COUNTER_SLOTS];
   int n;
 
-  if (mt < 0 || mt >= next_memtype) {
+  if (mt < PH_MEMTYPE_FIRST || mt >= next_memtype) {
     return false;
   }
   mem_type = &memtypes[mt];
@@ -462,7 +463,7 @@ int ph_mem_stat_facility(const char *facility,
   int n_stats = 0;
   int i;
 
-  for (i = 0; i < next_memtype && n_stats < num_stats; i++) {
+  for (i = PH_MEMTYPE_FIRST; i < next_memtype && n_stats < num_stats; i++) {
     if (strcmp(facility, memtypes[i].def.facility)) {
       continue;
     }
@@ -490,7 +491,7 @@ ph_memtype_t ph_mem_type_by_name(const char *facility,
 {
   int i;
 
-  for (i = 0; i < next_memtype; i++) {
+  for (i = PH_MEMTYPE_FIRST; i < next_memtype; i++) {
     if (!strcmp(facility, memtypes[i].def.facility) &&
         !strcmp(name, memtypes[i].def.name)) {
       return i;

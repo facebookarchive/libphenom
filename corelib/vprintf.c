@@ -38,6 +38,7 @@
 
 #include "phenom/defs.h"
 #include "phenom/sysutil.h"
+#include "phenom/string.h"
 #include <sys/types.h>
 #include <sys/mman.h>
 
@@ -464,6 +465,29 @@ ph_vprintf_core(void *print_arg,
             continue;
           }
           break;
+        case 's': {
+          uint32_t len;
+          ph_string_t *str = NULL;
+
+          if (!memcmp("%p", fmt + 3, 2)) {
+            str = GETARG(void*);
+            len = str->len;
+            fmt += 5;
+          } else if (!memcmp("%d%p", fmt + 3, 4)) {
+            len = GETARG(int);
+            str = GETARG(void*);
+            len = MIN(len, str->len);
+            fmt += 7;
+          } else {
+            // invalid
+            break;
+          }
+          cp = str->buf;
+          PRINT(cp, len);
+          ret += len;
+          continue;
+        }
+
         case 'v':
           if (!memcmp("%s%p", fmt + 3, 4)) {
             const char *rfmt = GETARG(char *);

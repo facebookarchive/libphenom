@@ -22,7 +22,7 @@
 static void dump_mem_stats(void)
 {
   ph_mem_stats_t stats[1];
-  ph_memtype_t base = 0;
+  ph_memtype_t base = PH_MEMTYPE_FIRST;
 
   while (1) {
     int n, i;

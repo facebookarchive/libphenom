@@ -32,7 +32,8 @@ extern "C" {
 
 /* represents a registered memory type */
 typedef int ph_memtype_t;
-#define PH_MEMTYPE_INVALID -1
+#define PH_MEMTYPE_INVALID  0
+#define PH_MEMTYPE_FIRST    2
 
 /* requests that allocations are zero'd out before being returned */
 #define PH_MEM_FLAGS_ZERO 1
