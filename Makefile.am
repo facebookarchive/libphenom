@@ -32,6 +32,7 @@ libphenom_a_SOURCES = \
 	corelib/thread.c \
 	corelib/timerwheel.c \
 	corelib/vprintf.c \
+	corelib/variant/variant.c \
 	corelib/hash/murmur.c \
 	corelib/hash/table.c \
 	corelib/streams/make.c \
@@ -55,6 +56,7 @@ TESTS = tests/counter.t tests/memory.t tests/timer.t tests/printf.t \
 				tests/iobasic.t tests/stream.t tests/tpool.t \
 				tests/string.t \
 				tests/hashtable.t \
+				tests/variant.t \
 				tests/bench/iopipes.t
 noinst_PROGRAMS = $(TESTS)
 
@@ -100,6 +102,9 @@ tests_string_t_LDADD = $(TEST_LDADD)
 
 tests_tpool_t_CPPFLAGS = $(TEST_CPPFLAGS)
 tests_tpool_t_LDADD = $(TEST_LDADD)
+
+tests_variant_t_CPPFLAGS = $(TEST_CPPFLAGS)
+tests_variant_t_LDADD = $(TEST_LDADD)
 
 if HAVE_LIBEVENT
 LIBEVENT=-levent

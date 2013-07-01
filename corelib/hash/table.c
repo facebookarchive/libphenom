@@ -144,8 +144,9 @@ static struct ph_ht_elem *find_elem_slot(ph_ht_t *ht, const void *key)
 {
   uint32_t pos = ht->kdef->hash_func(key) & ht->mask;
   struct ph_ht_elem *elem, *tomb = NULL;
+  uint32_t attempts = 0;
 
-  while (true) {
+  while (attempts++ < ht->table_size) {
     elem = elemptr(ht, pos & ht->mask);
 
     if (elem->status == PH_HT_ELEM_TOMBSTONE) {
@@ -170,6 +171,9 @@ static struct ph_ht_elem *find_elem_slot(ph_ht_t *ht, const void *key)
     // Not this one, look for another
     pos++;
   }
+
+  // There were no empty slots in the whole table, we need to rebuild
+  return NULL;
 }
 
 static struct ph_ht_elem *find_new_slot(ph_ht_t *ht, char *table,
@@ -236,11 +240,14 @@ ph_result_t ph_ht_insert(ph_ht_t *ht, void *key, void *value, int flags)
   struct ph_ht_elem *elem;
 
   elem = find_elem_slot(ht, key);
-  if (elem->status != PH_HT_ELEM_TAKEN &&
-      ht->nelems + 1 > ht->table_size >> 1) {
+  if (!elem || (elem->status != PH_HT_ELEM_TAKEN &&
+      ht->nelems + 1 > ht->table_size >> 1)) {
     // Getting full
     if (rebuild_table(ht, ht->table_size << 1)) {
       elem = find_elem_slot(ht, key);
+    }
+    if (!elem) {
+      return PH_NOMEM;
     }
   }
 
@@ -297,7 +304,7 @@ void *ph_ht_get(ph_ht_t *ht, const void *key)
   struct ph_ht_elem *elem;
 
   elem = find_elem_slot(ht, key);
-  if (elem->status != PH_HT_ELEM_TAKEN) {
+  if (!elem || elem->status != PH_HT_ELEM_TAKEN) {
     return 0;
   }
   return valptr(ht, elem);
@@ -308,7 +315,7 @@ ph_result_t ph_ht_lookup(ph_ht_t *ht, const void *key, void *val, bool copy)
   struct ph_ht_elem *elem;
 
   elem = find_elem_slot(ht, key);
-  if (elem->status != PH_HT_ELEM_TAKEN) {
+  if (!elem || elem->status != PH_HT_ELEM_TAKEN) {
     return PH_NOENT;
   }
   if (!val_copy(ht, valptr(ht, elem), val,
@@ -323,7 +330,7 @@ ph_result_t ph_ht_del(ph_ht_t *ht, const void *key)
   struct ph_ht_elem *elem;
 
   elem = find_elem_slot(ht, key);
-  if (elem->status != PH_HT_ELEM_TAKEN) {
+  if (!elem || elem->status != PH_HT_ELEM_TAKEN) {
     return PH_NOENT;
   }
 
