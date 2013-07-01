@@ -21,7 +21,7 @@ $(document).ready(function () {
   var headings = {};
 
   $('h1,h2,h3,h4,h5,h6', p).each(function () {
-    var id = $(this).text();
+    var id = $(this).text().replace(/[ ]+/g, "-");
 
     $(this).attr('id', id);
 
