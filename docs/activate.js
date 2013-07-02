@@ -13,6 +13,31 @@ $(document).ready(function () {
       return code;
     }
   });
+
+  // Try to auto-link stuff in the content based on our declmap
+  var keys = []
+  for (k in declmap) {
+    keys.push(k);
+  }
+  var munged = []
+  var regex = new RegExp('(' + keys.join('|') + ')\\(\\)');
+  var m;
+  while ((m = regex.exec(html)) !== null) {
+    var decl = m[1];
+
+    // Take out the text before and append
+    munged.push(html.substr(0, m.index));
+
+    // Construct a link
+    munged.push('<a href="' + declmap[decl] + '#' + decl + '">' +
+        decl + '()</a>');
+
+    html = html.substr(m.index + m[0].length);
+    console.log("remainder", html);
+  }
+  munged.push(html);
+  html = munged.join('');
+
   var p = doc.parentElement;
   doc.replaceWith($(html));
 

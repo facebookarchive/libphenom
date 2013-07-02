@@ -32,3 +32,4 @@ tests/bench/*.t
 core
 docs/*.html
 docs/*.markdown
+docs/declmap.js

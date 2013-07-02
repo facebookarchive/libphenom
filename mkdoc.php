@@ -48,6 +48,17 @@ foreach ($docs as $doc) {
   render_html("docs/$doc[name].html", $doc, $docs);
 }
 
+// Build out a map of decl title to filename
+$decl_map = array();
+foreach ($docs as $doc) {
+  foreach ($doc['decl_titles'] as $title) {
+    $decl_map[$title] = $doc['title'].'.html';
+  }
+}
+file_put_contents("docs/declmap.js",
+  'var declmap = '.json_encode($decl_map) . ';'
+);
+
 exit(0);
 
 function render_html($filename, $doc, $docs) {
@@ -120,6 +131,7 @@ HTML;
   <script src="bootstrap.min.js"></script>
   <script src="marked.js"></script>
   <script src="prettify.js"></script>
+  <script src="declmap.js"></script>
   <script src="activate.js"></script>
 </body>
 </html>
