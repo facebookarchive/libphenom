@@ -123,7 +123,7 @@ ph_result_t ph_timerwheel_remove(
     ph_timerwheel_t *wheel,
     struct ph_timerwheel_timer *timer);
 
-/** Called by the wheel to advise that a timer will be dispatched
+/* Called by the wheel to advise that a timer will be dispatched
  * imminently.  This gives you the opportunity to take steps to make
  * this safe.  Return true to allow the timer to be dispatched or
  * false to ignore it.  Returning false deactivates the timer.
@@ -134,7 +134,7 @@ typedef bool (*ph_timerwheel_should_dispatch_func_t)(
     struct timeval now,
     void *arg);
 
-/** Called by the wheel to actually dispatch a timer */
+/* Called by the wheel to actually dispatch a timer */
 typedef void (*ph_timerwheel_dispatch_func_t)(
     ph_timerwheel_t *wheel,
     struct ph_timerwheel_timer *timer,

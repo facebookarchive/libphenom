@@ -35,6 +35,10 @@ h6:not(:first-child) {
   margin-top: -20px;
 }
 
+#show-source {
+  margin-top: 3em;
+}
+
 .docs-sidebar {
   overflow-x: hidden;
 }

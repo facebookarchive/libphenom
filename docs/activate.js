@@ -1,5 +1,10 @@
 
 $(document).ready(function () {
+  var raw = $('#source');
+  var code = $('<pre/>');
+  code.html(prettyPrintOne(raw.html(), 'c'));
+  raw.replaceWith(code);
+
   var doc = $('#doc');
   var html = marked(doc.html(), {
     highlight: function (code, lang) {

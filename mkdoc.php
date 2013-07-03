@@ -119,11 +119,26 @@ HTML;
         </ul>
       </div>
       <div class="span8">
-        <textarea id="doc">
+        <textarea id="doc">$doc[content]</textarea>
 HTML;
-  $html .= $doc['content'];
+  if ($doc['raw_content']) {
+    $html .= <<<HTML
+        <div class="accordion" id="show-source">
+          <div class="accordion-group">
+            <div class="accordion-heading">
+              <a class="accordion-toggle" data-toggle="collapse"
+                  data-parent="#show-source" href="#show-source-body">
+                Toggle Header File
+              </a>
+            </div>
+            <div id="show-source-body" class="accordion-body collapse">
+            <textarea id="source">$doc[raw_content]</textarea>
+            </div>
+          </div>
+        </div>
+HTML;
+  }
   $html .= <<<HTML
-        </textarea>
       </div>
     </div>
   </div>
@@ -196,6 +211,7 @@ function process_include($incname, &$docs) {
     'title' => $target, //$page_title,
     'content' => implode('', $md),
     'decl_titles' => $decl_titles,
+    'raw_content' => $incfile,
   );
 }
 
