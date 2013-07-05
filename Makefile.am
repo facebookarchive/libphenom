@@ -33,6 +33,7 @@ libphenom_a_SOURCES = \
 	corelib/timerwheel.c \
 	corelib/vprintf.c \
 	corelib/hash/murmur.c \
+	corelib/hash/table.c \
 	corelib/streams/make.c \
 	corelib/streams/read.c \
 	corelib/streams/write.c \
@@ -53,6 +54,7 @@ TEST_LDADD = libphenom.a libtap.a
 TESTS = tests/counter.t tests/memory.t tests/timer.t tests/printf.t \
 				tests/iobasic.t tests/stream.t tests/tpool.t \
 				tests/string.t \
+				tests/hashtable.t \
 				tests/bench/iopipes.t
 noinst_PROGRAMS = $(TESTS)
 
@@ -86,6 +88,9 @@ tests_printf_t_LDADD = $(TEST_LDADD)
 
 tests_iobasic_t_CPPFLAGS = $(TEST_CPPFLAGS)
 tests_iobasic_t_LDADD = $(TEST_LDADD)
+
+tests_hashtable_t_CPPFLAGS = $(TEST_CPPFLAGS)
+tests_hashtable_t_LDADD = $(TEST_LDADD)
 
 tests_stream_t_CPPFLAGS = $(TEST_CPPFLAGS)
 tests_stream_t_LDADD = $(TEST_LDADD)

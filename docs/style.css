@@ -111,6 +111,11 @@ form.navbar-search ul.typeahead.dropdown-menu li {
   }
 }
 
+/* Show counter examples in a red surround */
+pre.COUNTEREXAMPLE {
+  background-color: #f2dede;
+  border-color: #eed3d7;
+}
 
 /* Pretty printing styles. Used with prettify.js. */
 

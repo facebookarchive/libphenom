@@ -130,8 +130,8 @@ function is_plausible_decl($text, &$title) {
   }
 
   // Sanity check; if there are blank lines in there, we probably
-  // got too much
-  if (strpos($text, "\n\n") !== false) {
+  // got too much, unless this is a struct
+  if (!preg_match('/^struct/', $text) && strpos($text, "\n\n") !== false) {
     return '';
   }
 

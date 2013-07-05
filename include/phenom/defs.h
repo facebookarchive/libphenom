@@ -157,12 +157,28 @@
 extern "C" {
 #endif
 
+/** Generic result type
+ *
+ * If you wish to avoid TLS overheads with errno if/when a function fails,
+ * you may choose to implement your return values in terms of the ph_result_t
+ * type.  The value `PH_OK` is defined to 0 and means success.  All other
+ * values are interpreted as something not quite working out for a variety
+ * of reasons.
+ *
+ * * `PH_OK` - success!
+ * * `PH_NOMEM` - insufficient memory
+ * * `PH_BUSY` - too busy to complete now (try later)
+ * * `PH_ERR` - generic failure (sorry)
+ * * `PH_NOENT` - requested item has no entry, could not be found
+ * * `PH_EXISTS` - requested item is already present
+ */
 typedef uint32_t ph_result_t;
 #define PH_OK      0
 #define PH_NOMEM   1
 #define PH_BUSY    2
 #define PH_ERR     3 /* programmer too lazy */
 #define PH_NOENT   4
+#define PH_EXISTS  5
 
 
 #ifdef __cplusplus

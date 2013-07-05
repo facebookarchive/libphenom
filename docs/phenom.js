@@ -219,11 +219,15 @@ function show_topic(topic_name) {
 
   var html = marked(topic.content, {
     highlight: function (code, lang) {
+      var counter = lang && lang.match(/^COUNTEREXAMPLE:?(.*)$/)
+      if (counter && counter.length) {
+        lang = counter[1]
+      }
       // allow ```none to signal that we shouldn't highlight a block at all
       if (lang != 'none') {
         var res = prettyPrintOne(code, lang);
         if (res) {
-          return res;
+          code = res;
         }
       }
       return code;
@@ -255,6 +259,17 @@ function show_topic(topic_name) {
 
   var p = $('#doccontent');
   p.html(html);
+
+  // Fixup counter example styling
+  $('pre code.lang-COUNTEREXAMPLE', p).each(function () {
+    var p = $(this).parent();
+    p.addClass('COUNTEREXAMPLE');
+  });
+
+  // Style paragraphs that start with Note: nicely
+  $('p:contains("Note:")', p).each(function () {
+    $(this).addClass('alert alert-info');
+  });
 
   // Populate the side nav
   var nav = $('#sidenav');

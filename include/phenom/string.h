@@ -162,6 +162,14 @@ struct ph_string {
 void ph_string_init_claim(ph_string_t *str,
     ph_memtype_t mt, char *buf, uint32_t len, uint32_t size);
 
+/** Initialize a string as a slice over another string.
+ *
+ * Maintains a reference to the sliced string that is released
+ * when this one is released.
+ */
+void ph_string_init_slice(ph_string_t *str,
+    ph_string_t *slice, uint32_t start, uint32_t len);
+
 /** Make a new string instance from a source buffer
  *
  * Allocates a new string object that claims ownership
@@ -238,7 +246,7 @@ static inline uint32_t ph_string_len(ph_string_t *str) {
  * comparison of the string buffers.  This function ignores locale
  * and other nuances of multi-byte encodings.
  */
-bool ph_string_equal(ph_string_t *a, ph_string_t *b);
+bool ph_string_equal(const ph_string_t *a, const ph_string_t *b);
 
 /** Compare the value of the string against a C-string for equality
  */
@@ -252,7 +260,7 @@ bool ph_string_equal_cstr(ph_string_t *a, const char *b);
  *
  * This function ignores locale and other nuances of multi-byte encodings.
  */
-int ph_string_compare(ph_string_t *a, ph_string_t *b);
+int ph_string_compare(const ph_string_t *a, const ph_string_t *b);
 
 /** Formatted print to string
  */

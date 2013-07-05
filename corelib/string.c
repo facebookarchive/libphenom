@@ -35,6 +35,20 @@ static inline void init_string(void)
   }
 }
 
+void ph_string_init_slice(ph_string_t *str,
+    ph_string_t *slice, uint32_t start, uint32_t len)
+{
+  str->ref = 1;
+  str->slice = slice;
+  str->mt = PH_MEMTYPE_INVALID;
+  str->onstack = true;
+  str->buf = slice->buf + start;
+  str->len = len;
+  str->alloc = len;
+
+  ph_string_addref(slice);
+}
+
 void ph_string_init_claim(ph_string_t *str,
     ph_memtype_t mt, char *buf, uint32_t len, uint32_t size)
 {
@@ -161,7 +175,7 @@ ph_result_t ph_string_append_buf(ph_string_t *str,
   return PH_OK;
 }
 
-bool ph_string_equal(ph_string_t *a, ph_string_t *b)
+bool ph_string_equal(const ph_string_t *a, const ph_string_t *b)
 {
   if (a == b) {
     return true;
@@ -183,7 +197,7 @@ bool ph_string_equal_cstr(ph_string_t *a, const char *b)
   return memcmp(a->buf, b, len) == 0;
 }
 
-int ph_string_compare(ph_string_t *a, ph_string_t *b)
+int ph_string_compare(const ph_string_t *a, const ph_string_t *b)
 {
   uint32_t len;
   int res;
