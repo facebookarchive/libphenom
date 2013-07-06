@@ -31,7 +31,7 @@ $docs = array();
 
 // Synthesize the main page from the top-level readme
 $docs['README'] = array(
-  'name' => 'index',
+  'name' => 'README',
   'title' => 'README',
   'content' => file_get_contents('README.markdown'),
   'decl_titles' => array(),
@@ -41,119 +41,21 @@ foreach ($files as $incname => $_) {
   process_include($incname, $docs);
 }
 
-foreach ($docs as $doc) {
-  // Now generate markdown files
-  file_put_contents("docs/$doc[name].markdown", $doc['content']);
-  // and HTML
-  render_html("docs/$doc[name].html", $doc, $docs);
-}
-
 // Build out a map of decl title to filename
 $decl_map = array();
 foreach ($docs as $doc) {
   foreach ($doc['decl_titles'] as $title) {
-    $decl_map[$title] = $doc['title'].'.html';
+    $decl_map[$title] = $doc['title'];
   }
 }
+
+// Save the document information
 file_put_contents("docs/declmap.js",
-  'var declmap = '.json_encode($decl_map) . ';'
+  'var declmap = '.json_encode($decl_map) . ";\n" .
+  'var docs = '.json_encode($docs) . ";\n"
 );
 
 exit(0);
-
-function render_html($filename, $doc, $docs) {
-  $title = htmlentities($doc['title'], ENT_QUOTES, 'utf-8');
-  $html = <<<HTML
-<!DOCTYPE html>
-<html>
-  <head>
-    <title>$title</title>
-    <link href="bootstrap.min.css" rel="stylesheet">
-    <link href="style.css" rel="stylesheet">
-    <link href="bootstrap-responsive.min.css" rel="stylesheet">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  </head>
-  <body data-spy="scroll" data-offset="70" data-target=".docs-sidebar">
-  <div class='navbar navbar-inverse navbar-fixed-top'>
-    <div class="navbar-inner">
-      <div class='container'>
-        <button type='button' class='btn btn-navbar'
-            data-toggle='collapse' data-target='.nav-collapse'>
-          <span class='icon-bar'></span>
-          <span class='icon-bar'></span>
-          <span class='icon-bar'></span>
-        </button>
-        <a class="brand" href="index.html">Phenom</a>
-        <div class='nav-collapse collapse'>
-          <ul class="nav">
-HTML;
-
-  // Compute nav
-  foreach ($docs as $navdoc) {
-    $active = $navdoc['name'] == $doc['name'];
-
-    if ($active) {
-      $class = ' class="active"';
-    } else {
-      $class = '';
-    }
-
-    $navtitle = htmlentities($navdoc['title'], ENT_QUOTES, 'utf-8');
-    $target = $navdoc['name'].'.html';
-
-    $html .= "<li$class><a href=\"$target\">$navtitle</a></li>\n";
-  }
-
-  $html .= <<<HTML
-          </ul>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div class="container">
-    <div class="row">
-      <div class="span4 docs-sidebar">
-        <ul class="nav nav-list" id="sidenav" data-spy="affix"
-          data-offset-top="0">
-        </ul>
-      </div>
-      <div class="span8">
-        <textarea id="doc">$doc[content]</textarea>
-HTML;
-  if ($doc['raw_content']) {
-    $html .= <<<HTML
-        <div class="accordion" id="show-source">
-          <div class="accordion-group">
-            <div class="accordion-heading">
-              <a class="accordion-toggle" data-toggle="collapse"
-                  data-parent="#show-source" href="#show-source-body">
-                Toggle Header File
-              </a>
-            </div>
-            <div id="show-source-body" class="accordion-body collapse">
-            <textarea id="source">$doc[raw_content]</textarea>
-            </div>
-          </div>
-        </div>
-HTML;
-  }
-  $html .= <<<HTML
-      </div>
-    </div>
-  </div>
-  <script src="jquery.min.js"></script>
-  <script src="bootstrap.min.js"></script>
-  <script src="marked.js"></script>
-  <script src="prettify.js"></script>
-  <script src="declmap.js"></script>
-  <script src="activate.js"></script>
-</body>
-</html>
-HTML;
-
-  file_put_contents($filename, $html);
-}
 
 function process_include($incname, &$docs) {
   $incfile = file_get_contents($incname);

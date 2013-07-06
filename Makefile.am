@@ -65,11 +65,11 @@ all-local: docs
 clean-local: clean-docs
 
 clean-docs:
-	rm docs/*.html docs/*.markdown
+	rm docs/declmap.js
 
-docs: docs/*.html
+docs: docs/declmap.js
 
-docs/*.html: mkdoc.php include/phenom/*.h README.markdown
+docs/declmap.js: mkdoc.php include/phenom/*.h README.markdown
 	php mkdoc.php
 
 tests_counter_t_CPPFLAGS = $(TEST_CPPFLAGS)
