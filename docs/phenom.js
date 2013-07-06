@@ -1,6 +1,7 @@
 var idx = null;
 var this_topic = null;
 var titles_by_search_id = {};
+var content_by_search_id = {};
 
 function make_id(text) {
   return text.replace(/[ ]+/g, '-');
@@ -42,11 +43,19 @@ function build_search() {
     function add_doc() {
       if (sofar.length) {
         var sid = '#' + d.name + '--' + make_id(title);
+        var content = [];
+
+        for (var i = 0; i < sofar.length; i++) {
+          content.push(sofar[i].text)
+        }
+
         titles_by_search_id[sid] = title;
+        content_by_search_id[sid] = sofar;
+
         idx.add({
           id: sid,
           title: title,
-          body: sofar.join(' ')
+          body: content.join(' ')
         });
         sofar = [];
       }
@@ -59,7 +68,7 @@ function build_search() {
         title = t.text;
         continue;
       }
-      sofar.push(t.text);
+      sofar.push(t);
     }
 
     add_doc();
@@ -85,7 +94,56 @@ function build_search() {
 
     // Return the readable version of the text
     highlighter: function (item) {
-      return titles_by_search_id[item];
+      var tokens = [{
+        depth: 4,
+        text: titles_by_search_id[item],
+        type: 'heading'
+      }];
+
+      tokens.links = {};
+
+      // The term being searched for
+      var query = this.query;
+      var munged = lunr.tokenizer(query);
+      var matcher = new RegExp('(' + munged.join('|') + ')', 'i');
+
+      var mk_tokens = content_by_search_id[item];
+      // only pick out the portions that contain matching
+      // text
+      var blacklist = {
+        code: true
+      };
+      var pad = 16;
+      var rpad = 64;
+      var ellipsis = '\u2026';
+
+      for (var i = 0; i < mk_tokens.length; i++) {
+        var t = mk_tokens[i];
+
+        if (t.type in blacklist) {
+          continue;
+        }
+
+        var m = matcher.exec(t.text);
+        if (!m) {
+          continue;
+        }
+        // m.index tells us where the text is in here.
+        // return the text from that region
+        var text = t.text;
+        if (m.index > pad) {
+          text = ellipsis + text.substr(m.index - pad);
+        }
+        if (text.length > rpad) {
+          text = text.substr(0, m[0].length + rpad) + ellipsis + '\n';
+        }
+        t = jQuery.extend({}, t);
+        t.text = text;
+
+        tokens.push(t);
+      }
+
+      return marked.parser(tokens);
     },
 
     // Always include results from the search function
@@ -118,9 +176,40 @@ function build_search() {
   });
 }
 
+function show_header(doc) {
+  $('head title').text(doc.title + '.h');
+
+  var p = $('#doccontent');
+  p.empty();
+  p.append(
+      $('<a/>', {
+        name: 'hdr.' + doc.title + '.h'
+      })
+  );
+  p.append(
+    $('<h1/>').text(
+      'phenom/' + doc.title + '.h'
+    )
+  );
+
+  var code = $('<pre/>');
+  code.append(
+      $('<code/>').html(prettyPrintOne(doc.raw_content, 'c'))
+  );
+  p.append(code);
+
+  $('#sidenav').empty();
+}
+
 function show_topic(topic_name) {
   if (topic_name == this_topic) {
     return false;
+  }
+
+  var m = topic_name.match(/^hdr\.(.*)\.h$/);
+  if (m) {
+    show_header(docs[m[1]]);
+    return true;
   }
 
   var topic = docs[topic_name];
@@ -228,7 +317,17 @@ function show_topic_for_hash(hash) {
 }
 
 function hash_changed() {
-  show_topic_for_hash(get_url_hash());
+  var hash = get_url_hash();
+  if (show_topic_for_hash(hash)) {
+    // If we changed the content, let's scroll to the correct
+    // position, as we may be stuck at the wrong position
+    var target = $('#' + hash + ', a[name="' + hash + '"]');
+    if (target && target.offset()) {
+      window.scroll(0, target.offset().top - 20);
+    } else {
+      window.scroll(0, 0);
+    }
+  }
 }
 
 function setup_hashchange() {
@@ -257,6 +356,7 @@ function setup_hashchange() {
 // The active class is added by show_topic()
 function load_topic_nav() {
   var nav = $('#topic-menu');
+  var hnav = $('#header-menu');
 
   for (k in docs) {
     var d = docs[k];
@@ -264,9 +364,16 @@ function load_topic_nav() {
     var li = $('<li/>');
     var a = $('<a/>', { href: '#' + d.name });
     a.text(d.title);
-
     li.append(a);
     nav.append(li);
+
+    if (d.raw_content) {
+      var li = $('<li/>');
+      var a = $('<a/>', { href: '#hdr.' + d.name + '.h'});
+      a.text(d.name+'.h');
+      li.append(a);
+      hnav.append(li);
+    }
   }
 }
 

@@ -7,16 +7,28 @@ body {
   line-height: 150%;
   background: #f9f9f9;
   font-weight: 400;
-}
-
-h1,h2,h3,h4,h5,h6,body {
-  font-family: "Alef", "Helvetica Neue",Helvetica,Arial,sans-serif;
   /* why would we want anything else? */
   text-rendering: optimizelegibility;
+}
+
+h1,h2,h3,h4,h5,h6,body,.navbar-search .search-query {
+  font-family: "Alef", "Helvetica Neue",Helvetica,Arial,sans-serif;
 }
 h1,h2,h3,h4,h5,h6 {
   font-weight: 700;
 }
+
+.navbar-search .search-query {
+  font-weight: 400;
+  line-height: 150%;
+  font-size: 15px;
+  border-radius: 7px;
+}
+.navbar-inverse .navbar-search .search-query:focus,
+.navbar-inverse .navbar-search .search-query.focused  {
+  background-color: #f9f9f9;
+}
+
 
 /* Hack for anchors and navbar positioning */
 h1,h2,h3,h4,h5,h6 {
@@ -72,6 +84,16 @@ h6:not(:first-child) {
 #sidenav.affix {
   top: 60px;
   width: 270px;
+}
+
+form.navbar-search ul.typeahead.dropdown-menu {
+  overflow-x: hidden;
+}
+
+form.navbar-search ul.typeahead.dropdown-menu li {
+  max-height: 80px;
+  overflow: hidden;
+  padding-bottom: 8px;
 }
 
 /* Tablet */
