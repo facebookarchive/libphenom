@@ -17,6 +17,15 @@
 #ifndef PHENOM_DEFS_H
 #define PHENOM_DEFS_H
 
+/**
+ * # Base Environment
+ *
+ * Including `phenom/defs.h` sets the base environment for using
+ * phenom.  This header should be included first (most phenom headers
+ * will pull this in explicitly) so that the compilation environment
+ * exposes the more modern unix compilation features of your system.
+ */
+
 #define PHENOM_TARGET_CPU_X86_64 1
 #define PHENOM_TARGET_CPU_X86    2
 
@@ -129,6 +138,40 @@
 /* clock */
 #include <mach/mach_time.h>
 #endif
+
+/**
+ * ## Pedantic compilation
+ *
+ * To stave off undefined or unexpected conditions, Phenom is
+ * compiled in an extremely unforgiving mode that causes warnings
+ * to be treated as errors.
+ *
+ * There are a couple of useful source annotations that you can
+ * use to avoid triggering some classes of error.
+ *
+ * ### unused_parameter
+ *
+ * ```
+ * void myfunc(int not_used)
+ * {
+ *    unused_parameter(not_used);
+ * }
+ * ```
+ *
+ * ### Result not ignored
+ *
+ * Some compilation environments are very strict and will raise
+ * warnings if you ignore return values of certain functions.
+ * In some cases you really do want to ignore these results.
+ * Here's how to tell the compiler to leave you alone:
+ *
+ * ```
+ * void myfunc(void)
+ * {
+ *    ignore_result(poll(&pfd, 1, 100));
+ * }
+ * ```
+ */
 
 #if defined(PHENOM_IMPL)
 // Use this to eliminate 'unused parameter' warnings

@@ -13,7 +13,6 @@ $files = array_flip(explode("\n", trim(
 // Which files to exclude
 $suppress = array_flip(array(
   'include/phenom/config.h',
-  'include/phenom/defs.h',
   'include/phenom/queue.h',
 ));
 
