@@ -234,10 +234,71 @@ ph_result_t ph_string_append_buf(ph_string_t *str,
 ph_result_t ph_string_append_cstr(
     ph_string_t *str, const char *cstr);
 
+/** Append a series of UTF-16 code points to a string and encode as UTF-8
+ *
+ * * `codepoints` points to a buffer of code points
+ * * `numpoints` specifies the number of code points
+ * * `bytes` if not NULL, receives the number of UTF-8 bytes that were
+ *   appended to the string
+ */
+ph_result_t ph_string_append_utf16_as_utf8(
+    ph_string_t *str, int32_t *codepoints, uint32_t numpoints,
+    uint32_t *bytes);
+
+/** Iterate a sequence of UTF-8 characters, returning UTF-16 codepoints
+ *
+ * This function implements an iterator that knows how to decode UTF-8
+ * encoded multibyte text into UTF-16 code points.
+ *
+ * To begin iterating, set `offset` to the starting offset of the UTF-8
+ * text.  This offset is measured in bytes from the start of the data
+ * in the string.
+ *
+ * UTF-8 bytes will be decoded from that position and a UTF-16 codepoint
+ * will be stored into `*codepoint`.  `*offset` will be updated so that
+ * it holds the offset of the next UTF-8 byte.
+ *
+ * If a UTF-16 byte was successfully decoded, returns `PH_OK`.
+ * If a partial or invalid UTF-8 sequence was detected, returns `PH_ERR`.
+ * If the end of the string was reached, returns `PH_DONE`.
+ *
+ * ```
+ * uint32_t off = 0;
+ * int32_t cp;
+ *
+ * while (ph_string_iterate_utf8_as_utf16(str, &off, &cp) == PH_OK) {
+ *   // got a codepoint in cp
+ * }
+ * ```
+ */
+ph_result_t ph_string_iterate_utf8_as_utf16(
+    ph_string_t *str, uint32_t *offset, int32_t *codepoint);
+
+/** Returns true if the string is valid UTF-8
+ *
+ * Checks the content of the string buffer, returns true if
+ * we can iterate the length of the string and produce a valid
+ * series of UTF-16 codepoints from it, or false otherwise.
+ */
+bool ph_string_is_valid_utf8(ph_string_t *str);
+
 /** Returns the length of the string contents, in bytes
  */
 static inline uint32_t ph_string_len(ph_string_t *str) {
   return str->len;
+}
+
+/** Resets the string length to zero
+ *
+ * Sets the length to zero, effectively clearly the string
+ * contents and rewinding the append position to the start
+ * of the string.
+ *
+ * This is useful in cases where you desire to reuse the string
+ * buffer and avoid additional heap allocations.
+ */
+static inline void ph_string_reset(ph_string_t *str) {
+  str->len = 0;
 }
 
 /** Compare the value of two strings for equality

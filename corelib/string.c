@@ -267,6 +267,153 @@ ph_string_t *ph_string_make_printf(ph_memtype_t mt, uint32_t size,
   return str;
 }
 
+ph_result_t ph_string_append_utf16_as_utf8(
+    ph_string_t *str, int32_t *codepoints, uint32_t numpoints,
+    uint32_t *bytes)
+{
+  uint32_t appended = 0;
+  ph_result_t res = PH_OK;
+  char buf[4];
+
+  while (numpoints--) {
+    int32_t cp = *codepoints;
+    int buflen;
+    codepoints++;
+
+    if (cp < 0) {
+      res = PH_ERR;
+      break;
+    }
+
+    if (cp < 0x80) {
+      buf[0] = (char)cp;
+      buflen = 1;
+    } else if (cp < 0x800) {
+      buf[0] = 0xc0 + ((cp & 0x7c0) >> 6);
+      buf[1] = 0x80 + (cp & 0x03f);
+      buflen = 2;
+    } else if (cp < 0x10000) {
+      buf[0] = 0xE0 + ((cp & 0xF000) >> 12);
+      buf[1] = 0x80 + ((cp & 0x0FC0) >> 6);
+      buf[2] = 0x80 + (cp & 0x003F);
+      buflen = 3;
+    } else if (cp <= 0x10FFFF) {
+      buf[0] = 0xF0 + ((cp & 0x1C0000) >> 18);
+      buf[1] = 0x80 + ((cp & 0x03F000) >> 12);
+      buf[2] = 0x80 + ((cp & 0x000FC0) >> 6);
+      buf[3] = 0x80 + (cp & 0x00003F);
+      buflen = 4;
+    } else {
+      res = PH_ERR;
+      break;
+    }
+
+    res = ph_string_append_buf(str, buf, buflen);
+    if (res != PH_OK) {
+      break;
+    }
+    appended += buflen;
+  }
+
+  if (bytes) {
+    *bytes = appended;
+  }
+
+  return res;
+}
+
+ph_result_t ph_string_iterate_utf8_as_utf16(
+    ph_string_t *str, uint32_t *offset, int32_t *codepoint)
+{
+  uint32_t p = *offset;
+  uint32_t len, i;
+  uint8_t *b, first;
+  int32_t cp;
+
+  if (p >= str->len) {
+    return PH_DONE;
+  }
+
+  // Figure out how long the UTF-8 sequence is
+  b = (uint8_t*)str->buf + p;
+  first = *b;
+
+  if (first < 0x80) {
+    len = 1;
+    cp = first;
+  } else if (first <= 0xc1) {
+    // not valid as the first character
+    return PH_ERR;
+  } else if (first <= 0xdf) {
+    len = 2;
+    cp = first & 0x1f;
+  } else if (first <= 0xef) {
+    len = 3;
+    cp = first & 0xf;
+  } else if (first <= 0xf4) {
+    len = 4;
+    cp = first & 0x7;
+  } else {
+    return PH_ERR;
+  }
+
+  // Do we have enough space to read the rest of the sequence?
+  if (p + len > str->len) {
+    return PH_ERR;
+  }
+
+  for (i = 1; i < len; i++) {
+    uint8_t u = b[i];
+
+    if (u < 0x80 || u > 0xbf) {
+      // Not a valid continuation
+      return PH_ERR;
+    }
+
+    cp = (cp << 6) + (u & 0x3f);
+  }
+
+  if (cp > 0x10ffff) {
+    // Out of range
+    return PH_ERR;
+  }
+
+  if (cp >= 0xd800 && cp <= 0xdfff) {
+    // Surrogate pair
+    return PH_ERR;
+  }
+
+  if ((len == 2 && cp < 0x80) ||
+      (len == 3 && cp < 0x800) ||
+      (len == 4 && cp < 0x10000)) {
+    // over long encoding
+    return PH_ERR;
+  }
+
+  *codepoint = cp;
+  *offset = p + len;
+  return PH_OK;
+}
+
+bool ph_string_is_valid_utf8(ph_string_t *str)
+{
+  uint32_t off = 0;
+  int32_t cp;
+  ph_result_t res;
+
+  for (res = ph_string_iterate_utf8_as_utf16(str, &off, &cp);
+      res == PH_OK;
+      res = ph_string_iterate_utf8_as_utf16(str, &off, &cp)) {
+    ;
+  }
+
+  if (res == PH_DONE) {
+    return true;
+  }
+
+  return false;
+}
+
 ph_result_t ph_string_append_cstr(
     ph_string_t *str, const char *cstr)
 {

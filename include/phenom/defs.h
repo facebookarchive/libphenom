@@ -214,6 +214,7 @@ extern "C" {
  * * `PH_ERR` - generic failure (sorry)
  * * `PH_NOENT` - requested item has no entry, could not be found
  * * `PH_EXISTS` - requested item is already present
+ * * `PH_DONE` - operation (iteration) completed
  */
 typedef uint32_t ph_result_t;
 #define PH_OK      0
@@ -222,6 +223,7 @@ typedef uint32_t ph_result_t;
 #define PH_ERR     3 /* programmer too lazy */
 #define PH_NOENT   4
 #define PH_EXISTS  5
+#define PH_DONE    6
 
 
 #ifdef __cplusplus

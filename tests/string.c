@@ -36,6 +36,94 @@ static void stack_tests(void)
   ph_string_delref(&stack2);
 }
 
+
+static struct {
+  const char *input;
+  bool valid;
+} unicode_strings[] = {
+  { "\xe2\x82\xac\xc3\xbe\xc4\xb1\xc5\x93\xc9\x99\xc3\x9f\xc3\xb0\x20"\
+    "\x73\x6f\x6d\x65\x20\x75\x74\x66\x2d\x38\x20\xc4\xb8\xca\x92\xc3"\
+    "\x97\xc5\x8b\xc2\xb5\xc3\xa5\xc3\xa4\xc3\xb6\xf0\x9d\x84\x9e",
+    true
+  },
+  { "\xed\xa2\xab surrogate half", false },
+  { "\xe5 invalid UTF-8", false },
+  { "\x81 lone continuation", false },
+  { "\xf4\xbf\xbf\xbf not in unicode range", false },
+  { "\xe0\x80\xa2 over long 3 byte", false },
+  { "\xf0\x80\x80\xa2 over long 4 byte", false },
+  { "\xc1 over long 1 byte", false },
+  { "\xfd restricted utf-8", false },
+  { "\xe0\xff truncated utf-8", false },
+  { "ascii is utf-8 too!", true },
+};
+
+static struct {
+  int32_t cp;
+  const char *output;
+} utf16_strings[] = {
+  { 0x2c,   "," },
+  { 0x0123, "\xc4\xa3" },
+  { 0x0821, "\xe0\xa0\xa1" },
+  { 0x1d11e, "\xf0\x9d\x84\x9e" },
+};
+
+static struct {
+  int32_t points[2];
+  int32_t cp;
+  const char *encoded;
+} surrogates[] = {
+  { { 0xD834, 0xDD1E }, 0x1d11e, "\xed\xa0\xb4\xed\xb4\x9e" },
+};
+
+static void utf16_tests(void)
+{
+  uint32_t i, len, n, off;
+  int32_t cp;
+  PH_STRING_DECLARE_STACK(str, 64);
+
+  for (i = 0; i < sizeof(unicode_strings)/sizeof(unicode_strings[0]); i++) {
+    ph_string_reset(&str);
+    is(ph_string_append_cstr(&str, unicode_strings[i].input), PH_OK);
+    is(ph_string_is_valid_utf8(&str), unicode_strings[i].valid);
+  }
+
+  for (i = 0; i < sizeof(utf16_strings)/sizeof(utf16_strings[0]); i++) {
+    len = strlen(utf16_strings[i].output);
+
+    ph_string_reset(&str);
+    is(ph_string_append_utf16_as_utf8(&str, &utf16_strings[i].cp, 1, &n), PH_OK);
+    is(n, len);
+    ok(ph_string_equal_cstr(&str, utf16_strings[i].output), "matches");
+
+    // Iterate the codepoints; we should get out what we put in
+    off = 0;
+    is(ph_string_iterate_utf8_as_utf16(&str, &off, &cp), PH_OK);
+    diag("expect %" PRIx32 " got %" PRIx32, utf16_strings[i].cp, cp);
+    is(cp, utf16_strings[i].cp);
+
+    // Round-trip; put in the output and expect to iterate and get the input cp
+    ph_string_reset(&str);
+    is(ph_string_append_cstr(&str, utf16_strings[i].output), PH_OK);
+    ok(ph_string_is_valid_utf8(&str), "valid utf-8");
+    off = 0;
+    is(ph_string_iterate_utf8_as_utf16(&str, &off, &cp), PH_OK);
+    diag("round-trip: expect %" PRIx32 " got %" PRIx32, utf16_strings[i].cp, cp);
+    is(cp, utf16_strings[i].cp);
+  }
+
+  for (i = 0; i < sizeof(surrogates)/sizeof(surrogates[0]); i++) {
+    ph_string_reset(&str);
+    is(ph_string_append_utf16_as_utf8(&str, surrogates[i].points, 2, &n), PH_OK);
+    is(n, strlen(surrogates[i].encoded));
+    off = 0;
+    // We don't do any magical transformation of surrogates, and we don't
+    // consider them valid utf8 strings
+    is(ph_string_iterate_utf8_as_utf16(&str, &off, &cp), PH_ERR);
+  }
+}
+
+
 int main(int argc, char **argv)
 {
   ph_string_t *str, *str2;
@@ -43,7 +131,7 @@ int main(int argc, char **argv)
   unused_parameter(argc);
   unused_parameter(argv);
 
-  plan_tests(26);
+  plan_tests(87);
 
   mt_misc = ph_memtype_register(&mt_def);
 
@@ -105,6 +193,8 @@ int main(int argc, char **argv)
   str = ph_string_make_printf(mt_misc, 16, "Hello %d", 42);
   ok(ph_string_equal_cstr(str, "Hello 42"), "same");
   ph_string_delref(str);
+
+  utf16_tests();
 
   return exit_status();
 }
