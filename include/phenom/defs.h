@@ -225,6 +225,9 @@ typedef uint32_t ph_result_t;
 #define PH_EXISTS  5
 #define PH_DONE    6
 
+#define ph_offsetof(type, field) ((size_t)(&((type *)0)->field))
+#define ph_container_of(ptr_, type_, member_)  \
+    ((type_ *)((char *)ptr_ - ph_offsetof(type_, member_)))
 
 #ifdef __cplusplus
 }

@@ -1,10 +1,31 @@
 #include "phenom/sysutil.h"
 #include "phenom/string.h"
 #include "phenom/variant.h"
+#include "phenom/json.h"
 #include "tap.h"
 
 static ph_memtype_def_t mt_def = { "test", "misc", 0, 0 };
 static ph_memtype_t mt_misc;
+
+static void test_json(void)
+{
+  ph_variant_t *v;
+  ph_json_err_t err;
+
+  ph_stm_init();
+
+  v = ph_json_load_cstr("42", 0, &err);
+  is(v, 0); // Default is to parse objects or arrays
+
+  v = ph_json_load_cstr("42", PH_JSON_DECODE_ANY, &err);
+  is(ph_var_is_int(v), true);
+  is(ph_var_int_val(v), 42);
+  ph_var_delref(v);
+
+  v = ph_json_load_cstr("{}", 0, &err);
+  is(ph_var_is_object(v), true);
+  ph_var_delref(v);
+}
 
 int main(int argc, char **argv)
 {
@@ -16,7 +37,7 @@ int main(int argc, char **argv)
   unused_parameter(argc);
   unused_parameter(argv);
 
-  plan_tests(73);
+  plan_tests(77);
 
   mt_misc = ph_memtype_register(&mt_def);
 
@@ -144,6 +165,7 @@ int main(int argc, char **argv)
 
   ph_var_delref(obj);
 
+  test_json();
 
   return exit_status();
 }

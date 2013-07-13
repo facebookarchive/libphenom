@@ -282,9 +282,28 @@ ph_result_t ph_string_iterate_utf8_as_utf16(
  */
 bool ph_string_is_valid_utf8(ph_string_t *str);
 
+static inline uint8_t ph_utf8_seq_len(uint8_t first) {
+  if (first < 0x80) {
+    return 1;
+  }
+  if (first <= 0xc1) {
+    return 0;
+  }
+  if (first <= 0xdf) {
+    return 2;
+  }
+  if (first <= 0xef) {
+    return 3;
+  }
+  if (first <= 0xf4) {
+    return 4;
+  }
+  return 0;
+}
+
 /** Returns the length of the string contents, in bytes
  */
-static inline uint32_t ph_string_len(ph_string_t *str) {
+static inline uint32_t ph_string_len(const ph_string_t *str) {
   return str->len;
 }
 

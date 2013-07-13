@@ -35,8 +35,6 @@ $FreeBSD: src/sys/sys/queue.h,v 1.72.2.3.2.1 2010/12/21 17:09:25 kensmith Exp $
 
 #include <phenom/defs.h>
 
-#define ph_offsetof(type, field) ((size_t)(&((type *)0)->field))
-
 /*
  * This file defines four types of data structures: singly-linked lists,
  * singly-linked tail queues, lists and tail queues.

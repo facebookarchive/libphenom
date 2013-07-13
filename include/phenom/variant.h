@@ -201,7 +201,7 @@ static inline bool ph_var_is_array(ph_variant_t *var) {
 
 /** Append a variant to an array
  *
- * The array may need to be grown to accomodate the new value,
+ * The array may need to be grown to accommodate the new value,
  * in which case the append operation can fail and this function
  * will return `PH_NOMEM`.
  *
@@ -211,7 +211,7 @@ ph_result_t ph_var_array_append(ph_variant_t *arr, ph_variant_t *val);
 
 /** Append a variant to an array and claim its reference
  *
- * The array may need to be grown to accomodate the new value,
+ * The array may need to be grown to accommodate the new value,
  * in which case the append operation can fail and this function
  * will return `PH_NOMEM`.
  *
@@ -263,6 +263,11 @@ ph_result_t ph_var_array_set(ph_variant_t *arr, uint32_t pos,
  * initially empty.
  */
 ph_variant_t *ph_var_object(uint32_t nelems);
+
+/** Returns true if the variant is an object */
+static inline bool ph_var_is_object(ph_variant_t *var) {
+  return var->type == PH_VAR_OBJECT;
+}
 
 /** Returns the number of key/value pairs in an object
  */
