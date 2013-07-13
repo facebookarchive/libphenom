@@ -39,6 +39,7 @@ libphenom_a_SOURCES = \
 	corelib/streams/read.c \
 	corelib/streams/write.c \
 	corelib/streams/fd.c \
+	corelib/streams/string.c \
 	corelib/streams/temp.c \
 	$(ck_SOURCES)
 

@@ -17,6 +17,9 @@
 #ifndef PHENOM_STREAM_H
 #define PHENOM_STREAM_H
 
+#include "phenom/defs.h"
+#include "phenom/string.h"
+
 /**
  * # Streams
  *
@@ -146,6 +149,21 @@ void ph_stm_unlock(ph_stream_t *stm);
  * oflags are passed to the open(2) syscall.
  */
 ph_stream_t *ph_stm_file_open(const char *filename, int oflags, int mode);
+
+/** Open a stream over a string object
+ *
+ * The returned string will start at position 0; reads will read the
+ * string buffer, hitting EOF when the end of the string is reached.
+ *
+ * Writes will replace string bytes at the current position.  If a
+ * write would overflow the string, the overflown portion will be
+ * appended to the string, provided that the underlying append operation
+ * succeeds.
+ *
+ * The stream will add and retain its own reference to the string
+ * object that will be released when the stream is closed.
+ */
+ph_stream_t *ph_stm_string_open(ph_string_t *str);
 
 /**
  * # Implementation Details

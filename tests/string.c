@@ -16,6 +16,7 @@
 
 #include "phenom/sysutil.h"
 #include "phenom/string.h"
+#include "phenom/stream.h"
 #include "tap.h"
 
 static ph_memtype_def_t mt_def = { "test", "misc", 0, 0 };
@@ -123,6 +124,43 @@ static void utf16_tests(void)
   }
 }
 
+static void string_stream_tests(void)
+{
+  ph_string_t *str;
+  ph_stream_t *stm;
+  char buf[5];
+  uint64_t r;
+
+  is(PH_OK, ph_stm_init());
+
+  str = ph_string_make_empty(mt_misc, 16);
+  stm = ph_stm_string_open(str);
+  ok(stm, "made a stream");
+
+  ph_stm_printf(stm, "hello world");
+  ok(ph_string_equal_cstr(str, "hello world"), "see printf");
+
+  ok(ph_stm_seek(stm, 0, SEEK_SET, NULL), "rewound");
+  ok(ph_stm_read(stm, buf, sizeof(buf), &r), "read data");
+  is(r, sizeof(buf));
+  is(memcmp(buf, "hello", 5), 0);
+
+  ph_stm_printf(stm, " kitty and append!");
+  ok(ph_string_equal_cstr(str, "hello kitty and append!"), "see printf");
+
+  ok(ph_stm_seek(stm, 6, SEEK_SET, NULL), "rewound");
+  ok(ph_stm_read(stm, buf, sizeof(buf), &r), "read data");
+  is(r, sizeof(buf));
+  is(memcmp(buf, "kitty", 5), 0);
+
+  ok(ph_stm_seek(stm, -5, SEEK_END, NULL), "rewound");
+  ok(ph_stm_read(stm, buf, sizeof(buf), &r), "read data");
+  is(r, sizeof(buf));
+  is(memcmp(buf, "pend!", 5), 0);
+
+  ph_stm_close(stm);
+  ph_string_delref(str);
+}
 
 int main(int argc, char **argv)
 {
@@ -131,7 +169,7 @@ int main(int argc, char **argv)
   unused_parameter(argc);
   unused_parameter(argv);
 
-  plan_tests(87);
+  plan_tests(103);
 
   mt_misc = ph_memtype_register(&mt_def);
 
@@ -195,6 +233,8 @@ int main(int argc, char **argv)
   ph_string_delref(str);
 
   utf16_tests();
+
+  string_stream_tests();
 
   return exit_status();
 }
