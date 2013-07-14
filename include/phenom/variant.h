@@ -65,6 +65,11 @@ struct ph_variant {
 /** Represents a runtime variable data type */
 typedef struct ph_variant ph_variant_t;
 
+/** Returns the type of a variant */
+static inline ph_variant_type_t ph_var_type(const ph_variant_t *var) {
+  return var->type;
+}
+
 /** Construct a boolean variant value */
 ph_variant_t *ph_var_bool(bool val);
 
@@ -107,7 +112,7 @@ ph_variant_t *ph_var_int(int64_t ival);
  *
  * Returns 0 if the value is not an integer
  */
-static inline int64_t ph_var_int_val(ph_variant_t *var) {
+static inline int64_t ph_var_int_val(const ph_variant_t *var) {
   switch (var->type) {
     case PH_VAR_INTEGER:
       return var->u.ival;
@@ -128,7 +133,7 @@ ph_variant_t *ph_var_double(double dval);
  *
  * Returns 0.0 if the value is not a double
  */
-static inline double ph_var_double_val(ph_variant_t *var) {
+static inline double ph_var_double_val(const ph_variant_t *var) {
   switch (var->type) {
     case PH_VAR_REAL:
       return var->u.dval;
@@ -160,7 +165,7 @@ ph_variant_t *ph_var_string_make(ph_string_t *str);
  *
  * Does **not** add a reference to the string value.
  */
-static inline ph_string_t *ph_var_string_val(ph_variant_t *var) {
+static inline ph_string_t *ph_var_string_val(const ph_variant_t *var) {
   switch (var->type) {
     case PH_VAR_STRING:
       return var->u.sval;

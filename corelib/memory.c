@@ -337,12 +337,17 @@ void *ph_mem_alloc_size(ph_memtype_t mt, uint64_t size)
 
 void ph_mem_free(ph_memtype_t mt, void *ptr)
 {
-  struct mem_type *mem_type = resolve_mt(mt);
+  struct mem_type *mem_type;
   ph_counter_block_t *block;
   static const uint8_t slots[2] = { SLOT_BYTES, SLOT_FREES };
   int64_t values[2];
   uint64_t size;
 
+  if (!ptr) {
+    return;
+  }
+
+  mem_type = resolve_mt(mt);
   if (mem_type->def.item_size) {
     size = mem_type->def.item_size;
   } else {

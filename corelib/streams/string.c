@@ -99,6 +99,7 @@ static bool str_writev(ph_stream_t *stm, const struct iovec *iov,
         break;
       }
       w += len;
+      ss->pos += len;
     }
   }
 

@@ -358,7 +358,8 @@ bool ph_var_object_iter_first(ph_variant_t *obj, ph_ht_iter_t *iter,
 {
   void **a, **b;
 
-  if (!ph_ht_iter_first(&obj->u.oval, iter, (void**)&a, (void**)&b)) {
+  if (!ph_ht_iter_first(&obj->u.oval, iter,
+        (void**)(void*)&a, (void**)(void*)&b)) {
     return false;
   }
 
@@ -377,7 +378,8 @@ bool ph_var_object_iter_next(ph_variant_t *obj, ph_ht_iter_t *iter,
 {
   void **a, **b;
 
-  if (!ph_ht_iter_next(&obj->u.oval, iter, (void**)&a, (void**)&b)) {
+  if (!ph_ht_iter_next(&obj->u.oval, iter,
+        (void**)(void*)&a, (void**)(void*)&b)) {
     return false;
   }
 
@@ -397,7 +399,8 @@ bool ph_var_object_ordered_iter_first(ph_variant_t *obj,
 {
   void **a, **b;
 
-  if (!ph_ht_ordered_iter_first(&obj->u.oval, iter, (void**)&a, (void**)&b)) {
+  if (!ph_ht_ordered_iter_first(&obj->u.oval, iter,
+        (void**)(void*)&a, (void**)(void*)&b)) {
     return false;
   }
 
@@ -417,7 +420,8 @@ bool ph_var_object_ordered_iter_next(ph_variant_t *obj,
 {
   void **a, **b;
 
-  if (!ph_ht_ordered_iter_next(&obj->u.oval, iter, (void**)&a, (void**)&b)) {
+  if (!ph_ht_ordered_iter_next(&obj->u.oval, iter,
+        (void**)(void*)&a, (void**)(void*)&b)) {
     return false;
   }
 

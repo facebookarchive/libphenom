@@ -30,6 +30,7 @@
 
 #include "tap.h"
 
+static int use_color = 0;
 static int no_plan = 0;
 static int skip_all = 0;
 static int have_plan = 0;
@@ -104,6 +105,10 @@ _gen_result(int ok, const char *func, const char *file, unsigned int line,
 		}
 	}
 
+	if (use_color) {
+		printf("\x1b[%dm", ok ? 32 : 31);
+	}
+
 	if(!ok) {
 		printf("not ");
 		failures++;
@@ -142,6 +147,9 @@ _gen_result(int ok, const char *func, const char *file, unsigned int line,
 			failures--;
 	}
 
+	if (use_color) {
+		printf("\x1b[0m");
+	}
 	printf("\n");
 
 	if(!ok) {
@@ -172,6 +180,7 @@ _tap_init(void)
 	if(!run_once) {
 		atexit(_cleanup);
 		run_once = 1;
+		use_color = isatty(STDOUT_FILENO);
 		gettimeofday(&start_time, NULL);
 	}
 }
@@ -266,12 +275,18 @@ diag(const char *fmt, ...)
 {
 	va_list ap;
 
+	if (use_color) {
+		fprintf(stderr, "\x1b[1;30m");
+	}
 	fputs("# ", stderr);
 
 	va_start(ap, fmt);
 	vfprintf(stderr, fmt, ap);
 	va_end(ap);
 
+	if (use_color) {
+		fprintf(stderr, "\x1b[0m");
+	}
 	fputs("\n", stderr);
 
 	return 0;

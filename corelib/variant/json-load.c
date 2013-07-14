@@ -22,6 +22,8 @@
 #include "phenom/json.h"
 #include "phenom/stream.h"
 #include "phenom/variant.h"
+#include "phenom/sysutil.h"
+#include "phenom/log.h"
 #include <assert.h>
 
 #define STREAM_STATE_OK        0
@@ -87,43 +89,45 @@ static void error_set(ph_json_err_t *error, const lex_t *lex,
   int line = -1, col = -1;
   size_t pos = 0;
   const char *result = msg_text;
+  uint32_t len;
 
-  if (!error)
+  // Don't change it if it is already set
+  if (!error || error->text[0]) {
     return;
+  }
 
   va_start(ap, msg);
-  vsnprintf(msg_text, PH_JSON_ERROR_TEXT_LENGTH, msg, ap);
-  msg_text[PH_JSON_ERROR_TEXT_LENGTH - 1] = '\0';
+  ph_vsnprintf(msg_text, sizeof(msg_text), msg, ap);
   va_end(ap);
 
-  if (lex) {
-    uint32_t len = ph_string_len(&lex->saved_text);
-    const char *saved_text = lex->saved_text.buf;
+  line = lex->stream.line;
+  col = lex->stream.column;
+  pos = lex->stream.position;
 
-    line = lex->stream.line;
-    col = lex->stream.column;
-    pos = lex->stream.position;
+  len = ph_string_len(&lex->saved_text);
+  // If the first byte is NUL, just pretend it has no length,
+  // otherwise we end up with weird error messages
+  if (len && lex->saved_text.buf[0] == 0) {
+    len = 0;
+  }
 
-    if (len) {
-      if (len <= 20) {
-        snprintf(msg_with_context, PH_JSON_ERROR_TEXT_LENGTH,
-            "%s near '%s'", msg_text, saved_text);
-        msg_with_context[PH_JSON_ERROR_TEXT_LENGTH - 1] = '\0';
-        result = msg_with_context;
-      }
+  if (len) {
+    if (len <= 20) {
+      ph_snprintf(msg_with_context, sizeof(msg_with_context),
+          "%s near '`Ps%p'", msg_text, (void*)&lex->saved_text);
+      result = msg_with_context;
     }
-    else
-    {
-      if (lex->stream.state == STREAM_STATE_ERROR) {
-        /* No context for UTF-8 decoding errors */
-        result = msg_text;
-      }
-      else {
-        snprintf(msg_with_context, PH_JSON_ERROR_TEXT_LENGTH,
-            "%s near end of file", msg_text);
-        msg_with_context[PH_JSON_ERROR_TEXT_LENGTH - 1] = '\0';
-        result = msg_with_context;
-      }
+  }
+  else
+  {
+    if (lex->stream.state == STREAM_STATE_ERROR) {
+      /* No context for UTF-8 decoding errors */
+      result = msg_text;
+    }
+    else {
+      ph_snprintf(msg_with_context, sizeof(msg_with_context),
+          "%s near end of file", msg_text);
+      result = msg_with_context;
     }
   }
 
@@ -131,7 +135,7 @@ static void error_set(ph_json_err_t *error, const lex_t *lex,
   error->column = col;
   error->position = pos;
 
-  snprintf(error->text, sizeof(error->text), "%s", result);
+  ph_snprintf(error->text, sizeof(error->text), "%s", result);
 }
 
 
@@ -156,7 +160,6 @@ static int stream_getc(stream_t *stream)
 
   if (!ph_stm_read(stream->stm, &buf, 1, &nread) || nread == 0) {
     stream->state = STREAM_STATE_EOF;
-    printf("Putting stream into EOF state\n");
     return STREAM_STATE_EOF;
   }
   return (int)buf;
@@ -269,7 +272,8 @@ static int stream_get(stream_t *stream, ph_json_err_t *error)
 
 out:
   stream->state = STREAM_STATE_ERROR;
-  error_set(error, stream_to_lex(stream), "unable to decode byte 0x%02x", (uint8_t)c);
+  error_set(error, stream_to_lex(stream),
+      "unable to decode byte 0x%02x", (uint8_t)c);
   return STREAM_STATE_ERROR;
 }
 
@@ -359,7 +363,7 @@ static int32_t decode_unicode_escape(const char *str)
     else if (l_isupper(c))
       value += c - 'A' + 10;
     else
-      assert(0);
+      ph_panic("unpossible unicode escape c=%d", c);
   }
 
   return value;
@@ -459,7 +463,8 @@ static void lex_scan_string(lex_t *lex, ph_json_err_t *error)
      - two \uXXXX escapes (length 12) forming an UTF-16 surrogate pair
      are converted to 4 bytes
      */
-  lex->value.string = ph_mem_alloc_size(mt_json, ph_string_len(&lex->saved_text) + 1);
+  lex->value.string = ph_mem_alloc_size(mt_json,
+      ph_string_len(&lex->saved_text) + 1);
   if (!lex->value.string) {
     /* this is not very nice, since TOKEN_INVALID is returned */
     goto out;
@@ -520,8 +525,9 @@ static void lex_scan_string(lex_t *lex, ph_json_err_t *error)
           goto out;
         }
 
-        if (utf8_encode(value, buffer, &length))
-          assert(0);
+        if (utf8_encode(value, buffer, &length)) {
+          ph_panic("failed to UTF-8 encode u%04X", value);
+        }
 
         memcpy(t, buffer, length);
         t += length;
@@ -535,7 +541,8 @@ static void lex_scan_string(lex_t *lex, ph_json_err_t *error)
           case 'n': *t = '\n'; break;
           case 'r': *t = '\r'; break;
           case 't': *t = '\t'; break;
-          default: assert(0);
+          default:
+            ph_panic("unpossible escape sequence \\%c (%d)", *p, *p);
         }
         t++;
         p++;
@@ -550,6 +557,7 @@ static void lex_scan_string(lex_t *lex, ph_json_err_t *error)
 
 out:
   ph_mem_free(mt_json, lex->value.string);
+  lex->value.string = NULL;
 }
 
 static int ugh_strtod(ph_string_t *str, double *out)
@@ -558,7 +566,7 @@ static int ugh_strtod(ph_string_t *str, double *out)
   char *end;
 
   // Force strtod to operate on the JSON defined decimal point,
-  // regardless of the current local settings */
+  // regardless of the current locale settings */
   const char *ldp = localeconv()->decimal_point;
   if (*ldp != '.') {
     char *pos = memchr(str->buf, '.', str->len);
@@ -782,6 +790,8 @@ static void init_json_mem(void)
 static int lex_init(lex_t *lex, ph_stream_t *stm)
 {
   pthread_once(&var_once, init_json_mem);
+
+  memset(lex, 0, sizeof(*lex));
   stream_init(&lex->stream, stm);
 
   ph_string_init_claim(&lex->saved_text, PH_STRING_GROW_MT(mt_json),
@@ -803,9 +813,11 @@ static void lex_close(lex_t *lex)
 
 /*** parser ***/
 
-static ph_variant_t *parse_value(lex_t *lex, size_t flags, ph_json_err_t *error);
+static ph_variant_t *parse_value(lex_t *lex, size_t flags,
+    ph_json_err_t *error);
 
-static ph_variant_t *parse_object(lex_t *lex, size_t flags, ph_json_err_t *error)
+static ph_variant_t *parse_object(lex_t *lex, size_t flags,
+    ph_json_err_t *error)
 {
   ph_variant_t *object = ph_var_object(8);
 
@@ -984,7 +996,10 @@ static ph_variant_t *parse_json(lex_t *lex, size_t flags, ph_json_err_t *error)
 {
   ph_variant_t *result;
 
-  error->text[0] = 0;
+  if (error) {
+    error->text[0] = 0;
+  }
+
   lex_scan(lex, error);
   if (!(flags & PH_JSON_DECODE_ANY)) {
     if (lex->token != '[' && lex->token != '{') {

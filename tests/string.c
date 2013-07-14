@@ -93,7 +93,8 @@ static void utf16_tests(void)
     len = strlen(utf16_strings[i].output);
 
     ph_string_reset(&str);
-    is(ph_string_append_utf16_as_utf8(&str, &utf16_strings[i].cp, 1, &n), PH_OK);
+    is(ph_string_append_utf16_as_utf8(&str,
+          &utf16_strings[i].cp, 1, &n), PH_OK);
     is(n, len);
     ok(ph_string_equal_cstr(&str, utf16_strings[i].output), "matches");
 
@@ -109,13 +110,15 @@ static void utf16_tests(void)
     ok(ph_string_is_valid_utf8(&str), "valid utf-8");
     off = 0;
     is(ph_string_iterate_utf8_as_utf16(&str, &off, &cp), PH_OK);
-    diag("round-trip: expect %" PRIx32 " got %" PRIx32, utf16_strings[i].cp, cp);
+    diag("round-trip: expect %" PRIx32 " got %" PRIx32,
+        utf16_strings[i].cp, cp);
     is(cp, utf16_strings[i].cp);
   }
 
   for (i = 0; i < sizeof(surrogates)/sizeof(surrogates[0]); i++) {
     ph_string_reset(&str);
-    is(ph_string_append_utf16_as_utf8(&str, surrogates[i].points, 2, &n), PH_OK);
+    is(ph_string_append_utf16_as_utf8(&str,
+          surrogates[i].points, 2, &n), PH_OK);
     is(n, strlen(surrogates[i].encoded));
     off = 0;
     // We don't do any magical transformation of surrogates, and we don't

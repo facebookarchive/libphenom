@@ -33,6 +33,7 @@ libphenom_a_SOURCES = \
 	corelib/timerwheel.c \
 	corelib/vprintf.c \
 	corelib/variant/variant.c \
+	corelib/variant/json-dump.c \
 	corelib/variant/json-load.c \
 	corelib/hash/murmur.c \
 	corelib/hash/table.c \
