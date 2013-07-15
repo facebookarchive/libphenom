@@ -457,6 +457,75 @@ uint32_t ph_var_object_size(ph_variant_t *var)
   return ph_ht_size(&var->u.oval);
 }
 
+static bool obj_equal(ph_variant_t *a, ph_variant_t *b)
+{
+  ph_string_t *key;
+  ph_variant_t *v1, *v2;
+  ph_ht_iter_t iter;
+
+  if (ph_var_object_size(a) != ph_var_object_size(b)) {
+    return false;
+  }
+  if (ph_var_object_size(a) == 0) {
+    return true;
+  }
+
+  if (ph_var_object_iter_first(a, &iter, &key, &v1)) do {
+    v2 = ph_var_object_get(b, key);
+    if (!v2) {
+      return false;
+    }
+    if (!ph_var_equal(v1, v2)) {
+      return false;
+    }
+  } while (ph_var_object_iter_next(a, &iter, &key, &v1));
+
+  return true;
+}
+
+static bool arr_equal(ph_variant_t *a, ph_variant_t *b)
+{
+  uint32_t i, n;
+
+  n = ph_var_array_size(a);
+  if (ph_var_array_size(b) != n) {
+    return false;
+  }
+
+  for (i = 0; i < n; i++) {
+    if (!ph_var_equal(ph_var_array_get(a, i), ph_var_array_get(b, i))) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+bool ph_var_equal(ph_variant_t *a, ph_variant_t *b)
+{
+  if (a == b) {
+    return true;
+  }
+  if (a->type != b->type) {
+    return false;
+  }
+
+  switch (a->type) {
+    case PH_VAR_INTEGER:
+      return a->u.ival == b->u.ival;
+    case PH_VAR_REAL:
+      return a->u.dval == b->u.dval;
+    case PH_VAR_STRING:
+      return ph_string_equal(a->u.sval, b->u.sval);
+    case PH_VAR_OBJECT:
+      return obj_equal(a, b);
+    case PH_VAR_ARRAY:
+      return arr_equal(a, b);
+    default:
+      return false;
+  }
+}
+
 /* vim:ts=2:sw=2:et:
  */
 

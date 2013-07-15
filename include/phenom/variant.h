@@ -335,6 +335,23 @@ bool ph_var_object_ordered_iter_next(ph_variant_t *obj,
 void ph_var_object_ordered_iter_end(ph_variant_t *obj,
     ph_ht_ordered_iter_t *iter);
 
+/** Compare two variants for equality
+ *
+ * * Two integer or real values are equal if their contained numeric values
+ *   are equal.  An integer value is never equal to a real value.
+ * * Two strings are equal if their bit strings are equal, byte by byte.
+ * * Two arrays are equal if they have the same number of elements and each
+ *   element in the first array is equal to the corresponding element in the
+ *   second array.
+ * * Two objects are equal if they have exactly the same keys and the value
+ *   for each key in the first object is equal to the value of the corresponding
+ *   key in the second object.
+ * * Two true, false or null values are equal if their types are equal
+ *
+ * ph_var_equal() returns true if the values are equal, false otherwise.
+ */
+bool ph_var_equal(ph_variant_t *a, ph_variant_t *b);
+
 
 #ifdef __cplusplus
 }

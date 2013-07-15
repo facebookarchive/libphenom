@@ -206,7 +206,7 @@ static struct {
 
 static void test_json(void)
 {
-  ph_variant_t *v;
+  ph_variant_t *v, *v2;
   ph_json_err_t err;
   uint32_t i;
   PH_STRING_DECLARE_GROW(dumpstr, 128, mt_misc);
@@ -282,10 +282,52 @@ static void test_json(void)
     }
     ok(ph_string_equal_cstr(&dumpstr, expect), "matched");
 
+    v2 = ph_json_load_cstr(json_tests_2[i].json, PH_JSON_DECODE_ANY, NULL);
+    ok(ph_var_equal(v, v2), "equal to another load of itself");
+    ph_var_delref(v2);
+
     ph_var_delref(v);
   }
   ph_string_delref(&dumpstr);
+}
 
+static void test_equal(void)
+{
+  ph_variant_t *a, *b;
+
+  ok(ph_var_equal(NULL, NULL), "NULL == NULL");
+
+  a = ph_var_null();
+  ok(ph_var_equal(a, a), "null == null");
+  ph_var_delref(a);
+
+  a = ph_var_bool(true);
+  b = ph_var_bool(true);
+  ok(ph_var_equal(a, b), "true == true");
+  ph_var_delref(b);
+
+  b = ph_var_bool(false);
+  ok(!ph_var_equal(a, b), "true != false");
+  ph_var_delref(b);
+  ph_var_delref(a);
+
+  a = ph_var_int(1);
+  b = ph_var_int(1);
+  ok(ph_var_equal(a, b), "1 == 1");
+  ph_var_delref(b);
+  b = ph_var_int(2);
+  ok(!ph_var_equal(a, b), "1 != 2");
+  ph_var_delref(b);
+  ph_var_delref(a);
+
+  a = ph_var_double(1.2);
+  b = ph_var_double(1.2);
+  ok(ph_var_equal(a, b), "1.2 == 1.2");
+  ph_var_delref(b);
+  b = ph_var_double(2.0);
+  ok(!ph_var_equal(a, b), "1.2 != 2.0");
+  ph_var_delref(a);
+  ph_var_delref(b);
 }
 
 int main(int argc, char **argv)
@@ -298,7 +340,7 @@ int main(int argc, char **argv)
   unused_parameter(argc);
   unused_parameter(argv);
 
-  plan_tests(299);
+  plan_tests(339);
 
   mt_misc = ph_memtype_register(&mt_def);
 
@@ -427,6 +469,7 @@ int main(int argc, char **argv)
   ph_var_delref(obj);
 
   test_json();
+  test_equal();
 
   return exit_status();
 }
