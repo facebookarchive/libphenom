@@ -29,3 +29,7 @@ Phenom is known to compile and pass its test suite on:
  * Where possible, avoid contention points in our implementation so as to
    avoid limiting scalability with the number of cores in the system.
 
+## Docs
+
+Clone this repo and run `php mkdoc.php` and open `docs/phenom.html` in
+your browser to have the searchable docs at your fingertips.
