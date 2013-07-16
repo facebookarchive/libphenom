@@ -353,6 +353,15 @@ ph_variant_t *ph_var_object_get(ph_variant_t *obj, ph_string_t *key)
   return val;
 }
 
+ph_variant_t *ph_var_object_get_cstr(ph_variant_t *obj, const char *key)
+{
+  ph_string_t kstr;
+  uint32_t len = strlen(key);
+
+  ph_string_init_claim(&kstr, PH_STRING_STATIC, (char*)key, len, len);
+  return ph_var_object_get(obj, &kstr);
+}
+
 bool ph_var_object_iter_first(ph_variant_t *obj, ph_ht_iter_t *iter,
     ph_string_t **key, ph_variant_t **val)
 {

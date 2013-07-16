@@ -95,7 +95,6 @@ extern "C" {
  *   is useful in cases where the JSON will be embedded in e.g. HTML output.
  */
 
-#define PH_JSON_ERROR_TEXT_LENGTH    160
 
 #define PH_JSON_REJECT_DUPLICATES 0x1
 #define PH_JSON_DISABLE_EOF_CHECK 0x2
@@ -107,12 +106,6 @@ extern "C" {
 #define PH_JSON_SORT_KEYS      0x80
 #define PH_JSON_ESCAPE_SLASH   0x100
 
-struct ph_json_err {
-  uint32_t line, column, position;
-  char text[PH_JSON_ERROR_TEXT_LENGTH];
-};
-typedef struct ph_json_err ph_json_err_t;
-
 /** Parse JSON from a stream
  *
  * Attempt to parse and decode a JSON encoded data stream.
@@ -121,7 +114,7 @@ typedef struct ph_json_err ph_json_err_t;
  * some context on the failure.
  */
 ph_variant_t *ph_json_load_stream(ph_stream_t *stm, uint32_t flags,
-    ph_json_err_t *err);
+    ph_var_err_t *err);
 
 /** Parse JSON from a string
  *
@@ -131,12 +124,12 @@ ph_variant_t *ph_json_load_stream(ph_stream_t *stm, uint32_t flags,
  * some context on the failure.
  */
 ph_variant_t *ph_json_load_string(ph_string_t *str, uint32_t flags,
-    ph_json_err_t *err);
+    ph_var_err_t *err);
 
 /** Parse JSON from a C-string
  */
 ph_variant_t *ph_json_load_cstr(const char *cstr, uint32_t flags,
-    ph_json_err_t *err);
+    ph_var_err_t *err);
 
 /** Encode a variant as JSON, write to stream
  *

@@ -207,7 +207,7 @@ static struct {
 static void test_json(void)
 {
   ph_variant_t *v, *v2;
-  ph_json_err_t err;
+  ph_var_err_t err;
   uint32_t i;
   PH_STRING_DECLARE_GROW(dumpstr, 128, mt_misc);
 
@@ -330,6 +330,423 @@ static void test_equal(void)
   ph_var_delref(b);
 }
 
+static void test_pack(void)
+{
+  ph_variant_t *v, *v2;
+  ph_var_err_t err;
+  ph_string_t *str;
+  uint32_t i;
+
+  v = ph_var_pack(&err, "b", true);
+  ok(ph_var_bool_val(v), "made bool true");
+  ph_var_delref(v);
+
+  v = ph_var_pack(&err, "b", false);
+  ok(ph_var_is_boolean(v), "is bool");
+  ok(!ph_var_bool_val(v), "made bool false");
+  ph_var_delref(v);
+
+  v = ph_var_pack(&err, "n");
+  ok(ph_var_is_null(v), "is null");
+  ph_var_delref(v);
+
+  v = ph_var_pack(&err, "i", 42);
+  is(ph_var_int_val(v), 42);
+  ph_var_delref(v);
+
+  v = ph_var_pack(&err, "I", (int64_t)555555);
+  is(ph_var_int_val(v), 555555);
+  ph_var_delref(v);
+
+  v = ph_var_pack(&err, "f", 1.2);
+  is(ph_var_double_val(v), 1.2);
+  ph_var_delref(v);
+
+  v = ph_var_pack(&err, "z", "hello");
+  ok(ph_var_is_string(v), "is string");
+  ok(ph_string_equal_cstr(ph_var_string_val(v), "hello"), "is hello");
+  ph_var_delref(v);
+
+  v = ph_var_pack(&err, " z ", "hello");
+  ok(ph_var_is_string(v), "is string");
+  ok(ph_string_equal_cstr(ph_var_string_val(v), "hello"), "is hello");
+  ph_var_delref(v);
+
+  str = ph_string_make_cstr(mt_misc, "lemon");
+  v = ph_var_pack(&err, "s", str);
+  ok(ph_var_is_string(v), "is string");
+  ok(ph_string_equal_cstr(ph_var_string_val(v), "lemon"), "is lemon");
+  is(str->ref, 1);
+  ph_var_delref(v);
+
+  str = ph_string_make_cstr(mt_misc, "lemon");
+  v = ph_var_pack(&err, "S", str);
+  ok(ph_var_is_string(v), "is string");
+  ok(ph_string_equal_cstr(ph_var_string_val(v), "lemon"), "is lemon");
+  is(str->ref, 2);
+  ph_var_delref(v);
+  ph_string_delref(str);
+
+  v = ph_var_pack(&err, "{}");
+  ok(ph_var_is_object(v), "is obj");
+  is(ph_var_object_size(v), 0);
+  ph_var_delref(v);
+
+  v = ph_var_pack(&err, "[]");
+  ok(ph_var_is_array(v), "is array");
+  is(ph_var_array_size(v), 0);
+  ph_var_delref(v);
+
+  v = ph_var_pack(&err, "[ ]");
+  ok(ph_var_is_array(v), "is array");
+  is(ph_var_array_size(v), 0);
+  ph_var_delref(v);
+
+  v2 = ph_var_int(42);
+  v = ph_var_pack(&err, "o", v2);
+  is(v, v2);
+  is(v->ref, 1);
+
+  v = ph_var_pack(&err, "O", v2);
+  is(v, v2);
+  is(v->ref, 2);
+  ph_var_delref(v);
+  ph_var_delref(v2);
+
+  v = ph_var_pack(&err, "{s:[]}", "foo");
+  ok(ph_var_is_object(v), "is obj");
+  v2 = ph_var_object_get_cstr(v, "foo");
+  ok(ph_var_is_array(v2), "is array");
+  ph_var_delref(v);
+
+  v = ph_var_pack(&err, "[i,i,i]", 0, 1, 2);
+  ok(ph_var_is_array(v), "is array");
+  is(ph_var_array_size(v), 3);
+  for (i = 0; i < 3; i++) {
+    is(ph_var_int_val(ph_var_array_get(v, i)), i);
+  }
+  ph_var_delref(v);
+
+  v = ph_var_pack(&err, "[ i , i , i ]", 0, 1, 2);
+  ok(ph_var_is_array(v), "is array");
+  is(ph_var_array_size(v), 3);
+  for (i = 0; i < 3; i++) {
+    is(ph_var_int_val(ph_var_array_get(v, i)), i);
+  }
+  ph_var_delref(v);
+
+  is(ph_var_pack(&err, "{\n\n1"), 0);
+  is_string("<format>: Expected format 's', got '1'", err.text);
+
+  is(ph_var_pack(&err, "[}"), 0);
+  is_string("<format>: Unexpected format character '}'", err.text);
+
+  is(ph_var_pack(&err, "{]"), 0);
+  is_string("<format>: Expected format 's', got ']'", err.text);
+
+  is(ph_var_pack(&err, "["), 0);
+  is_string("<format>: Unexpected end of format string", err.text);
+
+  is(ph_var_pack(&err, "{"), 0);
+  is_string("<format>: Unexpected end of format string", err.text);
+
+  is(ph_var_pack(&err, "[i]a", 42), 0);
+  is_string("<format>: Garbage after format string", err.text);
+
+  is(ph_var_pack(&err, "ia", 42), 0);
+  is_string("<format>: Garbage after format string", err.text);
+
+  is(ph_var_pack(&err, NULL), 0);
+  is_string("<format>: NULL or empty format string", err.text);
+
+  is(ph_var_pack(&err, "z", NULL), 0);
+  is_string("<args>: NULL string argument", err.text);
+
+  is(ph_var_pack(&err, "{s:i}", NULL, 1), 0);
+  is_string("<args>: NULL object key", err.text);
+
+  is(ph_var_pack(&err, "{ {}: s }", "foo"), 0);
+  is_string("<format>: Expected format 's', got '{'", err.text);
+
+  is(ph_var_pack(&err, "{ s: {},  s:[ii{} }", "foo", "bar", 12, 13), 0);
+  is_string("<format>: Unexpected format character '}'", err.text);
+
+  is(ph_var_pack(&err, "[[[[[   [[[[[  [[[[ }]]]] ]]]] ]]]]]"), 0);
+  is_string("<format>: Unexpected format character '}'", err.text);
+}
+
+static void test_unpack(void)
+{
+  ph_variant_t *v, *v2;
+  ph_var_err_t err;
+  ph_string_t *str;
+  bool bval = false;
+  int ival, i1, i2, i3;
+  int64_t i64;
+  double dval;
+
+  v = ph_var_bool(true);
+  is(ph_var_unpack(v, &err, 0, "b", &bval), PH_OK);
+  is(bval, true);
+  ph_var_delref(v);
+
+  v = ph_var_bool(false);
+  is(ph_var_unpack(v, &err, 0, "b", &bval), PH_OK);
+  is(bval, false);
+  ph_var_delref(v);
+
+  v = ph_var_null();
+  is(ph_var_unpack(v, &err, 0, "n"), PH_OK);
+  ph_var_delref(v);
+
+  v = ph_var_int(42);
+  is(ph_var_unpack(v, &err, 0, "i", &ival), PH_OK);
+  is(ival, 42);
+  ph_var_delref(v);
+
+  v = ph_var_int(5555555);
+  is(ph_var_unpack(v, &err, 0, "I", &i64), PH_OK);
+  is(i64, 5555555);
+  ph_var_delref(v);
+
+  v = ph_var_double(1.7);
+  is(ph_var_unpack(v, &err, 0, "f", &dval), PH_OK);
+  is(1.7, dval);
+  ph_var_delref(v);
+
+  v = ph_var_int(12345);
+  is(ph_var_unpack(v, &err, 0, "F", &dval), PH_OK);
+  is(12345.0, dval);
+  ph_var_delref(v);
+
+  v = ph_var_string_make_cstr("foo");
+  is(ph_var_unpack(v, &err, 0, "s", &str), PH_OK);
+  is(ph_string_equal_cstr(str, "foo"), true);
+  is(str->ref, 1);
+  ph_var_delref(v);
+
+  v = ph_var_string_make_cstr("foo");
+  is(ph_var_unpack(v, &err, 0, "S", &str), PH_OK);
+  is(ph_string_equal_cstr(str, "foo"), true);
+  is(str->ref, 2);
+  ph_var_delref(v);
+  ph_string_delref(str);
+
+  v = ph_var_object(8);
+  is(ph_var_unpack(v, &err, 0, "{}"), PH_OK);
+  ph_var_delref(v);
+
+  v = ph_var_array(8);
+  is(ph_var_unpack(v, &err, 0, "[]"), PH_OK);
+  ph_var_delref(v);
+
+  v = ph_var_object(8);
+  is(ph_var_unpack(v, &err, 0, "o", &v2), PH_OK);
+  is(v, v2);
+  is(v->ref, 1);
+
+  is(ph_var_unpack(v, &err, 0, "O", &v2), PH_OK);
+  is(v, v2);
+  is(v->ref, 2);
+  ph_var_delref(v);
+  ph_var_delref(v2);
+
+  v = ph_var_pack(&err, "{s:i}", "foo", 42);
+  is(ph_var_unpack(v, &err, 0, "{s:i}", "foo", &ival), PH_OK);
+  is(ival, 42);
+  ph_var_delref(v);
+
+  v = ph_var_pack(&err, "[iii]", 1, 2, 3);
+  is(ph_var_unpack(v, &err, 0, "[iii]", &i1, &i2, &i3), PH_OK);
+  is(i1, 1); is(i2, 2); is(i3, 3);
+  ph_var_delref(v);
+
+  i1 = i2 = i3 = 0;
+  v = ph_var_pack(&err, "{s:i, s:i, s:i}", "a", 1, "b", 2, "c", 3);
+  is(ph_var_unpack(v, &err, 0,
+        "{s:i, s:i, s:i}", "a", &i1, "b", &i2, "c", &i3), PH_OK);
+  is(i1, 1); is(i2, 2); is(i3, 3);
+  ph_var_delref(v);
+
+  v = ph_var_int(42);
+  is(ph_var_unpack(v, &err, 0, "x"), PH_ERR);
+  is_string("<format>: Unexpected format character 'x'", err.text);
+  ph_var_delref(v);
+
+  is(ph_var_unpack(NULL, &err, 0, "x"), PH_ERR);
+  is_string("<root>: NULL root value", err.text);
+
+  v = ph_var_array(8);
+  is(ph_var_unpack(v, &err, 0, "[}"), PH_ERR);
+  is_string("<format>: Unexpected format character '}'", err.text);
+  ph_var_delref(v);
+
+  v = ph_var_object(8);
+  is(ph_var_unpack(v, &err, 0, "{]"), PH_ERR);
+  is_string("<format>: Expected format 's', got ']'", err.text);
+  ph_var_delref(v);
+
+  v = ph_var_array(8);
+  is(ph_var_unpack(v, &err, 0, "["), PH_ERR);
+  is_string("<format>: Unexpected end of format string", err.text);
+  ph_var_delref(v);
+
+  v = ph_var_object(8);
+  is(ph_var_unpack(v, &err, 0, "{"), PH_ERR);
+  is_string("<format>: Unexpected end of format string", err.text);
+  ph_var_delref(v);
+
+  v = ph_var_pack(&err, "[i]", 42);
+  is(ph_var_unpack(v, &err, 0, "[i]a", &ival), PH_ERR);
+  is_string("<format>: Garbage after format string", err.text);
+  ph_var_delref(v);
+
+  v = ph_var_pack(&err, "i", 42);
+  is(ph_var_unpack(v, &err, 0, "ia", &ival), PH_ERR);
+  is_string("<format>: Garbage after format string", err.text);
+  ph_var_delref(v);
+
+  v = ph_var_pack(&err, "i", 42);
+  is(ph_var_unpack(v, &err, 0, NULL), PH_ERR);
+  is_string("<format>: NULL or empty format string", err.text);
+  ph_var_delref(v);
+
+  v = ph_var_string_make_cstr("foobie");
+  is(ph_var_unpack(v, &err, 0, "s", NULL), PH_ERR);
+  is_string("<args>: NULL string argument", err.text);
+  ph_var_delref(v);
+
+  v = ph_var_int(42);
+  v2 = ph_var_string_make_cstr("foo");
+
+  is(ph_var_unpack(v, &err, 0, "s"), PH_ERR);
+  is_string("<validation>: Expected string, got integer", err.text);
+
+  is(ph_var_unpack(v, &err, 0, "n"), PH_ERR);
+  is_string("<validation>: Expected null, got integer", err.text);
+
+  is(ph_var_unpack(v, &err, 0, "b"), PH_ERR);
+  is_string("<validation>: Expected true or false, got integer", err.text);
+
+  is(ph_var_unpack(v2, &err, 0, "i"), PH_ERR);
+  is_string("<validation>: Expected integer, got string", err.text);
+
+  is(ph_var_unpack(v2, &err, 0, "I"), PH_ERR);
+  is_string("<validation>: Expected integer, got string", err.text);
+
+  is(ph_var_unpack(v, &err, 0, "f"), PH_ERR);
+  is_string("<validation>: Expected real, got integer", err.text);
+
+  is(ph_var_unpack(v2, &err, 0, "F"), PH_ERR);
+  is_string("<validation>: Expected real or integer, got string", err.text);
+
+  is(ph_var_unpack(v, &err, 0, "[i]"), PH_ERR);
+  is_string("<validation>: Expected array, got integer", err.text);
+
+  is(ph_var_unpack(v, &err, 0, "{si}", "foo"), PH_ERR);
+  is_string("<validation>: Expected object, got integer", err.text);
+
+  ph_var_delref(v);
+  ph_var_delref(v2);
+
+  v = ph_var_pack(&err, "[i]", 1);
+  is(ph_var_unpack(v, &err, 0, "[ii]", &i1, &i2), PH_ERR);
+  is_string("<validation>: Array index 1 out of range", err.text);
+  ph_var_delref(v);
+
+  v = ph_var_pack(&err, "{si}", "foo", 42);
+  is(ph_var_unpack(v, &err, 0, "{si}", NULL, &i1), PH_ERR);
+  is_string("<args>: NULL object key", err.text);
+
+  is(ph_var_unpack(v, &err, 0, "{si}", "baz", &i1), PH_ERR);
+  is_string("<validation>: Object item not found: baz", err.text);
+
+  ph_var_delref(v);
+
+  // Strict mode
+
+  v = ph_var_pack(&err, "[iii]", 1, 2, 3);
+  is(ph_var_unpack(v, &err, 0, "[iii!]", &i1, &i2, &i3), PH_OK);
+  ph_var_delref(v);
+
+  v = ph_var_pack(&err, "[iii]", 1, 2, 3);
+  is(ph_var_unpack(v, &err, 0, "[ii!]", &i1, &i2), PH_ERR);
+  is_string("<validation>: 1 array item(s) left unpacked", err.text);
+  ph_var_delref(v);
+
+  v = ph_var_pack(&err, "[iii]", 1, 2, 3);
+  is(ph_var_unpack(v, &err, PH_VAR_STRICT, "[ii]", &i1, &i2), PH_ERR);
+  is_string("<validation>: 1 array item(s) left unpacked", err.text);
+  ph_var_delref(v);
+
+  v = ph_var_pack(&err, "{s:z, s:i}", "foo", "bar", "baz", 42);
+  is(ph_var_unpack(v, &err, 0, "{ss, si!}", "foo", &str, "baz", &i1), PH_OK);
+  is(ph_string_equal_cstr(str, "bar"), true);
+  ph_var_delref(v);
+
+  v = ph_var_pack(&err, "{s:z, s:i}", "foo", "bar", "baz", 42);
+  is(ph_var_unpack(v, &err, 0, "{ss, ss!}", "foo", &str, "foo", &str), PH_ERR);
+  is_string("<validation>: 1 object item(s) left unpacked", err.text);
+  ph_var_delref(v);
+
+  v = ph_var_pack(&err, "[i,{s:i,s:n},[i,i]]", 1, "foo", 2, "bar", 3, 4);
+  is(ph_var_unpack(v, &err, PH_VAR_STRICT | PH_VAR_VALIDATE_ONLY,
+        "[i{sisn}[ii]]", "foo", "bar"), PH_OK);
+  ph_var_delref(v);
+
+  v = ph_var_pack(&err, "[ii]", 1, 2);
+  is(ph_var_unpack(v, &err, 0, "[i!i]", &i1, &i2), PH_ERR);
+  is_string("<format>: Expected ']' after '!', got 'i'", err.text);
+  ph_var_delref(v);
+
+  v = ph_var_pack(&err, "[ii]", 1, 2);
+  is(ph_var_unpack(v, &err, 0, "[i*i]", &i1, &i2), PH_ERR);
+  is_string("<format>: Expected ']' after '*', got 'i'", err.text);
+  ph_var_delref(v);
+
+  v = ph_var_pack(&err, "{s:z, s:i}", "foo", "bar", "baz", 42);
+  is(ph_var_unpack(v, &err, 0, "{ss,! si}", "foo", &str, "baz", &i1), PH_ERR);
+  is_string("<format>: Expected '}' after '!', got 's'", err.text);
+  is(ph_var_unpack(v, &err, 0, "{ss,* si}", "foo", &str, "baz", &i1), PH_ERR);
+  is_string("<format>: Expected '}' after '*', got 's'", err.text);
+  ph_var_delref(v);
+
+  v = ph_var_pack(&err, "{s{snsn}}", "foo", "bar", "baz");
+  is(ph_var_unpack(v, &err, 0, "{s{sn!}}", "foo", "bar"), PH_ERR);
+  is_string("<validation>: 1 object item(s) left unpacked", err.text);
+  ph_var_delref(v);
+
+  v = ph_var_pack(&err, "[[ii]]", 1, 2);
+  is(ph_var_unpack(v, &err, 0, "[[i!]]", &i1), PH_ERR);
+  is_string("<validation>: 1 array item(s) left unpacked", err.text);
+  ph_var_delref(v);
+
+  v = ph_var_object(2);
+  i1 = 0;
+  is(ph_var_unpack(v, &err, 0, "{s?i}", "foo", &i1), PH_OK);
+  is(i1, 0);
+  ph_var_delref(v);
+
+  i1 = 0;
+  v = ph_var_pack(&err, "{si}", "foo", 42);
+  is(ph_var_unpack(v, &err, 0, "{s?i}", "foo", &i1), PH_OK);
+  is(i1, 42);
+  ph_var_delref(v);
+
+  v = ph_var_object(2);
+  i1 = i2 = i3 = 0;
+  is(ph_var_unpack(v, &err, 0, "{s?[ii]s?{s{si}}}",
+      "foo", &i1, &i2, "bar", "baz", "quux", &i3), PH_OK);
+  is(i1, 0); is(i2, 0); is(i3, 0);
+  ph_var_delref(v);
+
+  v = ph_var_pack(&err, "{s{si}}", "foo", "bar", 42);
+  is(ph_var_unpack(v, &err, 0, "{s?{s?i}}", "foo", "bar", &i1), PH_OK);
+  is(i1, 42);
+  ph_var_delref(v);
+
+}
+
 int main(int argc, char **argv)
 {
   uint32_t i;
@@ -340,7 +757,7 @@ int main(int argc, char **argv)
   unused_parameter(argc);
   unused_parameter(argv);
 
-  plan_tests(339);
+  plan_tests(517);
 
   mt_misc = ph_memtype_register(&mt_def);
 
@@ -470,6 +887,8 @@ int main(int argc, char **argv)
 
   test_json();
   test_equal();
+  test_pack();
+  test_unpack();
 
   return exit_status();
 }

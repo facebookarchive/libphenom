@@ -35,6 +35,7 @@ libphenom_a_SOURCES = \
 	corelib/variant/variant.c \
 	corelib/variant/json-dump.c \
 	corelib/variant/json-load.c \
+	corelib/variant/pack.c \
 	corelib/hash/murmur.c \
 	corelib/hash/table.c \
 	corelib/streams/make.c \

@@ -80,12 +80,12 @@ static struct ph_memtype_def def = {
 
 /*** error reporting ***/
 
-static void error_set(ph_json_err_t *error, const lex_t *lex,
+static void error_set(ph_var_err_t *error, const lex_t *lex,
                       const char *msg, ...)
 {
   va_list ap;
-  char msg_text[PH_JSON_ERROR_TEXT_LENGTH];
-  char msg_with_context[PH_JSON_ERROR_TEXT_LENGTH];
+  char msg_text[PH_VAR_ERROR_TEXT_LENGTH];
+  char msg_with_context[PH_VAR_ERROR_TEXT_LENGTH];
   int line = -1, col = -1;
   size_t pos = 0;
   const char *result = msg_text;
@@ -211,7 +211,7 @@ static int utf8_check_full(const char *buffer, int size)
   return 1;
 }
 
-static int stream_get(stream_t *stream, ph_json_err_t *error)
+static int stream_get(stream_t *stream, ph_var_err_t *error)
 {
   int c;
 
@@ -298,7 +298,7 @@ static void stream_unget(stream_t *stream, int c)
 }
 
 
-static int lex_get(lex_t *lex, ph_json_err_t *error)
+static int lex_get(lex_t *lex, ph_var_err_t *error)
 {
   return stream_get(&lex->stream, error);
 }
@@ -310,7 +310,7 @@ static void lex_save(lex_t *lex, int c)
   ph_string_append_buf(&lex->saved_text, &b, 1);
 }
 
-static int lex_get_save(lex_t *lex, ph_json_err_t *error)
+static int lex_get_save(lex_t *lex, ph_var_err_t *error)
 {
   int c = stream_get(&lex->stream, error);
   if (c != STREAM_STATE_EOF && c != STREAM_STATE_ERROR)
@@ -398,7 +398,7 @@ static int utf8_encode(int32_t codepoint, char *buffer, int *size)
   return 0;
 }
 
-static void lex_scan_string(lex_t *lex, ph_json_err_t *error)
+static void lex_scan_string(lex_t *lex, ph_var_err_t *error)
 {
   int c;
   const char *p;
@@ -588,7 +588,7 @@ static int ugh_strtod(ph_string_t *str, double *out)
   return 0;
 }
 
-static int lex_scan_number(lex_t *lex, int c, ph_json_err_t *error)
+static int lex_scan_number(lex_t *lex, int c, ph_var_err_t *error)
 {
   const char *saved_text;
   char *end;
@@ -692,7 +692,7 @@ out:
   return -1;
 }
 
-static int lex_scan(lex_t *lex, ph_json_err_t *error)
+static int lex_scan(lex_t *lex, ph_var_err_t *error)
 {
   int c;
 
@@ -814,10 +814,10 @@ static void lex_close(lex_t *lex)
 /*** parser ***/
 
 static ph_variant_t *parse_value(lex_t *lex, size_t flags,
-    ph_json_err_t *error);
+    ph_var_err_t *error);
 
 static ph_variant_t *parse_object(lex_t *lex, size_t flags,
-    ph_json_err_t *error)
+    ph_var_err_t *error)
 {
   ph_variant_t *object = ph_var_object(8);
 
@@ -892,7 +892,7 @@ error:
   return NULL;
 }
 
-static ph_variant_t *parse_array(lex_t *lex, size_t flags, ph_json_err_t *error)
+static ph_variant_t *parse_array(lex_t *lex, size_t flags, ph_var_err_t *error)
 {
   ph_variant_t *array = ph_var_array(8);
 
@@ -936,7 +936,7 @@ error:
   return NULL;
 }
 
-static ph_variant_t *parse_value(lex_t *lex, size_t flags, ph_json_err_t *error)
+static ph_variant_t *parse_value(lex_t *lex, size_t flags, ph_var_err_t *error)
 {
   ph_variant_t *json = NULL;
   ph_string_t *str;
@@ -992,7 +992,7 @@ static ph_variant_t *parse_value(lex_t *lex, size_t flags, ph_json_err_t *error)
   return json;
 }
 
-static ph_variant_t *parse_json(lex_t *lex, size_t flags, ph_json_err_t *error)
+static ph_variant_t *parse_json(lex_t *lex, size_t flags, ph_var_err_t *error)
 {
   ph_variant_t *result;
 
@@ -1030,7 +1030,7 @@ static ph_variant_t *parse_json(lex_t *lex, size_t flags, ph_json_err_t *error)
 }
 
 ph_variant_t *ph_json_load_stream(ph_stream_t *stm, uint32_t flags,
-    ph_json_err_t *err)
+    ph_var_err_t *err)
 {
   lex_t lex;
   ph_variant_t *v;
@@ -1043,7 +1043,7 @@ ph_variant_t *ph_json_load_stream(ph_stream_t *stm, uint32_t flags,
 }
 
 ph_variant_t *ph_json_load_string(ph_string_t *str, uint32_t flags,
-    ph_json_err_t *err)
+    ph_var_err_t *err)
 {
   ph_stream_t *stm;
   ph_variant_t *v;
@@ -1061,13 +1061,59 @@ ph_variant_t *ph_json_load_string(ph_string_t *str, uint32_t flags,
 }
 
 ph_variant_t *ph_json_load_cstr(const char *cstr, uint32_t flags,
-    ph_json_err_t *err)
+    ph_var_err_t *err)
 {
   ph_string_t str;
   uint32_t len = strlen(cstr);
 
   ph_string_init_claim(&str, PH_STRING_STATIC, (char*)cstr, len, len);
   return ph_json_load_string(&str, flags, err);
+}
+
+/* These live in here because they have access to the mt_json memtype
+ * defined in this file and I'm too lazy to export it out of here
+ */
+
+ph_variant_t *ph_var_string_make_cstr(const char *cstr)
+{
+  ph_string_t *str;
+  ph_variant_t *var;
+
+  pthread_once(&var_once, init_json_mem);
+
+  str = ph_string_make_cstr(mt_json, cstr);
+  if (!str) {
+    return 0;
+  }
+
+  var = ph_var_string_claim(str);
+  if (!var) {
+    ph_string_delref(str);
+  }
+
+  return var;
+}
+
+ph_result_t ph_var_object_set_claim_cstr(ph_variant_t *obj,
+    const char *cstr, ph_variant_t *val)
+{
+  ph_string_t *str;
+  ph_result_t res;
+
+  pthread_once(&var_once, init_json_mem);
+
+  str = ph_string_make_cstr(mt_json, cstr);
+  if (!str) {
+    return PH_NOMEM;
+  }
+
+  res = ph_var_object_set_claim_kv(obj, str, val);
+
+  if (res != PH_OK) {
+    ph_string_delref(str);
+  }
+
+  return res;
 }
 
 /* vim:ts=2:sw=2:et:
