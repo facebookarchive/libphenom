@@ -88,12 +88,15 @@ typedef struct ck_hs_iterator ck_hs_iterator_t;
 
 void ck_hs_iterator_init(ck_hs_iterator_t *);
 bool ck_hs_next(ck_hs_t *, ck_hs_iterator_t *, void **);
+bool ck_hs_move(ck_hs_t *, ck_hs_t *, ck_hs_hash_cb_t *,
+    ck_hs_compare_cb_t *, struct ck_malloc *);
 bool ck_hs_init(ck_hs_t *, unsigned int, ck_hs_hash_cb_t *,
     ck_hs_compare_cb_t *, struct ck_malloc *, unsigned long, unsigned long);
 void ck_hs_destroy(ck_hs_t *);
 void *ck_hs_get(ck_hs_t *, unsigned long, const void *);
 bool ck_hs_put(ck_hs_t *, unsigned long, const void *);
 bool ck_hs_set(ck_hs_t *, unsigned long, const void *, void **);
+bool ck_hs_fas(ck_hs_t *, unsigned long, const void *, void **);
 void *ck_hs_remove(ck_hs_t *, unsigned long, const void *);
 bool ck_hs_grow(ck_hs_t *, unsigned long);
 unsigned long ck_hs_count(ck_hs_t *);

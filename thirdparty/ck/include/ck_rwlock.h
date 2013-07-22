@@ -27,6 +27,7 @@
 #ifndef _CK_RWLOCK_H
 #define _CK_RWLOCK_H
 
+#include <ck_elide.h>
 #include <ck_pr.h>
 #include <stdbool.h>
 #include <stddef.h>
@@ -58,6 +59,14 @@ ck_rwlock_write_unlock(ck_rwlock_t *rw)
 	return;
 }
 
+CK_CC_INLINE static bool
+ck_rwlock_locked_writer(ck_rwlock_t *rw)
+{
+
+	ck_pr_fence_load();
+	return ck_pr_load_uint(&rw->writer);
+}
+
 CK_CC_INLINE static void
 ck_rwlock_write_downgrade(ck_rwlock_t *rw)
 {
@@ -68,13 +77,25 @@ ck_rwlock_write_downgrade(ck_rwlock_t *rw)
 }
 
 CK_CC_INLINE static bool
+ck_rwlock_locked(ck_rwlock_t *rw)
+{
+	unsigned int r;
+
+	ck_pr_fence_load();
+	r = ck_pr_load_uint(&rw->writer);
+	ck_pr_fence_load();
+
+	return ck_pr_load_uint(&rw->n_readers) | r;
+}
+
+CK_CC_INLINE static bool
 ck_rwlock_write_trylock(ck_rwlock_t *rw)
 {
 
 	if (ck_pr_fas_uint(&rw->writer, 1) != 0)
 		return false;
 
-	ck_pr_fence_atomic_load();
+	ck_pr_fence_memory();
 
 	if (ck_pr_load_uint(&rw->n_readers) != 0) {
 		ck_rwlock_write_unlock(rw);
@@ -84,6 +105,9 @@ ck_rwlock_write_trylock(ck_rwlock_t *rw)
 	return true;
 }
 
+CK_ELIDE_TRYLOCK_PROTOTYPE(ck_rwlock_write, ck_rwlock_t,
+    ck_rwlock_locked, ck_rwlock_write_trylock)
+
 CK_CC_INLINE static void
 ck_rwlock_write_lock(ck_rwlock_t *rw)
 {
@@ -91,13 +115,17 @@ ck_rwlock_write_lock(ck_rwlock_t *rw)
 	while (ck_pr_fas_uint(&rw->writer, 1) != 0)
 		ck_pr_stall();
 
-	ck_pr_fence_atomic_load();
+	ck_pr_fence_memory();
 
 	while (ck_pr_load_uint(&rw->n_readers) != 0)
 		ck_pr_stall();
 
 	return;
 }
+
+CK_ELIDE_PROTOTYPE(ck_rwlock_write, ck_rwlock_t,
+    ck_rwlock_locked, ck_rwlock_write_lock,
+    ck_rwlock_locked_writer, ck_rwlock_write_unlock)
 
 CK_CC_INLINE static bool
 ck_rwlock_read_trylock(ck_rwlock_t *rw)
@@ -112,7 +140,7 @@ ck_rwlock_read_trylock(ck_rwlock_t *rw)
 	 * Serialize with respect to concurrent write
 	 * lock operation.
 	 */
-	ck_pr_fence_atomic_load();
+	ck_pr_fence_memory();
 
 	if (ck_pr_load_uint(&rw->writer) == 0) {
 		ck_pr_fence_load();
@@ -122,6 +150,9 @@ ck_rwlock_read_trylock(ck_rwlock_t *rw)
 	ck_pr_dec_uint(&rw->n_readers);
 	return false;
 }
+
+CK_ELIDE_TRYLOCK_PROTOTYPE(ck_rwlock_read, ck_rwlock_t,
+    ck_rwlock_locked_writer, ck_rwlock_read_trylock)
 
 CK_CC_INLINE static void
 ck_rwlock_read_lock(ck_rwlock_t *rw)
@@ -141,12 +172,21 @@ ck_rwlock_read_lock(ck_rwlock_t *rw)
 
 		if (ck_pr_load_uint(&rw->writer) == 0)
 			break;
+
 		ck_pr_dec_uint(&rw->n_readers);
 	}
 
 	/* Acquire semantics are necessary. */
 	ck_pr_fence_load();
 	return;
+}
+
+CK_CC_INLINE static bool
+ck_rwlock_locked_reader(ck_rwlock_t *rw)
+{
+
+	ck_pr_fence_load();
+	return ck_pr_load_uint(&rw->n_readers);
 }
 
 CK_CC_INLINE static void
@@ -157,6 +197,10 @@ ck_rwlock_read_unlock(ck_rwlock_t *rw)
 	ck_pr_dec_uint(&rw->n_readers);
 	return;
 }
+
+CK_ELIDE_PROTOTYPE(ck_rwlock_read, ck_rwlock_t,
+    ck_rwlock_locked_writer, ck_rwlock_read_lock,
+    ck_rwlock_locked_reader, ck_rwlock_read_unlock)
 
 /*
  * Recursive writer reader-writer lock implementation.
@@ -181,7 +225,7 @@ ck_rwlock_recursive_write_lock(ck_rwlock_recursive_t *rw, unsigned int tid)
 	while (ck_pr_cas_uint(&rw->rw.writer, 0, tid) == false)
 		ck_pr_stall();
 
-	ck_pr_fence_atomic_load();
+	ck_pr_fence_memory();
 
 	while (ck_pr_load_uint(&rw->rw.n_readers) != 0)
 		ck_pr_stall();
@@ -203,7 +247,7 @@ ck_rwlock_recursive_write_trylock(ck_rwlock_recursive_t *rw, unsigned int tid)
 	if (ck_pr_cas_uint(&rw->rw.writer, 0, tid) == false)
 		return false;
 
-	ck_pr_fence_atomic_load();
+	ck_pr_fence_memory();
 
 	if (ck_pr_load_uint(&rw->rw.n_readers) != 0) {
 		ck_pr_store_uint(&rw->rw.writer, 0);
@@ -251,3 +295,4 @@ ck_rwlock_recursive_read_unlock(ck_rwlock_recursive_t *rw)
 }
 
 #endif /* _CK_RWLOCK_H */
+

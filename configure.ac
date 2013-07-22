@@ -42,6 +42,19 @@ AC_ARG_ENABLE(lenient, [
    lenient=$enableval
 ])
 
+rtm=no
+AC_ARG_ENABLE(rtm, [
+  --enable-rtm Turn on support for Intel TSX extensions
+],[
+   rtm=$enableval
+])
+
+if test "$rtm" == "yes" ; then
+    RTM_ENABLE=CK_MD_RTM_ENABLE
+else
+    RTM_ENABLE=CK_MD_RTM_DISABLE
+fi
+
 stack_protect=no
 AC_ARG_ENABLE(stack-protector, [
   --enable-stack-protector  Enable stack protection in the same
@@ -174,6 +187,7 @@ AC_SUBST(MM)
 AC_SUBST(VMA_BITS)
 AC_SUBST(VMA_BITS_VALUE)
 AC_SUBST(POINTER_PACK_ENABLE)
+AC_SUBST(RTM_ENABLE)
 
 # Do this after we've looked for functions
 if test -n "$GCC" ; then

@@ -29,6 +29,7 @@
 
 #include <ck_backoff.h>
 #include <ck_cc.h>
+#include <ck_elide.h>
 #include <ck_limits.h>
 #include <ck_md.h>
 #include <ck_pr.h>
@@ -102,6 +103,18 @@ ck_spinlock_anderson_init(struct ck_spinlock_anderson *lock,
 
 	ck_pr_fence_store();
 	return;
+}
+
+CK_CC_INLINE static bool
+ck_spinlock_anderson_locked(struct ck_spinlock_anderson *lock)
+{
+	unsigned int position;
+
+	ck_pr_fence_load();
+	position = ck_pr_load_uint(&lock->next) & lock->mask;
+	ck_pr_fence_load();
+
+	return ck_pr_load_uint(&lock->slots[position].locked);
 }
 
 CK_CC_INLINE static void
@@ -201,6 +214,7 @@ CK_CC_INLINE static bool
 ck_spinlock_fas_locked(struct ck_spinlock_fas *lock)
 {
 
+	ck_pr_fence_load();
 	return ck_pr_load_uint(&lock->value);
 }
 
@@ -237,6 +251,14 @@ ck_spinlock_fas_unlock(struct ck_spinlock_fas *lock)
 	ck_pr_store_uint(&lock->value, false);
 	return;
 }
+
+CK_ELIDE_PROTOTYPE(ck_spinlock_fas, ck_spinlock_fas_t,
+    ck_spinlock_fas_locked, ck_spinlock_fas_lock,
+    ck_spinlock_fas_locked, ck_spinlock_fas_unlock)
+
+CK_ELIDE_TRYLOCK_PROTOTYPE(ck_spinlock_fas, ck_spinlock_fas_t,
+    ck_spinlock_fas_locked, ck_spinlock_fas_trylock)
+
 #endif /* CK_F_SPINLOCK_FAS */
 
 #ifndef CK_F_SPINLOCK_CAS
@@ -275,6 +297,7 @@ CK_CC_INLINE static bool
 ck_spinlock_cas_locked(struct ck_spinlock_cas *lock)
 {
 
+	ck_pr_fence_load();
 	return ck_pr_load_uint(&lock->value);
 }
 
@@ -312,6 +335,14 @@ ck_spinlock_cas_unlock(struct ck_spinlock_cas *lock)
 	ck_pr_store_uint(&lock->value, false);
 	return;
 }
+
+CK_ELIDE_PROTOTYPE(ck_spinlock_cas, ck_spinlock_cas_t,
+    ck_spinlock_cas_locked, ck_spinlock_cas_lock,
+    ck_spinlock_cas_locked, ck_spinlock_cas_unlock)
+
+CK_ELIDE_TRYLOCK_PROTOTYPE(ck_spinlock_cas, ck_spinlock_cas_t,
+    ck_spinlock_cas_locked, ck_spinlock_cas_trylock)
+
 #endif /* CK_F_SPINLOCK_CAS */
 
 #ifndef CK_F_SPINLOCK_DEC
@@ -346,6 +377,7 @@ CK_CC_INLINE static bool
 ck_spinlock_dec_locked(struct ck_spinlock_dec *lock)
 {
 
+	ck_pr_fence_load();
 	return ck_pr_load_uint(&lock->value) != 1;
 }
 
@@ -401,6 +433,14 @@ ck_spinlock_dec_unlock(struct ck_spinlock_dec *lock)
 	ck_pr_store_uint(&lock->value, 1);
 	return;
 }
+
+CK_ELIDE_PROTOTYPE(ck_spinlock_dec, ck_spinlock_dec_t,
+    ck_spinlock_dec_locked, ck_spinlock_dec_lock,
+    ck_spinlock_dec_locked, ck_spinlock_dec_unlock)
+
+CK_ELIDE_TRYLOCK_PROTOTYPE(ck_spinlock_dec, ck_spinlock_dec_t,
+    ck_spinlock_dec_locked, ck_spinlock_dec_trylock)
+
 #endif /* CK_F_SPINLOCK_DEC */
 
 #ifndef CK_F_SPINLOCK_TICKET
@@ -452,6 +492,20 @@ ck_spinlock_ticket_init(struct ck_spinlock_ticket *ticket)
 	return;
 }
 
+CK_CC_INLINE static bool
+ck_spinlock_ticket_locked(struct ck_spinlock_ticket *ticket)
+{
+	CK_SPINLOCK_TICKET_TYPE request, position;
+
+	ck_pr_fence_load();
+
+	request = CK_SPINLOCK_TICKET_LOAD(&ticket->value);
+	position = request & CK_SPINLOCK_TICKET_MASK;
+	request >>= CK_SPINLOCK_TICKET_SHIFT;
+
+	return request != position;
+}
+
 CK_CC_INLINE static void
 ck_spinlock_ticket_lock(struct ck_spinlock_ticket *ticket)
 {
@@ -492,7 +546,7 @@ ck_spinlock_ticket_lock_pb(struct ck_spinlock_ticket *ticket, unsigned int c)
 		position = CK_SPINLOCK_TICKET_LOAD(&ticket->value) &
 		    CK_SPINLOCK_TICKET_MASK;
 
-		backoff = request - position;
+		backoff = (request - position) & CK_SPINLOCK_TICKET_MASK;
 		backoff <<= c;
 		ck_backoff_eb(&backoff);
 	}
@@ -527,7 +581,7 @@ ck_spinlock_ticket_unlock(struct ck_spinlock_ticket *ticket)
 {
 
 	ck_pr_fence_memory();
-	CK_SPINLOCK_TICKET_INC((CK_SPINLOCK_TICKET_TYPE_BASE *)(void*)&ticket->value);
+	CK_SPINLOCK_TICKET_INC((CK_SPINLOCK_TICKET_TYPE_BASE *)(void *)&ticket->value);
 	return;
 }
 
@@ -563,6 +617,17 @@ ck_spinlock_ticket_init(struct ck_spinlock_ticket *ticket)
 	return;
 }
 
+CK_CC_INLINE static bool
+ck_spinlock_ticket_locked(struct ck_spinlock_ticket *ticket)
+{
+	unsigned int request;
+
+	ck_pr_fence_load();
+	request = ck_pr_load_uint(&ticket->next);
+	ck_pr_fence_load();
+	return ck_pr_load_uint(&ticket->position) != request;
+}
+
 CK_CC_INLINE static void
 ck_spinlock_ticket_lock(struct ck_spinlock_ticket *ticket)
 {
@@ -596,8 +661,7 @@ ck_spinlock_ticket_lock_pb(struct ck_spinlock_ticket *ticket, unsigned int c)
 		if (position == request)
 			break;
 
-		/* Overflow is handled fine, assuming 2s complement. */
-		backoff = (request - position);
+		backoff = request - position;
 		backoff <<= c;
 
 		/*
@@ -630,6 +694,14 @@ ck_spinlock_ticket_unlock(struct ck_spinlock_ticket *ticket)
 	return;
 }
 #endif /* !CK_F_SPINLOCK_TICKET_TRYLOCK */
+
+CK_ELIDE_PROTOTYPE(ck_spinlock_ticket, ck_spinlock_ticket_t,
+    ck_spinlock_ticket_locked, ck_spinlock_ticket_lock,
+    ck_spinlock_ticket_locked, ck_spinlock_ticket_unlock)
+
+CK_ELIDE_TRYLOCK_PROTOTYPE(ck_spinlock_ticket, ck_spinlock_ticket_t,
+    ck_spinlock_ticket_locked, ck_spinlock_ticket_trylock)
+
 #endif /* CK_F_SPINLOCK_TICKET */
 
 #ifndef CK_F_SPINLOCK_MCS
@@ -674,6 +746,7 @@ CK_CC_INLINE static bool
 ck_spinlock_mcs_locked(struct ck_spinlock_mcs **queue)
 {
 
+	ck_pr_fence_load();
 	return ck_pr_load_ptr(queue) != NULL;
 }
 
@@ -766,13 +839,24 @@ ck_spinlock_clh_init(struct ck_spinlock_clh **lock, struct ck_spinlock_clh *unow
 	return;
 }
 
+CK_CC_INLINE static bool
+ck_spinlock_clh_locked(struct ck_spinlock_clh **queue)
+{
+	struct ck_spinlock_clh *head;
+
+	ck_pr_fence_load();
+	head = ck_pr_load_ptr(queue);
+	ck_pr_fence_load();
+	return ck_pr_load_uint(&head->wait);
+}
+
 CK_CC_INLINE static void
 ck_spinlock_clh_lock(struct ck_spinlock_clh **queue, struct ck_spinlock_clh *thread)
 {
 	struct ck_spinlock_clh *previous;
 
 	/* Indicate to the next thread on queue that they will have to block. */
-	ck_pr_store_uint(&thread->wait, true);
+	thread->wait = true;
 	ck_pr_fence_store();
 
 	/* Mark current request as last request. Save reference to previous request. */
@@ -814,6 +898,13 @@ ck_spinlock_clh_unlock(struct ck_spinlock_clh **thread)
 	return;
 }
 #endif /* CK_F_SPINLOCK_CLH */
+
+CK_ELIDE_PROTOTYPE(ck_spinlock, ck_spinlock_t,
+    ck_spinlock_locked, ck_spinlock_lock,
+    ck_spinlock_locked, ck_spinlock_unlock)
+
+CK_ELIDE_TRYLOCK_PROTOTYPE(ck_spinlock, ck_spinlock_t,
+    ck_spinlock_locked, ck_spinlock_trylock)
 
 #endif /* _CK_SPINLOCK_H */
 

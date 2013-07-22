@@ -42,6 +42,13 @@
  */
 #include "ck_f_pr.h"
 
+/*
+ * Support for TSX extensions.
+ */
+#ifdef CK_MD_RTM_ENABLE
+#include "ck_pr_rtm.h"
+#endif
+
 /* Minimum requirements for the CK_PR interface are met. */
 #define CK_F_PR
 
@@ -69,6 +76,7 @@ ck_pr_stall(void)
 		__asm__ __volatile__(I ::: "memory");	\
 	}
 
+CK_PR_FENCE(atomic, "sfence")
 CK_PR_FENCE(atomic_store, "sfence")
 CK_PR_FENCE(atomic_load, "mfence")
 CK_PR_FENCE(store_atomic, "sfence")
