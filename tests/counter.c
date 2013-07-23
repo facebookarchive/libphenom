@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include "phenom/sysutil.h"
 #include "phenom/counter.h"
 #include "tap.h"
 #include <ck_pr.h>
@@ -121,6 +122,11 @@ static void basicCounterFunctionality(void)
   ph_counter_scope_t *iter_scope;
   while ((iter_scope = ph_counter_scope_iterator_next(&iter)) != NULL) {
     int i;
+
+    if (strncmp(ph_counter_scope_get_name(iter_scope), "test1", 5)) {
+      continue;
+    }
+
     num_slots = ph_counter_scope_get_view(iter_scope, 10,
         view_slots, view_names);
 
@@ -146,7 +152,7 @@ static void basicCounterFunctionality(void)
   };
   int num_expected = sizeof(expected_data) / sizeof(expected_data[0]);
 
-  is(num_expected, n_counters);
+  is_int(num_expected, n_counters);
 
   for (int i = 0; i < n_counters; i++) {
     is_string(expected_data[i].scope_name,
@@ -222,6 +228,7 @@ int main(int argc, char** argv)
   unused_parameter(argc);
   unused_parameter(argv);
 
+  ph_library_init();
   plan_tests(39);
   basicCounterFunctionality();
   concurrentCounters();

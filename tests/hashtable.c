@@ -56,6 +56,7 @@ int main(int argc, char **argv)
   unused_parameter(argc);
   unused_parameter(argv);
 
+  ph_library_init();
   plan_tests(217);
 
   mt_misc = ph_memtype_register(&mt_def);

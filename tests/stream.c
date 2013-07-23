@@ -30,9 +30,9 @@ int main(int argc, char **argv)
   unused_parameter(argc);
   unused_parameter(argv);
 
-  plan_tests(19);
+  ph_library_init();
+  plan_tests(18);
 
-  is(PH_OK, ph_stm_init());
   strcpy(namebuf, "/tmp/phenomXXXXXX");
   fd = ph_mkostemp(namebuf, 0);
   diag("opened %s -> %d", namebuf, fd);

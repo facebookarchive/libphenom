@@ -76,6 +76,7 @@ int main(int argc, char **argv)
   unused_parameter(argc);
   unused_parameter(argv);
 
+  ph_library_init();
   plan_tests(13);
 
   is(PH_OK, ph_nbio_init(0));

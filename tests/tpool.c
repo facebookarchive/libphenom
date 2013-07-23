@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include "phenom/sysutil.h"
 #include "phenom/job.h"
 #include "phenom/log.h"
 #include "tap.h"
@@ -114,6 +115,7 @@ int main(int argc, char **argv)
   unused_parameter(argc);
   unused_parameter(argv);
 
+  ph_library_init();
   plan_tests(11);
 
   is(PH_OK, ph_nbio_init(0));

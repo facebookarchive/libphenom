@@ -90,6 +90,7 @@ void todo_end(void);
 int exit_status(void);
 
 #define is(a, b)        ok(a == b, "%s == %s", #a, #b)
+#define is_int(a, b)    ok(a == b, "%s %d == %s %d", #a, (int)a, #b, (int)b)
 #define is_true(what)   ok(what, #what)
 #define is_string(a, b) ok(!strcmp(a, b), "%s == %s", a, b)
 

@@ -134,8 +134,6 @@ static void string_stream_tests(void)
   char buf[5];
   uint64_t r;
 
-  is(PH_OK, ph_stm_init());
-
   str = ph_string_make_empty(mt_misc, 16);
   stm = ph_stm_string_open(str);
   ok(stm, "made a stream");
@@ -172,7 +170,8 @@ int main(int argc, char **argv)
   unused_parameter(argc);
   unused_parameter(argv);
 
-  plan_tests(103);
+  ph_library_init();
+  plan_tests(102);
 
   mt_misc = ph_memtype_register(&mt_def);
 

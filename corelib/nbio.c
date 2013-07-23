@@ -295,6 +295,10 @@ ph_result_t ph_nbio_init(uint32_t sched_cores)
 {
   ph_thread_t *me;
 
+  if (counter_scope) {
+    return PH_OK;
+  }
+
   if (sched_cores == 0) {
     /* Pick a reasonable default */
     sched_cores = ph_num_cores() / 2;
@@ -308,7 +312,6 @@ ph_result_t ph_nbio_init(uint32_t sched_cores)
     return PH_NOMEM;
   }
 
-  ph_thread_init();
   me = ph_thread_self_slow();
   me->is_worker = true;
 
@@ -317,8 +320,6 @@ ph_result_t ph_nbio_init(uint32_t sched_cores)
   ph_thread_set_name("phenom:sched");
 
   ph_timerwheel_init(&wheel, me->now, WHEEL_INTERVAL_MS);
-
-  ph_job_pool_init();
 
   counter_scope = ph_counter_scope_define(NULL, "iosched", 16);
   ph_counter_scope_register_counter_block(

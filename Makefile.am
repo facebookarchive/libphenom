@@ -18,6 +18,7 @@ libphenom_a_CPPFLAGS = \
 	-DPHENOM_IMPL=1
 libphenom_a_CFLAGS = @IRONMANCFLAGS@
 libphenom_a_SOURCES = \
+	corelib/init.c \
 	corelib/counter.c \
 	corelib/dtoa.c \
 	corelib/error.c \

@@ -211,8 +211,6 @@ static void test_json(void)
   uint32_t i;
   PH_STRING_DECLARE_GROW(dumpstr, 128, mt_misc);
 
-  ph_stm_init();
-
   // Couple of one-offs to test actual object values
   v = ph_json_load_cstr("42", 0, &err);
   is(v, 0); // Default is to parse objects or arrays
@@ -757,6 +755,7 @@ int main(int argc, char **argv)
   unused_parameter(argc);
   unused_parameter(argv);
 
+  ph_library_init();
   plan_tests(517);
 
   mt_misc = ph_memtype_register(&mt_def);

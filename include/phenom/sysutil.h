@@ -71,6 +71,9 @@ char *ph_dtoa(double _d, int mode, int ndigits,
     int *decpt, int *sign, char **rve);
 double ph_strtod(const char *s00, const char **se);
 
+/** Initialize the library */
+ph_result_t ph_library_init(void);
+
 struct timeval ph_time_now(void);
 
 /** round up to next power of 2 */
