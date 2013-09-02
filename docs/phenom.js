@@ -336,7 +336,10 @@ function hash_changed() {
   if (show_topic_for_hash(hash)) {
     // If we changed the content, let's scroll to the correct
     // position, as we may be stuck at the wrong position
-    var target = $('#' + hash + ', a[name="' + hash + '"]');
+    var target = null;
+    if (hash.length) {
+      target = $('#' + hash + ', a[name="' + hash + '"]');
+    }
     if (target && target.offset()) {
       window.scroll(0, target.offset().top - 20);
     } else {
