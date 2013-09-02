@@ -207,9 +207,40 @@ static void tick_epoll(ph_job_t *job, ph_iomask_t why, void *data)
   ph_job_set_nbio(job, PH_IOMASK_READ, 0);
 }
 
+#ifndef TFD_CLOEXEC
+# define TFD_CLOEXEC 02000000
+#endif
+#ifndef TFD_NONBLOCK
+# define TFD_NONBLOCK 04000
+#endif
+
+#ifndef HAVE_TIMERFD_CREATE
+# include <sys/syscall.h>
+
+#ifndef SYS_timerfd_create
+# define SYS_timerfd_create 283
+#endif
+#ifndef SYS_timerfd_settime
+# define SYS_timerfd_settime 286
+#endif
+
+static int timerfd_create(int clockid, int flags)
+{
+  return syscall(SYS_timerfd_create, clockid, flags);
+}
+
+static int timerfd_settime(int fd, int flags,
+  const struct itimerspec *new_value,
+  struct itimerspec *old_value)
+{
+  return syscall(SYS_timerfd_settime, fd, flags, new_value, old_value);
+}
+#endif
+
 static ph_result_t do_epoll_init(void)
 {
   struct itimerspec ts;
+
 #ifdef HAVE_EPOLL_CREATE1
   ep_fd = epoll_create1(EPOLL_CLOEXEC);
 #else
@@ -219,6 +250,10 @@ static ph_result_t do_epoll_init(void)
   if (ep_fd == -1) {
     ph_panic("epoll_create: `Pe%d", errno);
   }
+
+#ifndef HAVE_EPOLL_CREATE1
+  fcntl(ep_fd, F_SETFD, FD_CLOEXEC);
+#endif
 
   timer_fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK|TFD_CLOEXEC);
 

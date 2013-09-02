@@ -74,7 +74,7 @@ all-local: docs
 clean-local: clean-docs
 
 clean-docs:
-	rm docs/declmap.js
+	-rm docs/declmap.js
 
 docs: docs/declmap.js
 

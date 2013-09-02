@@ -131,6 +131,7 @@ int main(int argc, char **argv)
     io_threads = 1;
   }
 
+  ph_library_init();
   ph_log_level_set(PH_LOG_INFO);
   ph_nbio_init(io_threads);
   ph_nbio_stat(&stats);

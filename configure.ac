@@ -145,6 +145,7 @@ pthread_mach_thread_np \
 strerror_r \
 strtoll \
 thread_policy_set \
+timerfd_create \
 )
 
 # Virtual memory address size in bits; CK uses this for
