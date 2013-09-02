@@ -18,6 +18,7 @@
 #define PHENOM_SYSUTIL_H
 
 #include "phenom/defs.h"
+#include "phenom/socket.h"
 #include "phenom/memory.h"
 
 /**
@@ -36,11 +37,6 @@ extern "C" {
 #ifndef MAX
 # define MAX(a, b) ((a) > (b) ? (a) : (b))
 #endif
-
-typedef int ph_socket_t;
-
-/** Set or disable non-blocking mode for a file descriptor */
-void ph_socket_set_nonblock(ph_socket_t fd, bool enable);
 
 #define PH_PIPE_NONBLOCK 1
 #define PH_PIPE_CLOEXEC  2
