@@ -286,6 +286,20 @@ void *ph_mem_alloc(ph_memtype_t mt)
   return ptr;
 }
 
+char *ph_mem_strdup(ph_memtype_t memtype, const char *str)
+{
+  uint32_t len = strlen(str) + 1;
+  char *d;
+
+  d = ph_mem_alloc_size(memtype, len);
+  if (!d) {
+    return NULL;
+  }
+
+  memcpy(d, str, len);
+  return d;
+}
+
 void *ph_mem_alloc_size(ph_memtype_t mt, uint64_t size)
 {
   struct mem_type *mem_type = resolve_mt(mt);

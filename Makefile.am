@@ -20,6 +20,7 @@ libphenom_a_CFLAGS = @IRONMANCFLAGS@
 libphenom_a_SOURCES = \
 	corelib/init.c \
 	corelib/counter.c \
+	corelib/dns/addrinfo.c \
 	corelib/dtoa.c \
 	corelib/error.c \
 	corelib/log.c \
@@ -63,6 +64,7 @@ TESTS = tests/counter.t tests/memory.t tests/timer.t tests/printf.t \
 				tests/string.t \
 				tests/hashtable.t \
 				tests/sockaddr.t \
+				tests/dns.t \
 				tests/variant.t \
 				tests/bench/iopipes.t
 noinst_PROGRAMS = $(TESTS)
@@ -103,6 +105,9 @@ tests_hashtable_t_LDADD = $(TEST_LDADD)
 
 tests_sockaddr_t_CPPFLAGS = $(TEST_CPPFLAGS)
 tests_sockaddr_t_LDADD = $(TEST_LDADD)
+
+tests_dns_t_CPPFLAGS = $(TEST_CPPFLAGS)
+tests_dns_t_LDADD = $(TEST_LDADD)
 
 tests_stream_t_CPPFLAGS = $(TEST_CPPFLAGS)
 tests_stream_t_LDADD = $(TEST_LDADD)

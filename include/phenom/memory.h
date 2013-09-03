@@ -176,6 +176,16 @@ void *ph_mem_realloc(ph_memtype_t memtype, void *ptr, uint64_t size);
  */
 void ph_mem_free(ph_memtype_t memtype, void *ptr);
 
+/** Duplicates a C-String using a memtype
+ *
+ * Behaves like strdup(3), except that the storage is allocated
+ * against the specified memtype.
+ *
+ * It is an error to call this for a memtype that was not defined
+ * with a 0 size.
+ */
+char *ph_mem_strdup(ph_memtype_t memtype, const char *str);
+
 /** Data structure for querying memory usage information.
  *
  * This is implemented on top of the counter subsytem

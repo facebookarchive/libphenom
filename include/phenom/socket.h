@@ -26,6 +26,7 @@
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <arpa/inet.h>
+#include <netdb.h>
 
 #include "phenom/string.h"
 
@@ -84,6 +85,11 @@ ph_result_t ph_sockaddr_set_unix(
     ph_sockaddr_t *addr,
     const char *path,
     unsigned int pathlen);
+
+
+ph_result_t ph_sockaddr_set_from_addrinfo(
+    ph_sockaddr_t *addr,
+    struct addrinfo *ai);
 
 /** Print a human readable version of a sockaddr to a string */
 ph_result_t ph_sockaddr_print(ph_sockaddr_t *addr,

@@ -167,6 +167,28 @@ ph_result_t ph_sockaddr_print(ph_sockaddr_t *sa,
   return PH_ERR;
 }
 
+ph_result_t ph_sockaddr_set_from_addrinfo(
+    ph_sockaddr_t *sa,
+    struct addrinfo *ai)
+{
+  memset(sa, 0, sizeof(*sa));
+  sa->family = ai->ai_family;
+
+  switch (sa->family) {
+    case AF_INET6:
+      memcpy(&sa->sa.sa, ai->ai_addr, sizeof(sa->sa.v6));
+      return PH_OK;
+
+    case AF_INET:
+      memcpy(&sa->sa.sa, ai->ai_addr, sizeof(sa->sa.v4));
+      return PH_OK;
+
+    default:
+      return PH_ERR;
+  }
+}
+
+
 /* vim:ts=2:sw=2:et:
  */
 
