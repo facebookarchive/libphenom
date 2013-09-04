@@ -97,7 +97,21 @@ ph_result_t ph_job_destroy(ph_job_t *job);
 ph_result_t ph_job_set_nbio(
     ph_job_t *job,
     ph_iomask_t mask,
-    struct timeval *timeout);
+    struct timeval *abstime);
+
+ph_result_t ph_job_set_nbio_timeout_in(
+    ph_job_t *job,
+    ph_iomask_t mask,
+    struct timeval interval);
+
+/** Returns the currently active iomask
+ *
+ * This is useful in some situations where you want to know
+ * if the job is scheduled in the NBIO scheduler.
+ *
+ * This API may change as it feels a bit klunky
+ */
+ph_iomask_t ph_job_get_kmask(ph_job_t *job);
 
 /** Configure a job to run at a specific time */
 ph_result_t ph_job_set_timer_at(

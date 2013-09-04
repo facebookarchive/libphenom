@@ -66,6 +66,9 @@ AC_ARG_ENABLE(stack-protector, [
 AC_SEARCH_LIBS([pthread_create], [pthread])
 AC_SEARCH_LIBS([socket], [socket])
 AC_SEARCH_LIBS([clock_gettime], [rt])
+AC_SEARCH_LIBS([ares_init], [cares],[],[
+  AC_MSG_ERROR([c-ares is required])
+])
 
 dnl for comparitive benchmarking
 SAVE_LIBS="$LIBS"

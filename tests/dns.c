@@ -17,6 +17,7 @@
 #include "phenom/sysutil.h"
 #include "phenom/string.h"
 #include "phenom/dns.h"
+#include "ares.h"
 #include "tap.h"
 
 static struct addr_test {
@@ -62,6 +63,94 @@ static void check_addrinfo_result(ph_dns_addrinfo_t *info)
   ph_dns_addrinfo_free(info);
 }
 
+static void lookup_aaaa(
+    void *arg,
+    int status,
+    int timeouts,
+    unsigned char *abuf,
+    unsigned int alen,
+    struct ph_dns_query_response *resp)
+{
+  PH_STRING_DECLARE_STACK(str, 128);
+
+  unused_parameter(timeouts);
+  unused_parameter(arg);
+  unused_parameter(abuf);
+  unused_parameter(alen);
+
+  pthread_mutex_lock(&single);
+  ok(ARES_SUCCESS == status, "expected aaaa lookup to succeed: %s", ares_strerror(status));
+
+  is_string("aaaa.test.phenom.wezfurlong.org", resp->name);
+  ph_sockaddr_print(&resp->answer[0].addr, &str, false);
+  ok(ph_string_equal_cstr(&str, "::a:a:a:a"), "right addr");
+  ph_dns_query_response_free(resp);
+
+  if (--num_left == 0) {
+    ph_sched_stop();
+  }
+  pthread_mutex_unlock(&single);
+}
+
+static void lookup_mx(
+    void *arg,
+    int status,
+    int timeouts,
+    unsigned char *abuf,
+    unsigned int alen,
+    struct ph_dns_query_response *resp)
+{
+  unused_parameter(timeouts);
+  unused_parameter(arg);
+  unused_parameter(abuf);
+  unused_parameter(alen);
+
+  pthread_mutex_lock(&single);
+  ok(ARES_SUCCESS == status, "expected mx lookup to succeed: %s", ares_strerror(status));
+
+  is_int(resp->num_answers, 2);
+  is_string("a.test.phenom.wezfurlong.org", resp->answer[0].name);
+  is_int(10, resp->answer[0].priority);
+  is_string("b.test.phenom.wezfurlong.org", resp->answer[1].name);
+  is_int(20, resp->answer[1].priority);
+  ph_dns_query_response_free(resp);
+
+  if (--num_left == 0) {
+    ph_sched_stop();
+  }
+  pthread_mutex_unlock(&single);
+}
+
+static void lookup_a(
+    void *arg,
+    int status,
+    int timeouts,
+    unsigned char *abuf,
+    unsigned int alen,
+    struct ph_dns_query_response *resp)
+{
+  PH_STRING_DECLARE_STACK(str, 128);
+
+  unused_parameter(timeouts);
+  unused_parameter(arg);
+  unused_parameter(abuf);
+  unused_parameter(alen);
+
+  pthread_mutex_lock(&single);
+  ok(ARES_SUCCESS == status, "expected a lookup to succeed: %s", ares_strerror(status));
+
+  is_string("a.test.phenom.wezfurlong.org", resp->name);
+  ph_sockaddr_print(&resp->answer[0].addr, &str, false);
+  ok(ph_string_equal_cstr(&str, "127.0.0.4"), "right addr");
+
+  ph_dns_query_response_free(resp);
+
+  if (--num_left == 0) {
+    ph_sched_stop();
+  }
+  pthread_mutex_unlock(&single);
+}
+
 int main(int argc, char **argv)
 {
   uint8_t i;
@@ -71,7 +160,23 @@ int main(int argc, char **argv)
 
   ph_library_init();
   ph_nbio_init(0);
-  plan_tests(2 * (sizeof(addr_tests)/sizeof(addr_tests[0])));
+  plan_tests(
+      (2 * (sizeof(addr_tests)/sizeof(addr_tests[0]))) +
+      (2 * 3) + /* A and AAAA */
+      (6) /* MX */
+  );
+
+  ck_pr_inc_32(&num_left);
+  ph_dns_channel_query(NULL, "a.test.phenom.wezfurlong.org.",
+      PH_DNS_QUERY_A, lookup_a, NULL);
+
+  ck_pr_inc_32(&num_left);
+  ph_dns_channel_query(NULL, "aaaa.test.phenom.wezfurlong.org.",
+      PH_DNS_QUERY_AAAA, lookup_aaaa, NULL);
+
+  ck_pr_inc_32(&num_left);
+  ph_dns_channel_query(NULL, "mx1.test.phenom.wezfurlong.org.",
+      PH_DNS_QUERY_MX, lookup_mx, NULL);
 
   for (i = 0; i < sizeof(addr_tests)/sizeof(addr_tests[0]); i++) {
     ph_dns_getaddrinfo(addr_tests[i].node, addr_tests[i].service,

@@ -794,6 +794,10 @@ static ph_result_t apply_io_mask(ph_job_t *job, ph_iomask_t mask, void *impl)
   if (set == &local_set) {
     // Apply it immediately
     res = kevent(kq_fd, set->events, set->used, NULL, 0, NULL);
+    if (res != 0 && mask == 0 && errno == ENOENT) {
+      // It's "OK" if we decided to delete it and it wasn't there
+      res = 0;
+    }
     if (res != 0) {
       ph_panic("kevent: setting mask to %02x on fd %d with %d slots -> `Pe%d",
           mask, job->fd, set->used, errno);
@@ -801,6 +805,37 @@ static ph_result_t apply_io_mask(ph_job_t *job, ph_iomask_t mask, void *impl)
     }
   }
   return PH_OK;
+#endif
+}
+
+ph_iomask_t ph_job_get_kmask(ph_job_t *job)
+{
+#ifdef HAVE_KQUEUE
+  return job->kmask;
+#endif
+#ifdef HAVE_EPOLL_CREATE
+  switch (job->kmask & (EPOLLIN|EPOLLOUT|EPOLLERR|EPOLLHUP)) {
+    case EPOLLIN:
+      return PH_IOMASK_READ;
+    case EPOLLOUT:
+      return PH_IOMASK_WRITE;
+    case EPOLLIN|EPOLLOUT:
+      return PH_IOMASK_READ|PH_IOMASK_WRITE;
+    default:
+      return 0;
+  }
+#endif
+#ifdef HAVE_PORT_CREATE
+  switch (job->kmask & (POLLIN|POLLOUT|POLLERR|POLLHUP)) {
+    case POLLIN:
+      return PH_IOMASK_READ;
+    case POLLOUT:
+      return PH_IOMASK_WRITE;
+    case POLLIN|POLLOUT:
+      return PH_IOMASK_READ|PH_IOMASK_WRITE;
+    default:
+      return 0;
+  }
 #endif
 }
 
@@ -835,6 +870,16 @@ void ph_job_pool_apply_deferred_items(ph_thread_t *me)
   process_deferred(me, NULL);
 }
 
+ph_result_t ph_job_set_nbio_timeout_in(
+    ph_job_t *job,
+    ph_iomask_t mask,
+    struct timeval interval)
+{
+  struct timeval abst = ph_time_now();
+  timeradd(&abst, &interval, &abst);
+  return ph_job_set_nbio(job, mask, &abst);
+}
+
 ph_result_t ph_job_set_nbio(ph_job_t *job, ph_iomask_t mask,
     struct timeval *timeout)
 {
@@ -860,6 +905,9 @@ ph_result_t ph_job_set_nbio(ph_job_t *job, ph_iomask_t mask,
 
     return PH_OK;
   }
+
+  // FIXME: immediate apply_io_mask when mask == 0 or add
+  // an explicit teardown function
 
   // queue to our deferred list
   PH_STAILQ_INSERT_TAIL(&me->pending_nbio, job, q_ent);

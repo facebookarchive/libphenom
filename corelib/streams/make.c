@@ -109,7 +109,7 @@ ph_result_t ph_stm_init(void)
   }
   err = pthread_mutexattr_settype(&mtx_attr, PTHREAD_MUTEX_ERRORCHECK);
   if (err) {
-    ph_panic("ph_stm_init: mutexattr RECURSIVE: `Pe%d", err);
+    ph_panic("ph_stm_init: mutexattr ERRORCHECK: `Pe%d", err);
   }
 
   return PH_OK;
