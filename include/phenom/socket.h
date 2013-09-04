@@ -49,6 +49,19 @@ struct phenom_sockaddr {
 };
 typedef struct phenom_sockaddr ph_sockaddr_t;
 
+static inline int ph_sockaddr_socklen(ph_sockaddr_t *addr) {
+  switch (addr->family) {
+    case AF_UNIX:
+      return sizeof(addr->sa.nix);
+    case AF_INET:
+      return sizeof(addr->sa.v4);
+    case AF_INET6:
+      return sizeof(addr->sa.v6);
+    default:
+      return sizeof(addr->sa.sa);
+  }
+}
+
 /** Set a sockaddr to the specified IPv4 address string and port.
  * The address string must be an IPv4 address.  This function
  * does *not* perform DNS resolution.  It uses inet_pton() under
@@ -98,6 +111,42 @@ ph_result_t ph_sockaddr_print(ph_sockaddr_t *addr,
 /** Set or disable non-blocking mode for a file descriptor */
 void ph_socket_set_nonblock(ph_socket_t fd, bool enable);
 
+#define PH_SOCK_CLOEXEC  1
+#define PH_SOCK_NONBLOCK 2
+
+/** Creates a socket that can be used to connect to a sockaddr
+ *
+ * The socket is created of the appropriate type and the flags
+ * are applied:
+ *
+ * * `PH_SOCK_CLOEXEC` causes the socket to have CLOEXEC set
+ * * `PH_SOCK_NONBLOCK` causes the socket to be set to nonblocking mode
+ *
+ *```
+ * ph_socket_t s = ph_socket_for_addr(&addr, SOCK_STREAM,
+ *                    PH_SOCK_CLOEXEC|PH_SOCK_NONBLOCK);
+ *```
+ */
+ph_socket_t ph_socket_for_addr(ph_sockaddr_t *addr, int type, int flags);
+
+typedef void (*ph_socket_connect_func)(
+    ph_socket_t s, const ph_sockaddr_t *addr, int status,
+    struct timeval *elapsed, void *arg);
+
+/** Initiate an async connect() call
+ *
+ * The results will be delivered to your connect func.
+ * In some immediate failure cases, this will be called before
+ * ph_socket_connect has returned, but in the common case, this
+ * will happen asynchronously from an NBIO thread once the connect
+ * call has resolved.
+ *
+ * The `timeout` parameter allows you to specify an upper bound on
+ * the time spent waiting for the connect.  If `timeout` is NULL
+ * a implementation dependent default timeout will be used.
+ */
+void ph_socket_connect(ph_socket_t s, const ph_sockaddr_t *addr,
+  struct timeval *timeout, ph_socket_connect_func func, void *arg);
 
 
 

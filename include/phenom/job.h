@@ -125,6 +125,7 @@ ph_result_t ph_job_set_nbio(
     ph_iomask_t mask,
     struct timeval *abstime);
 
+/** Configure a job for NBIO with a relative timeout */
 ph_result_t ph_job_set_nbio_timeout_in(
     ph_job_t *job,
     ph_iomask_t mask,
