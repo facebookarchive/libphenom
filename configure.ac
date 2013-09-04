@@ -66,9 +66,18 @@ AC_ARG_ENABLE(stack-protector, [
 AC_SEARCH_LIBS([pthread_create], [pthread])
 AC_SEARCH_LIBS([socket], [socket])
 AC_SEARCH_LIBS([clock_gettime], [rt])
-AC_SEARCH_LIBS([ares_init], [cares],[],[
+
+AC_PATH_PROG(PKG_CONFIG, pkg-config)
+
+if ! $PKG_CONFIG --exists --print-errors libcares ; then
   AC_MSG_ERROR([c-ares is required])
-])
+fi
+
+dnl GNU LD specific; Solaris wants s/L/R/ but moving fast for now
+ares_rpath=`$PKG_CONFIG --libs-only-L libcares | sed -e 's/L/Wl,-rpath=/'`
+LIBS="$LIBS `$PKG_CONFIG --libs libcares` $ares_rpath"
+CFLAGS="$CFLAGS `$PKG_CONFIG --cflags libcares`"
+AC_CHECK_FUNCS(ares_init)
 
 dnl for comparitive benchmarking
 SAVE_LIBS="$LIBS"
