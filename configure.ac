@@ -67,14 +67,21 @@ AC_SEARCH_LIBS([pthread_create], [pthread])
 AC_SEARCH_LIBS([socket], [socket])
 AC_SEARCH_LIBS([clock_gettime], [rt])
 
-AC_PATH_PROG(PKG_CONFIG, pkg-config)
+AC_PATH_PROG(PKG_CONFIG, pkg-config, false)
 
 if ! $PKG_CONFIG --exists --print-errors libcares ; then
   AC_MSG_ERROR([c-ares is required])
 fi
 
-dnl GNU LD specific; Solaris wants s/L/R/ but moving fast for now
-ares_rpath=`$PKG_CONFIG --libs-only-L libcares | sed -e 's/L/Wl,-rpath=/'`
+ares_rpath=""
+case "$target_os" in
+  solaris*|darwin*)
+    ;;
+  *)
+    dnl GNU LD specific; Solaris wants s/L/R/ but moving fast for now
+    ares_rpath=`$PKG_CONFIG --libs-only-L libcares | sed -e 's/L/Wl,-rpath=/'`
+    ;;
+esac
 LIBS="$LIBS `$PKG_CONFIG --libs libcares` $ares_rpath"
 CFLAGS="$CFLAGS `$PKG_CONFIG --cflags libcares`"
 AC_CHECK_FUNCS(ares_init)
