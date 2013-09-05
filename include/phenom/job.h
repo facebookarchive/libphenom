@@ -61,6 +61,12 @@ typedef void (*ph_job_func_t)(
     void *data
 );
 
+struct ph_job_def {
+  ph_job_func_t callback;
+  ph_memtype_t memtype;
+  void (*dtor)(ph_job_t *job);
+};
+
 struct ph_job {
   /* data associated with job */
   void *data;
@@ -77,6 +83,9 @@ struct ph_job {
   struct ph_timerwheel_timer timer;
 
   ph_thread_pool_t *pool;
+
+  ck_epoch_entry_t epoch_entry;
+  struct ph_job_def *def;
 };
 
 /** Initializes a job structure.
@@ -86,11 +95,28 @@ struct ph_job {
  */
 ph_result_t ph_job_init(ph_job_t *job);
 
-/** Destroys a job structure.
+/** Allocates a job structure using a template
  *
- * Correctly releases resources associated with a job.
+ * A common case is to embed the job at the head of a struct and
+ * to manage that whole struct in a memtype based allocation.
+ *
+ * This function will allocate and initialize a job using the
+ * provided template; the template specifies a memtype to use for
+ * the allocation (it must be a fixed size memtype) and a default value
+ * for the callback function.
+ *
+ * When the job is no longer needed, you should call ph_job_free()
+ * to arrange for it to be freed during a grace period.
  */
-ph_result_t ph_job_destroy(ph_job_t *job);
+ph_job_t *ph_job_alloc(struct ph_job_def *def);
+
+/** Arranges to free a templated job structure
+ *
+ * The dtor from your job template will be invoked at a safe point.
+ * You should treat the job as having been freed as soon as this
+ * function returns.
+ */
+void ph_job_free(ph_job_t *job);
 
 /** Configure a job for NBIO.
  */

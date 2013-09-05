@@ -392,6 +392,7 @@ static void epoll_emitter(ph_counter_block_t *cblock, ph_thread_t *thread)
       ph_iomask_t mask = 0;
       ph_job_t *job = event.data.ptr;
 
+      ph_thread_epoch_begin();
       switch (event.events & (EPOLLIN|EPOLLOUT|EPOLLERR|EPOLLHUP)) {
         case EPOLLIN:
           mask = PH_IOMASK_READ;
@@ -413,6 +414,8 @@ static void epoll_emitter(ph_counter_block_t *cblock, ph_thread_t *thread)
       if (ph_job_have_deferred_items(thread)) {
         process_deferred(thread, NULL);
       }
+      ph_thread_epoch_end();
+      ph_thread_epoch_poll();
     }
   }
 }
@@ -440,6 +443,8 @@ static void port_emitter(ph_counter_block_t *cblock, ph_thread_t *thread)
     if (!n) {
       continue;
     }
+
+    ph_thread_epoch_begin();
 
     switch (event.portev_source) {
       case PORT_SOURCE_TIMER:
@@ -479,6 +484,8 @@ static void port_emitter(ph_counter_block_t *cblock, ph_thread_t *thread)
     if (ph_job_have_deferred_items(thread)) {
       process_deferred(thread, NULL);
     }
+    ph_thread_epoch_end();
+    ph_thread_epoch_poll();
   }
 }
 #endif
@@ -560,6 +567,7 @@ static void kqueue_emitter(ph_counter_block_t *cblock, ph_thread_t *thread)
       continue;
     }
 
+    ph_thread_epoch_begin();
     for (i = 0; i < n; i++) {
       dispatch_kevent(cblock, thread, &set.events[i]);
     }
@@ -572,6 +580,8 @@ static void kqueue_emitter(ph_counter_block_t *cblock, ph_thread_t *thread)
     if (ph_job_have_deferred_items(thread)) {
       process_deferred(thread, &set);
     }
+    ph_thread_epoch_end();
+    ph_thread_epoch_poll();
   }
   ph_log(PH_LOG_INFO, "kqueue set size=%d", set.size);
   dispose_kq_set(&set);
@@ -638,6 +648,7 @@ ph_result_t ph_sched_run(void)
   scheduler_threads = NULL;
 
   ph_job_pool_shutdown();
+  ph_thread_epoch_barrier();
   return PH_OK;
 }
 

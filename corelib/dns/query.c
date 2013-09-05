@@ -193,9 +193,24 @@ static ph_dns_channel_t *create_chan(void)
   return chan;
 }
 
+static void free_chan(ph_dns_channel_t *chan)
+{
+  ares_destroy(chan->chan);
+  ph_ht_destroy(&chan->sock_map);
+  pthread_mutex_destroy(&chan->chanlock);
+  ph_mem_free(mt.chan, chan);
+}
+
+static void do_ares_fini(void)
+{
+  free_chan(default_channel);
+}
+
 static void do_ares_init(void)
 {
   int res = ares_library_init(ARES_LIB_INIT_ALL);
+
+  atexit(do_ares_fini);
 
   if (res) {
     ph_panic("ares_library_init failed: %s", ares_strerror(res));

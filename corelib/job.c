@@ -396,7 +396,9 @@ static void *worker_thread(void *arg)
     }
 
     me->refresh_time = true;
+    ph_thread_epoch_begin();
     job->callback(job, PH_IOMASK_NONE, job->data);
+    ph_thread_epoch_end();
 
     ph_counter_block_add(cblock, SLOT_DISP, 1);
 
@@ -507,6 +509,40 @@ ph_result_t ph_job_set_pool(
   }
 
   return PH_OK;
+}
+
+ph_job_t *ph_job_alloc(struct ph_job_def *def)
+{
+  ph_job_t *job;
+
+  job = ph_mem_alloc(def->memtype);
+  if (!job) {
+    return NULL;
+  }
+
+  ph_job_init(job);
+  job->callback = def->callback;
+  job->def = def;
+
+  return job;
+}
+
+CK_EPOCH_CONTAINER(ph_job_t, epoch_entry, epoch_entry_to_job)
+
+static void deferred_job_free(ck_epoch_entry_t *e)
+{
+  ph_job_t *job = epoch_entry_to_job(e);
+
+  if (job->def->dtor) {
+    job->def->dtor(job);
+  }
+
+  ph_mem_free(job->def->memtype, job);
+}
+
+void ph_job_free(ph_job_t *job)
+{
+  ph_thread_epoch_defer(&job->epoch_entry, deferred_job_free);
 }
 
 /* vim:ts=2:sw=2:et:

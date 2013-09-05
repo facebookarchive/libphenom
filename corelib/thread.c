@@ -41,6 +41,7 @@ static ph_memtype_t mt_thread;
 #endif
 pthread_key_t __ph_thread_key;
 static uint32_t next_tid = 0;
+static ck_epoch_t misc_epoch;
 
 static uint32_t num_cores = 0;
 
@@ -100,6 +101,13 @@ static void destroy_thread(void *ptr)
 {
   ph_thread_t *thr = ptr;
 
+  ph_thread_epoch_barrier();
+
+  if (thr->epoch_record) {
+    ck_epoch_unregister(&misc_epoch, thr->epoch_record);
+    thr->epoch_record = NULL;
+  }
+
 #ifndef HAVE___THREAD
   ph_mem_free(mt_thread, thr);
 #else
@@ -107,9 +115,30 @@ static void destroy_thread(void *ptr)
 #endif
 }
 
+CK_STACK_CONTAINER(struct ck_epoch_record,
+    record_next, ck_epoch_record_container)
+
+static void thread_fini(void)
+{
+	struct ck_epoch_record *record;
+	ck_stack_entry_t *cursor, *tmp;
+
+  // This reaches into the guts of the epoch code and forces it to be freed.
+  // Both of these violate the principles of the epoch design, but I want
+  // valgrind to not moan about outstanding memory allocations.
+  // Since we are invoked via atexit, and atexit dispatches LIFO, we stand
+  // a very good chance of not exploding
+  CK_STACK_FOREACH_SAFE(&misc_epoch.records, cursor, tmp) {
+		record = ck_epoch_record_container(cursor);
+    free(record);
+  }
+}
+
 bool ph_thread_init(void)
 {
   pthread_key_create(&__ph_thread_key, destroy_thread);
+  ck_epoch_init(&misc_epoch);
+  atexit(thread_fini);
 
 #ifndef HAVE___THREAD
   mt_thread = ph_memtype_register(&mt_def);
@@ -127,6 +156,16 @@ static void init_thread(ph_thread_t *thr)
   memset(thr, 0, sizeof(*thr));
   thr->is_init = true;
 #endif
+
+  thr->epoch_record = ck_epoch_recycle(&misc_epoch);
+
+  if (!thr->epoch_record) {
+    thr->epoch_record = malloc(sizeof(*thr->epoch_record));
+    if (!thr->epoch_record) {
+      ph_panic("failed to allocate memory for an epoch");
+    }
+    ck_epoch_register(&misc_epoch, thr->epoch_record);
+  }
 
   PH_STAILQ_INIT(&thr->pending_nbio);
   PH_STAILQ_INIT(&thr->pending_pool);
@@ -176,6 +215,10 @@ static void *ph_thread_boot(void *arg)
   /* this publishes that we're ready to run to
    * the thread that spawned us */
   ck_pr_store_ptr(data.thr, me);
+  // Well, seems like either a GCC bug or a VMware problem,
+  // but the store above yields the wrong results.  Workaround
+  // it using a good old fashioned store
+  *data.thr = me;
   ck_pr_fence_store();
 
   return data.func(data.arg);
@@ -203,7 +246,7 @@ ph_thread_t *ph_thread_spawn(ph_thread_func func, void *arg)
     ck_pr_fence_load();
   }
 
-  return thr;
+  return ck_pr_load_ptr(&thr);
 }
 
 int ph_thread_join(ph_thread_t *thr, void **res)
@@ -277,6 +320,36 @@ bool ph_thread_set_affinity(ph_thread_t *me, int affinity)
   return processor_bind(P_LWPID, me->lwpid, affinity, NULL) == 0;
 #endif
   return true;
+}
+
+void ph_thread_epoch_begin(void)
+{
+  ph_thread_t *me = ph_thread_self();
+  ck_epoch_begin(&misc_epoch, me->epoch_record);
+}
+
+void ph_thread_epoch_end(void)
+{
+  ph_thread_t *me = ph_thread_self();
+  ck_epoch_end(&misc_epoch, me->epoch_record);
+}
+
+void ph_thread_epoch_defer(ck_epoch_entry_t *entry, ck_epoch_cb_t *func)
+{
+  ph_thread_t *me = ph_thread_self();
+  ck_epoch_call(&misc_epoch, me->epoch_record, entry, func);
+}
+
+bool ph_thread_epoch_poll(void)
+{
+  ph_thread_t *me = ph_thread_self();
+  return ck_epoch_poll(&misc_epoch, me->epoch_record);
+}
+
+void ph_thread_epoch_barrier(void)
+{
+  ph_thread_t *me = ph_thread_self();
+  ck_epoch_barrier(&misc_epoch, me->epoch_record);
 }
 
 

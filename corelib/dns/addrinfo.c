@@ -28,14 +28,10 @@ static ph_memtype_def_t defs[] = {
 static pthread_once_t done_dns_init = PTHREAD_ONCE_INIT;
 static ph_thread_pool_t *dns_pool = NULL;
 
-static void do_dns_init(void)
+static void do_free_addrinfo(ph_job_t *job)
 {
-  ph_memtype_register_block(sizeof(defs)/sizeof(defs[0]), defs, &mt.ainfo);
-  dns_pool = ph_thread_pool_define("dns", 256, 2);
-}
+  ph_dns_addrinfo_t *info = (ph_dns_addrinfo_t*)job;
 
-void ph_dns_addrinfo_free(ph_dns_addrinfo_t *info)
-{
   if (info->node) {
     ph_mem_free(mt.string, info->node);
   }
@@ -45,7 +41,11 @@ void ph_dns_addrinfo_free(ph_dns_addrinfo_t *info)
   if (info->ai) {
     freeaddrinfo(info->ai);
   }
-  ph_mem_free(mt.ainfo, info);
+}
+
+void ph_dns_addrinfo_free(ph_dns_addrinfo_t *info)
+{
+  ph_job_free(&info->job);
 }
 
 static void dns_addrinfo(ph_job_t *job, ph_iomask_t why, void *data)
@@ -61,26 +61,32 @@ static void dns_addrinfo(ph_job_t *job, ph_iomask_t why, void *data)
   info->func(info);
 }
 
+static struct ph_job_def addrinfo_job_def = {
+  dns_addrinfo,
+  PH_MEMTYPE_INVALID,
+  do_free_addrinfo
+};
+
+static void do_dns_init(void)
+{
+  ph_memtype_register_block(sizeof(defs)/sizeof(defs[0]), defs, &mt.ainfo);
+  addrinfo_job_def.memtype = mt.ainfo;
+  dns_pool = ph_thread_pool_define("dns", 256, 2);
+}
+
 ph_result_t ph_dns_getaddrinfo(const char *node, const char *service,
     const struct addrinfo *hints, ph_dns_addrinfo_func func, void *arg)
 {
   ph_dns_addrinfo_t *info;
-  ph_result_t res;
 
   if (!func) {
     return PH_ERR;
   }
 
   pthread_once(&done_dns_init, do_dns_init);
-  info = ph_mem_alloc(mt.ainfo);
+  info = (ph_dns_addrinfo_t*)ph_job_alloc(&addrinfo_job_def);
   if (!info) {
     return PH_NOMEM;
-  }
-
-  res = ph_job_init(&info->job);
-  if (res != PH_OK) {
-    ph_mem_free(mt.ainfo, info);
-    return res;
   }
 
   if (node) {

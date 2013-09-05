@@ -23,6 +23,7 @@
 #include "phenom/queue.h"
 #include "ck_stack.h"
 #include "ck_queue.h"
+#include "ck_epoch.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -44,6 +45,8 @@ struct ph_thread {
   bool is_worker;
   bool is_init;
   struct timeval now;
+
+  ck_epoch_record_t *epoch_record;
 
   // OS level representation
   pthread_t thr;
@@ -115,6 +118,70 @@ void ph_thread_set_name(const char *name);
 
 /** Set the affinity of a thread */
 bool ph_thread_set_affinity(ph_thread_t *thr, int affinity);
+
+/** Begin a new epoch
+ *
+ * Mark the start of an epoch-protected code section.
+ * The epoch is terminated by a call to ph_thread_epoch_end().
+ * It is possible to nest an epoch within an existing epoch,
+ * but the epoch will not end until the ph_thread_epoch_end() is
+ * called enough times to counter each ph_thread_epoch_begin()
+ * call.
+ *
+ * You do not typically need to call this function unless you
+ * are implementing a long-lived thread that does not participate
+ * in the NBIO or thread pool subsystems.
+ */
+void ph_thread_epoch_begin(void);
+
+/** Mark the end of an epoch
+ *
+ * Mark the end of an epoch-protected code section.
+ *
+ * You do not typically need to call this function unless you
+ * are implementing a long-lived thread that does not participate
+ * in the NBIO or thread pool subsystems.
+ */
+void ph_thread_epoch_end(void);
+
+/** Defer a function call until a grace period has been detected in epoch
+ *
+ * All threads that may have held references to the object need to participate
+ * in the epoch for this to work as intended; once they do, the callback
+ * function will be invoked at a safe point where all observers have moved
+ * beyond observing the object.
+ *
+ * The epoch entry should to be embedded in the object in question.
+ * See http://concurrencykit.org/doc/ck_epoch_call.html for more information
+ * on the underlying implementation of this function.
+ */
+void ph_thread_epoch_defer(ck_epoch_entry_t *entry, ck_epoch_cb_t *func);
+
+/** Attempt to dispatch any deferred epoch calls, if safe
+ *
+ * Returns `true` if at least one function was dispatched.
+ * Returns `false` if it has determined that not all threads have
+ * observed the latest generation of epoch-protected objects.
+ *
+ * Neither value indicates an error.
+ *
+ * You do not typically need to call this function unless you
+ * are implementing a long-lived thread that does not participate
+ * in the NBIO or thread pool subsystems.
+ */
+bool ph_thread_epoch_poll(void);
+
+/** Synchronize and reclaim memory
+ *
+ * You must not call this from within an epoch-protected code section.
+ * This means that you must not call this from within a job callback
+ * function or other epoch protected region.
+ *
+ * You do not typically need to call this function unless you
+ * are implementing a long-lived thread that does not participate
+ * in the NBIO or thread pool subsystems.
+ */
+void ph_thread_epoch_barrier(void);
 
 #ifdef __cplusplus
 }
