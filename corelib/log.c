@@ -51,6 +51,7 @@ void ph_logv(uint8_t level, const char *fmt, va_list ap)
   struct timeval now = ph_time_now();
   ph_thread_t *me;
   int len;
+  va_list copy;
 
   if (level > log_level) {
     return;
@@ -63,15 +64,19 @@ void ph_logv(uint8_t level, const char *fmt, va_list ap)
     return;
   }
 
+  va_copy(copy, ap);
+
   pthread_mutex_lock(&log_lock);
   ph_fdprintf(STDERR_FILENO,
       "%" PRIi64 ".%03d %s: %s/%d `Pv%s%p%s",
       (int64_t)now.tv_sec, (int)(now.tv_usec / 1000),
       log_labels[level], me ? me->name : "", me ? me->tid : 0,
-      fmt, ph_vaptr(ap),
+      fmt, ph_vaptr(copy),
       fmt[len-1] == '\n' ? "" : "\n"
   );
   pthread_mutex_unlock(&log_lock);
+
+  va_end(copy);
 }
 
 void ph_log(uint8_t level, const char *fmt, ...)

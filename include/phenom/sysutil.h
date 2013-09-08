@@ -148,11 +148,7 @@ int ph_vprintf_core(void *print_arg,
     const struct ph_vprintf_funcs *print_funcs,
     const char *fmt0, va_list ap);
 
-#ifdef __sun__
-# define ph_vaptr(ap)    (void*)ap
-#else
-# define ph_vaptr(ap)    (void*)ap
-#endif
+#define ph_vaptr(ap)    (void*)&ap
 
 /** Like vsnprintf(), except that it uses ph_vprintf_core() */
 int ph_vsnprintf(char *buf, size_t size, const char *fmt, va_list ap);
