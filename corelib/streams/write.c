@@ -161,6 +161,42 @@ int ph_stm_printf(ph_stream_t *stm, const char *fmt, ...)
   return ret;
 }
 
+bool ph_stm_writev(ph_stream_t *stm, const struct iovec *iov,
+    int iovcnt, uint64_t *nwrote)
+{
+  bool res = true;
+
+  ph_stm_lock(stm);
+  stm->last_err = 0;
+
+  if (!stm->bufsize) {
+    // If unbuffered, pass it through
+    res = stm->funcs->writev(stm, iov, iovcnt, nwrote);
+  } else {
+    int i;
+    uint64_t total = 0, n;
+
+    for (i = 0; i < iovcnt; i++) {
+      res = do_write(stm, iov[i].iov_base, iov[i].iov_len, &n);
+      if (res) {
+        total += n;
+      } else {
+        break;
+      }
+    }
+
+    if (total) {
+      if (nwrote) {
+        *nwrote = total;
+      }
+      res = true;
+    }
+  }
+
+  ph_stm_unlock(stm);
+  return res;
+}
+
 bool ph_stm_write(ph_stream_t *stm, const void *buf,
     uint64_t count, uint64_t *nwrote)
 {

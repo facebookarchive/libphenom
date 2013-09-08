@@ -37,6 +37,9 @@ static bool fd_readv(ph_stream_t *stm, const struct iovec *iov,
 
   if (r == -1) {
     stm->last_err = errno;
+    if (stm->last_err == EAGAIN) {
+      stm->need_mask |= PH_IOMASK_READ;
+    }
     return false;
   }
 
@@ -56,6 +59,9 @@ static bool fd_writev(ph_stream_t *stm, const struct iovec *iov,
 
   if (w == -1) {
     stm->last_err = errno;
+    if (stm->last_err == EAGAIN) {
+      stm->need_mask |= PH_IOMASK_WRITE;
+    }
     return false;
   }
 

@@ -19,6 +19,7 @@
 
 #include "phenom/defs.h"
 #include "phenom/string.h"
+#include "phenom/job.h"
 
 /**
  * # Streams
@@ -62,6 +63,7 @@ struct ph_stream {
   unsigned char *buf;
   uint32_t bufsize;
   int last_err;
+  ph_iomask_t need_mask;
 };
 
 /** Reads data into the provided memory buffer
@@ -88,6 +90,9 @@ bool ph_stm_read(ph_stream_t *stm, void *buf,
  */
 bool ph_stm_write(ph_stream_t *stm, const void *buf,
     uint64_t count, uint64_t *nwrote);
+
+bool ph_stm_writev(ph_stream_t *stm, const struct iovec *iov,
+    int iovcnt, uint64_t *nwrote);
 
 /** Formatted print to a stream.
  *
