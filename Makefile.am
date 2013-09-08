@@ -19,6 +19,7 @@ libphenom_a_CPPFLAGS = \
 libphenom_a_CFLAGS = @IRONMANCFLAGS@
 libphenom_a_SOURCES = \
 	corelib/init.c \
+	corelib/buf.c \
 	corelib/counter.c \
 	corelib/dns/addrinfo.c \
 	corelib/dns/query.c \
