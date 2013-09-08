@@ -564,6 +564,21 @@ void ph_dns_channel_query(
   pthread_mutex_unlock(&chan->chanlock);
 }
 
+void ph_dns_channel_gethostbyname(
+    ph_dns_channel_t *chan,
+    const char *name,
+    int family,
+    ares_host_callback func,
+    void *arg)
+{
+  chan = fixup_chan(chan);
+  pthread_mutex_lock(&chan->chanlock);
+  ares_gethostbyname(chan->chan, name, family, func, arg);
+  pthread_mutex_unlock(&chan->chanlock);
+}
+
+
+
 /* vim:ts=2:sw=2:et:
  */
 

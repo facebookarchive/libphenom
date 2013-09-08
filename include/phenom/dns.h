@@ -18,7 +18,9 @@
 #define PHENOM_DNS_H
 
 #include "phenom/job.h"
+#include "phenom/socket.h"
 #include <netdb.h>
+#include <ares.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -223,6 +225,33 @@ void ph_dns_channel_query_raw(
     int dnsclass,
     int type,
     ph_dns_channel_raw_query_func func,
+    void *arg);
+
+/** Perform a hostname resolve using ares
+ *
+ * initiates a host query by name on the name service channel identified by
+ * channel. The parameter name gives the hostname as a NUL-terminated C
+ * string, and family gives the desired type of address for the resulting host
+ * entry use `AF_UNSPEC` to express no preference, `AF_INET` for IPv4 or `AF_INET6` for
+ * IPv6.
+ *
+ * When the query is complete or has failed, the callback will be invoked.
+ *
+ * The callback has the form:
+ *
+ * ```
+ * typedef void (*ares_host_callback)(void *arg, int status, int timeouts,
+ *    struct hostent *hostent);
+ * ```
+ *
+ * The hostent is owned by the library and will be freed once the callback returns.
+ * */
+
+void ph_dns_channel_gethostbyname(
+    ph_dns_channel_t *chan,
+    const char *name,
+    int family,
+    ares_host_callback func,
     void *arg);
 
 
