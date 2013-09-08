@@ -23,6 +23,7 @@
 #include "phenom/variant.h"
 #include "phenom/log.h"
 #include "phenom/sysutil.h"
+#include "phenom/printf.h"
 
 typedef struct {
   const char *start;

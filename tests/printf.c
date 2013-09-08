@@ -15,6 +15,7 @@
  */
 
 #include "phenom/sysutil.h"
+#include "phenom/printf.h"
 #include "tap.h"
 
 static int test_va_list(char *buf, size_t len, const char *fmt, ...)
@@ -41,7 +42,7 @@ int main(int argc, char **argv)
   unused_parameter(argc);
   unused_parameter(argv);
 
-  plan_tests(15);
+  plan_tests(16);
 
   len = ph_snprintf(buf, 10, "12345678901");
   // Returns the length required
@@ -68,6 +69,9 @@ int main(int argc, char **argv)
 
   ph_snprintf(buf, sizeof(buf), "``Pboo");
   ok(!strcmp(buf, "`Pboo"), "got %s", buf);
+
+  ph_snprintf(buf, sizeof(buf), "`P{not-registered:%p}", NULL);
+  ok(!strcmp(buf, "INVALID:not-registered"), "got %s", buf);
 
   len = test_va_list(buf, sizeof(buf), "inside %d %d", 42, 1);
 

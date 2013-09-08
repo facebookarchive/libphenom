@@ -28,7 +28,7 @@ int main(int argc, char **argv)
   unused_parameter(argv);
 
   ph_library_init();
-  plan_tests(20);
+  plan_tests(22);
 
   mt_misc = ph_memtype_register(&mt_def);
 
@@ -67,6 +67,13 @@ int main(int argc, char **argv)
     is(ph_sockaddr_print(&sa, &str, false), PH_OK);
     ok(ph_string_equal_cstr(&str, "::1"), "printed no port");
 
+    ph_string_reset(&str);
+    ph_string_printf(&str, "`P{sockaddr:%p}", (void*)&sa);
+    ok(ph_string_equal_cstr(&str, "[::1]:1337"), "printfed with port");
+
+    ph_string_reset(&str);
+    ph_string_printf(&str, "`P{sockaddr:%p}", NULL);
+    ok(ph_string_equal_cstr(&str, "sockaddr:null"), "null safe");
   }
 
   return exit_status();

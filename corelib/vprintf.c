@@ -40,6 +40,8 @@
 #include "phenom/sysutil.h"
 #include "phenom/string.h"
 #include "phenom/socket.h"
+#include "phenom/printf.h"
+#include "phenom/hashtable.h"
 #include <sys/types.h>
 #include <sys/mman.h>
 
@@ -93,6 +95,76 @@ union arg {
 static int __find_arguments(const char *fmt0, va_list ap, union arg **argtable,
     size_t *argtablesiz);
 static int __grow_type_table(unsigned char **typetable, int *tablesize);
+
+struct formatter {
+  char name[128];
+  ph_string_t namestr;
+  ph_vprintf_named_formatter_func func;
+  void *farg;
+};
+
+static ph_ht_t formatters;
+static pthread_once_t once_init = PTHREAD_ONCE_INIT;
+static pthread_rwlock_t formatter_lock;
+
+static void free_val(void *ptrptr)
+{
+  free(*(void**)ptrptr);
+}
+
+static struct ph_ht_val_def val_def = {
+  sizeof(void*),
+  NULL,
+  // We use malloc/free to avoid recursion issues: our allocator
+  // layer uses counters, counters use this facility to render
+  // counter name paths
+  free_val
+};
+
+static void fini_vprintf(void)
+{
+  ph_ht_destroy(&formatters);
+}
+
+static void init_vprintf(void)
+{
+  pthread_rwlock_init(&formatter_lock, NULL);
+  ph_ht_init(&formatters, 4, &ph_ht_string_key_def, &val_def);
+  atexit(fini_vprintf);
+}
+
+bool ph_vprintf_register(const char *name, void *formatter_arg,
+    ph_vprintf_named_formatter_func func)
+{
+  struct formatter *f;
+  bool res;
+  ph_string_t *kptr;
+
+  pthread_once(&once_init, init_vprintf);
+
+  f = malloc(sizeof(*f));
+  if (!f) {
+    return false;
+  }
+
+  ph_string_init_claim(&f->namestr, PH_STRING_STATIC,
+      f->name, 0, sizeof(f->name));
+  f->func = func;
+  f->farg = formatter_arg;
+  ph_string_append_cstr(&f->namestr, name);
+  kptr = &f->namestr;
+
+  pthread_rwlock_wrlock(&formatter_lock);
+  res = (ph_ht_replace(&formatters, &kptr, &f) == PH_OK);
+  pthread_rwlock_unlock(&formatter_lock);
+
+  if (res) {
+    return true;
+  }
+
+  free(f);
+  return false;
+}
 
 #ifdef PRINTF_WIDE_CHAR
 /*
@@ -451,6 +523,41 @@ ph_vprintf_core(void *print_arg,
         continue;
       }
       switch (fmt[2]) {
+        case '{':
+          {
+            char *term;
+            void *object;
+            struct formatter *f = NULL;
+            ph_string_t key, *keyptr = &key;
+
+            fmt += 3;
+            term = strstr(fmt, ":%p}");
+            if (!term) {
+              break;
+            }
+
+            object = GETARG(void*);
+
+            pthread_once(&once_init, init_vprintf);
+            ph_string_init_claim(&key, PH_STRING_STATIC, fmt,
+                term - fmt, term - fmt);
+
+            pthread_rwlock_rdlock(&formatter_lock);
+            ph_ht_lookup(&formatters, &keyptr, (void*)&f, false);
+            pthread_rwlock_unlock(&formatter_lock);
+
+            if (f && f->func) {
+              ret += f->func(f->farg, object, print_arg, print_funcs);
+            } else {
+              PRINT("INVALID:", 8);
+              PRINT(fmt, term - fmt);
+              ret += 8 + (term - fmt);
+            }
+
+            fmt = term + 4;
+            continue;
+          }
+
         case 'e':
           /* "`Pe%d" errno formatted as string */
           if (fmt[3] == '%' && fmt[4] == 'd') {
@@ -463,33 +570,6 @@ ph_vprintf_core(void *print_arg,
             fmt += 5;
             PRINT(cp, size);
             ret += size;
-            continue;
-          }
-          break;
-
-        case 'a':
-          /* "`Pa%p" is a ph_sockaddr_t formatted as string
-           * Need to make this pluggable with name resolution */
-          if (fmt[3] == '%' && fmt[4] == 'p') {
-            uint32_t len;
-            PH_STRING_DECLARE_STACK(sabuf, 128);
-            ph_sockaddr_t *sa = GETARG(void*);
-
-            fmt += 5;
-            fprintf(stderr, "got sa %p\n", (void*)sa);
-            if (sa) {
-              ph_sockaddr_print(sa, &sabuf, true);
-
-              len = ph_string_len(&sabuf);
-              cp = sabuf.buf;
-              PRINT(cp, len);
-              ret += len;
-            } else {
-              cp = (char*)"(null)";
-              PRINT(cp, 6);
-              ret += 6;
-            }
-
             continue;
           }
           break;

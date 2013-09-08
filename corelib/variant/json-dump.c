@@ -23,6 +23,7 @@
 #include "phenom/stream.h"
 #include "phenom/variant.h"
 #include "phenom/sysutil.h"
+#include "phenom/printf.h"
 
 static int do_dump(ph_variant_t *json, uint32_t flags,
     int depth, ph_stream_t *stm);

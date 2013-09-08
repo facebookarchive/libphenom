@@ -235,7 +235,7 @@ struct ph_ht_val_def {
   uint32_t vsize;
 
   /* function to copy a value
-   * This is called to populate the value poriton
+   * This is called to populate the value portion
    * of a element during insertion.
    *
    * If you are tracking refcounted pointers, this is the logical

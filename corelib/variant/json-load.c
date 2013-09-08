@@ -24,6 +24,7 @@
 #include "phenom/variant.h"
 #include "phenom/sysutil.h"
 #include "phenom/log.h"
+#include "phenom/printf.h"
 #include <assert.h>
 
 #define STREAM_STATE_OK        0

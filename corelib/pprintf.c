@@ -16,6 +16,7 @@
 
 #include "phenom/defs.h"
 #include "phenom/sysutil.h"
+#include "phenom/printf.h"
 
 /* These functions are built on top of the code found in vprintf.c */
 

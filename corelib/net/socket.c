@@ -20,6 +20,7 @@
 #include "phenom/job.h"
 #include "phenom/log.h"
 #include "phenom/dns.h"
+#include "phenom/printf.h"
 
 struct connect_job {
   ph_job_t job;

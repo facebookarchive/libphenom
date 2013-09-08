@@ -16,6 +16,7 @@
 #include "phenom/defs.h"
 #include "phenom/string.h"
 #include "phenom/sysutil.h"
+#include "phenom/printf.h"
 
 static ph_memtype_t mt_string = PH_MEMTYPE_INVALID;
 static ph_memtype_def_t string_def = {

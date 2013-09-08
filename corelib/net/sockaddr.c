@@ -16,7 +16,27 @@
 
 #include "phenom/socket.h"
 #include "phenom/log.h"
+#include "phenom/printf.h"
 #include <netdb.h>
+
+PH_TYPE_FORMATTER_FUNC(sockaddr)
+{
+  ph_sockaddr_t *sa = object;
+  PH_STRING_DECLARE_STACK(str, 132);
+
+  if (!sa) {
+#define null_sockaddr_string "sockaddr:null"
+    funcs->print(print_arg, null_sockaddr_string, sizeof(null_sockaddr_string)-1);
+    return sizeof(null_sockaddr_string)-1;
+  }
+
+  if (ph_sockaddr_print(sa, &str, true) == PH_OK) {
+    return funcs->print(print_arg, str.buf, str.len) ? str.len : 0;
+  }
+
+  ph_string_printf(&str, "<bad sockaddr:%p>", object);
+  return funcs->print(print_arg, str.buf, str.len) ? str.len : 0;
+}
 
 ph_result_t ph_sockaddr_set_v4(ph_sockaddr_t *sa,
     const char *addr, uint16_t port)

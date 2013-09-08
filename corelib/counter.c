@@ -16,6 +16,7 @@
 
 #include "phenom/counter.h"
 #include "phenom/sysutil.h"
+#include "phenom/printf.h"
 #include "phenom/queue.h"
 #include <ck_epoch.h>
 #include <ck_hs.h>

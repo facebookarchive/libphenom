@@ -107,89 +107,10 @@ int ph_mkostemp(char *nametemplate, int flags);
  */
 int ph_mkostemps(char *nametemplate, int suffixlen, int flags);
 
-struct ph_vprintf_funcs {
-  bool (*print)(void *arg, const char *buf, size_t len);
-  bool (*flush)(void *arg);
-};
-
 /** Thread-safe errno value to string conversion */
 const char *ph_strerror(int errval);
 /** Thread-safe errno value to string conversion */
 const char *ph_strerror_r(int errval, char *buf, size_t len);
-
-/** Portable string formatting.
- * This handles things like NULL string pointers without faulting.
- * It does not support long doubles nor does it support hex double
- * formatting.  It does not support locale for decimal points;
- * we always print those as `.`
- *
- * Extensions: some helpers are provided to format information
- * from the phenom library.  These extensions are designed such
- * that the gcc printf format type checking can still be used;
- * we prefix the extended format specifier with a backtick and
- * a 'P' character.
- *
- * For instance, \`Pe%d is seen as `%d` by GCC's checker
- * but the entire \`Pe%d is replaced by the strerror expansion.
- *
- * ```none
- *  `Pe%d -   replaced by the return from strerror(arg), using
- *            strerror_r() when present, where arg is an errno
- *            argument supplied by you.
- *  `Pv%s%p - recursively expands a format string and a va_list.
- *            Arguments are a char* and ph_vaptr(va_list)
- *  `Ps%p -   replaced by the contents of the ph_string_t* argument
- *  `Ps%d%p - replaced by the first n bytes specified by the integer
- *            argument of the ph_string_t* argument.
- * ```
- *
- */
-int ph_vprintf_core(void *print_arg,
-    const struct ph_vprintf_funcs *print_funcs,
-    const char *fmt0, va_list ap);
-
-#define ph_vaptr(ap)    (void*)&ap
-
-/** Like vsnprintf(), except that it uses ph_vprintf_core() */
-int ph_vsnprintf(char *buf, size_t size, const char *fmt, va_list ap);
-/** Like snprintf(), except that it uses ph_vprintf_core() */
-int ph_snprintf(char *buf, size_t size, const char *fmt, ...)
-#ifdef __GNUC__
-  __attribute__((format(printf, 3, 4)))
-#endif
-  ;
-
-/** Uses ph_vprintf_core to print to a file descriptor.
- * Uses a 1k buffer internally to reduce the number of calls
- * to the write() syscall. */
-int ph_vfdprintf(int fd, const char *fmt, va_list ap);
-/** Uses ph_vprintf_core to print to a file descriptor */
-int ph_fdprintf(int fd, const char *fmt, ...)
-#ifdef __GNUC__
-  __attribute__((format(printf, 2, 3)))
-#endif
-  ;
-
-/** Like asprintf, except that it uses ph_vprintf_core().
- * On error, returns -1 and sets strp to NULL */
-int ph_vasprintf(char **strp, const char *fmt, va_list ap);
-int ph_asprintf(char **strp, const char *fmt, ...)
-#ifdef __GNUC__
-  __attribute__((format(printf, 2, 3)))
-#endif
-  ;
-
-/** Like ph_asprintf, except that it uses the specified
- * memtype for the memory it allocates.
- * On error, returns -1 and sets strp to NULL */
-int ph_vmtsprintf(ph_memtype_t memtype, char **strp,
-    const char *fmt, va_list ap);
-int ph_mtsprintf(ph_memtype_t memtype, char **strp,
-    const char *fmt, ...)
-#ifdef __GNUC__
-  __attribute__((format(printf, 3, 4)))
-#endif
-  ;
 
 /** 128-bit murmur hash implementation; result goes into out (which
  * can just be a uint64_t[2]). */

@@ -25,6 +25,7 @@ SOFTWARE.
 #include "phenom/memory.h"
 #include "phenom/stream.h"
 #include "phenom/log.h"
+#include "phenom/printf.h"
 
 static bool do_write(ph_stream_t *stm, const void *buf,
     uint64_t count, uint64_t *nwrote)

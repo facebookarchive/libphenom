@@ -18,6 +18,7 @@
 #include "phenom/log.h"
 #include "phenom/thread.h"
 #include "phenom/sysutil.h"
+#include "phenom/printf.h"
 
 static pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
 static uint8_t log_level = PH_LOG_ERR;
