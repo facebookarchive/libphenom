@@ -17,6 +17,7 @@
 #include "phenom/sysutil.h"
 #include "phenom/string.h"
 #include "phenom/dns.h"
+#include "phenom/log.h"
 #include "ares.h"
 #include "tap.h"
 

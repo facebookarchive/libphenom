@@ -39,6 +39,7 @@
 #include "phenom/defs.h"
 #include "phenom/sysutil.h"
 #include "phenom/string.h"
+#include "phenom/socket.h"
 #include <sys/types.h>
 #include <sys/mman.h>
 
@@ -465,6 +466,34 @@ ph_vprintf_core(void *print_arg,
             continue;
           }
           break;
+
+        case 'a':
+          /* "`Pa%p" is a ph_sockaddr_t formatted as string
+           * Need to make this pluggable with name resolution */
+          if (fmt[3] == '%' && fmt[4] == 'p') {
+            uint32_t len;
+            PH_STRING_DECLARE_STACK(sabuf, 128);
+            ph_sockaddr_t *sa = GETARG(void*);
+
+            fmt += 5;
+            fprintf(stderr, "got sa %p\n", (void*)sa);
+            if (sa) {
+              ph_sockaddr_print(sa, &sabuf, true);
+
+              len = ph_string_len(&sabuf);
+              cp = sabuf.buf;
+              PRINT(cp, len);
+              ret += len;
+            } else {
+              cp = (char*)"(null)";
+              PRINT(cp, 6);
+              ret += 6;
+            }
+
+            continue;
+          }
+          break;
+
         case 's': {
           uint32_t len;
           ph_string_t *str = NULL;

@@ -704,6 +704,12 @@ static ph_result_t apply_io_mask(ph_job_t *job, ph_iomask_t mask, void *impl)
     job->kmask = want_mask;
     job->mask = mask;
     res = epoll_ctl(ep_fd, op, job->fd, &evt);
+    if (res == -1 && errno == EEXIST && op == EPOLL_CTL_ADD) {
+      // This can happen when we're transitioning between distinct job
+      // pointers, for instance, when we're moving from an async connect
+      // to setting up the sock job
+      res = epoll_ctl(ep_fd, EPOLL_CTL_MOD, job->fd, &evt);
+    }
   }
 
   if (res == -1) {

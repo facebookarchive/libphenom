@@ -229,6 +229,9 @@ typedef uint32_t ph_result_t;
 #define ph_container_of(ptr_, type_, member_)  \
     ((type_ *)((char *)ptr_ - ph_offsetof(type_, member_)))
 
+/** Holds a socket descriptor */
+typedef int ph_socket_t;
+
 #ifdef __cplusplus
 }
 #endif

@@ -15,6 +15,7 @@
  */
 
 #include "phenom/job.h"
+#include "phenom/sysutil.h"
 #include "phenom/log.h"
 #include "ck_backoff.h"
 #ifdef __sun__

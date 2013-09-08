@@ -20,7 +20,6 @@
 #include "phenom/defs.h"
 #include "phenom/thread.h"
 #include "phenom/timerwheel.h"
-#include "phenom/sysutil.h"
 #include "phenom/queue.h"
 
 #ifdef __cplusplus

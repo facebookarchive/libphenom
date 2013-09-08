@@ -16,6 +16,7 @@
 
 #include "phenom/job.h"
 #include "phenom/log.h"
+#include "phenom/sysutil.h"
 #include "tap.h"
 
 static int ticks = 0;

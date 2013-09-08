@@ -44,6 +44,18 @@ ph_result_t ph_sockaddr_set_v4(ph_sockaddr_t *sa,
   return PH_ERR;
 }
 
+void ph_sockaddr_set_port(ph_sockaddr_t *sa, uint16_t port)
+{
+  switch (sa->family) {
+    case AF_INET6:
+      sa->sa.v6.sin6_port = htons(port);
+      break;
+    case AF_INET:
+      sa->sa.v4.sin_port = htons(port);
+      break;
+  }
+}
+
 ph_result_t ph_sockaddr_set_v6(
     ph_sockaddr_t *sa,
     const char *addr,
@@ -82,7 +94,6 @@ ph_result_t ph_sockaddr_set_v6(
       return PH_OK;
 
     case AF_INET:
-      // Maybe mapped
       memcpy(&sa->sa.sa, ai->ai_addr, sizeof(sa->sa.v4));
       sa->sa.v4.sin_port = htons(port);
       freeaddrinfo(ai);
@@ -181,6 +192,29 @@ ph_result_t ph_sockaddr_set_from_addrinfo(
 
     case AF_INET:
       memcpy(&sa->sa.sa, ai->ai_addr, sizeof(sa->sa.v4));
+      return PH_OK;
+
+    default:
+      return PH_ERR;
+  }
+}
+
+ph_result_t ph_sockaddr_set_from_hostent(
+    ph_sockaddr_t *sa,
+    struct hostent *ent)
+{
+  memset(sa, 0, sizeof(*sa));
+  sa->family = ent->h_addrtype;
+
+  switch (sa->family) {
+    case AF_INET6:
+      sa->sa.v6.sin6_family = sa->family;
+      memcpy(&sa->sa.v6.sin6_addr, ent->h_addr_list[0], sizeof(sa->sa.v6.sin6_addr));
+      return PH_OK;
+
+    case AF_INET:
+      sa->sa.v4.sin_family = sa->family;
+      memcpy(&sa->sa.v4.sin_addr, ent->h_addr_list[0], sizeof(sa->sa.v4.sin_addr));
       return PH_OK;
 
     default:
