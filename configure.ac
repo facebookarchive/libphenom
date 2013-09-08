@@ -235,7 +235,7 @@ case "$CFLAGS" in
     ;;
 esac
 dnl always include debug info in what we build
-CFLAGS="$CFLAGS -g"
+CFLAGS="$CFLAGS -g -gdwarf-2"
 
 IRONMANCFLAGS=""
 if test -n "$GCC" -a "$lenient" == "no" ; then
