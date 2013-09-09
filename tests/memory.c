@@ -17,6 +17,7 @@
 #include "phenom/memory.h"
 #include "phenom/counter.h"
 #include "phenom/sysutil.h"
+#include "phenom/printf.h"
 #include "tap.h"
 
 static void dump_mem_stats(void)

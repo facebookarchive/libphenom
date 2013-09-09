@@ -117,6 +117,8 @@ const char *ph_strerror_r(int errval, char *buf, size_t len);
 void ph_hash_bytes_murmur(const void *key, const int len,
     const uint32_t seed, void *out);
 
+void ph_debug_console_start(const char *unix_sock_path);
+
 #ifdef __cplusplus
 }
 #endif

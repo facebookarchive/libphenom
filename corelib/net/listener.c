@@ -138,6 +138,8 @@ ph_socket_t ph_listener_get_fd(ph_listener_t *lstn)
 
 ph_result_t ph_listener_bind(ph_listener_t *lstn, const ph_sockaddr_t *addr)
 {
+  int err;
+
   if (lstn->job.fd == -1) {
     int on = 1;
 
@@ -154,6 +156,14 @@ ph_result_t ph_listener_bind(ph_listener_t *lstn, const ph_sockaddr_t *addr)
   }
   if (bind(lstn->job.fd, &addr->sa.sa, ph_sockaddr_socklen(addr)) == 0) {
     return PH_OK;
+  }
+  err = errno;
+  if (err == EADDRINUSE && addr->family == AF_UNIX) {
+    unlink(addr->sa.nix.sun_path);
+    if (bind(lstn->job.fd, &addr->sa.sa, ph_sockaddr_socklen(addr)) == 0) {
+      return PH_OK;
+    }
+    errno = err;
   }
   return PH_ERR;
 }
