@@ -347,6 +347,12 @@ fail:
   return NULL;
 }
 
+void ph_sock_free(ph_sock_t *sock)
+{
+  ph_sock_enable(sock, false);
+  ph_job_free(&sock->job);
+}
+
 void ph_sock_enable(ph_sock_t *sock, bool enable)
 {
   if (sock->enabled == enable) {

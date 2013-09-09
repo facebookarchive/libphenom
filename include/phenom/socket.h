@@ -243,6 +243,12 @@ ph_sock_t *ph_sock_new_from_socket(ph_socket_t s, const ph_sockaddr_t *sockname,
  */
 void ph_sock_enable(ph_sock_t *sock, bool enable);
 
+/** Release all resources associated with a socket object
+ *
+ * Implicitly disables the socket.
+ */
+void ph_sock_free(ph_sock_t *sock);
+
 /** Read exactly the specified number of bytes
  *
  * Returns a buffer containing the requested number of bytes, or NULL if they
@@ -316,6 +322,15 @@ typedef void (*ph_sock_connect_func)(
  */
 void ph_sock_resolve_and_connect(const char *name, uint16_t port,
     struct timeval *timeout, int resolver, ph_sock_connect_func func, void *arg);
+
+#define PH_SOCK_SHUT_RD   0
+#define PH_SOCK_SHUT_WR   1
+#define PH_SOCK_SHUT_RDWR 2
+
+/** Perform a shutdown operation on a socket object */
+static inline int ph_sock_shutdown(ph_sock_t *sock, int how) {
+  return shutdown(sock->job.fd, how);
+}
 
 #ifdef __cplusplus
 }

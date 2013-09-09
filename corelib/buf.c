@@ -20,6 +20,8 @@
 #include "phenom/queue.h"
 #include "phenom/log.h"
 #include "phenom/sysutil.h"
+#include "phenom/printf.h"
+#include <ctype.h>
 
 struct ph_buf {
   ph_refcnt_t ref;
@@ -64,6 +66,58 @@ static pthread_once_t once_init = PTHREAD_ONCE_INIT;
 static void buffer_init(void)
 {
   ph_memtype_register_block(sizeof(defs)/sizeof(defs[0]), defs, &mt.obj);
+}
+
+PH_TYPE_FORMATTER_FUNC(buf)
+{
+  ph_buf_t *buf = object;
+  char txt[64];
+  int len, sample, i;
+  uint8_t *data = ph_buf_mem(buf);
+
+  if (!buf) {
+#define null_buffer_string "buf:null"
+    funcs->print(print_arg, null_buffer_string, sizeof(null_buffer_string)-1);
+    return sizeof(null_buffer_string)-1;
+  }
+
+  len = ph_snprintf(txt, sizeof(txt),
+      "buf{%p: len=%" PRIu64 "} = \"", object, ph_buf_len(buf));
+
+  if (!funcs->print(print_arg, txt, len)) {
+    return 0;
+  }
+
+  sample = MIN(ph_buf_len(buf), 64);
+  for (i = 0; i < sample; i++) {
+    if (isprint(data[i])) {
+      funcs->print(print_arg, (char*) data + i, 1);
+      len++;
+      continue;
+    }
+
+    switch (data[i]) {
+      case '\r':
+        funcs->print(print_arg, "\\r", 2);
+        len += 2;
+        break;
+      case '\n':
+        funcs->print(print_arg, "\\n", 2);
+        len += 2;
+        break;
+      case '\t':
+        funcs->print(print_arg, "\\t", 2);
+        len += 2;
+        break;
+      default:
+        ph_snprintf(txt, sizeof(txt), "\\x%02x", data[i]);
+        funcs->print(print_arg, txt, 4);
+        len += 4;
+    }
+  }
+  funcs->print(print_arg, "\"", 1);
+
+  return len + 1;
 }
 
 static inline uint64_t select_size(uint64_t size, ph_memtype_t *mtp)

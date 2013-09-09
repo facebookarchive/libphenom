@@ -70,7 +70,7 @@ ph_socket_t ph_listener_get_fd(ph_listener_t *lstn);
 /** Set the listen backlog.
  *
  * If `backlog` is <= 0, attempts to determine the current kernel setting
- * for the `somaxconn` system parameter and users that, otherwise falls back
+ * for the `somaxconn` system parameter and uses that, otherwise falls back
  * to the `SOMAXCONN` value from your system header, or if that is undefined,
  * uses the value `128`.
  */
