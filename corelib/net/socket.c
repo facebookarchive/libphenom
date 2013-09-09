@@ -54,7 +54,7 @@ static struct {
 } mt;
 static pthread_once_t done_sock_init = PTHREAD_ONCE_INIT;
 
-ph_socket_t ph_socket_for_addr(ph_sockaddr_t *addr, int type, int flags)
+ph_socket_t ph_socket_for_addr(const ph_sockaddr_t *addr, int type, int flags)
 {
   ph_socket_t s;
 
@@ -159,7 +159,7 @@ static void sock_dispatch(ph_job_t *j, ph_iomask_t why, void *data)
   sock->callback(sock, why, data);
 
   if (sock->enabled) {
-    ph_iomask_t mask = sock->conn->need_mask;
+    ph_iomask_t mask = sock->conn->need_mask | PH_IOMASK_READ;
 
     if (ph_bufq_len(sock->wbuf)) {
       mask |= PH_IOMASK_WRITE;
@@ -259,6 +259,9 @@ static bool sock_stm_writev(ph_stream_t *stm, const struct iovec *iov,
   ph_sock_t *sock = stm->cookie;
 
   for (i = 0; i < iovcnt; i++) {
+    if (iov[i].iov_len == 0) {
+      continue;
+    }
     if (ph_bufq_append(sock->wbuf, iov[i].iov_base,
           iov[i].iov_len, &n) != PH_OK) {
       stm->last_err = EAGAIN;
@@ -297,6 +300,8 @@ ph_sock_t *ph_sock_new_from_socket(ph_socket_t s, const ph_sockaddr_t *sockname,
   const ph_sockaddr_t *peername)
 {
   ph_sock_t *sock;
+
+  pthread_once(&done_sock_init, do_sock_init);
 
   sock = (ph_sock_t*)ph_job_alloc(&sock_job_template);
   if (!sock) {

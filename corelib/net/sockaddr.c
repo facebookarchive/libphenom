@@ -168,21 +168,8 @@ ph_result_t ph_sockaddr_print(ph_sockaddr_t *sa,
       return ph_string_append_cstr(str, sa->sa.nix.sun_path);
 
     case AF_INET:
-      ret = getnameinfo(&sa->sa.sa, sizeof(sa->sa.v4),
-              buf, sizeof(buf), pbuf, sizeof(pbuf),
-              NI_NUMERICHOST|NI_NUMERICSERV);
-
-      if (ret) {
-        return PH_ERR;
-      }
-      if (want_port) {
-        ph_string_printf(str, "[%s]:%s", buf, pbuf);
-        return PH_OK;
-      }
-      return ph_string_append_cstr(str, buf);
-
     case AF_INET6:
-      ret = getnameinfo(&sa->sa.sa, sizeof(sa->sa.v6),
+      ret = getnameinfo(&sa->sa.sa, ph_sockaddr_socklen(sa),
               buf, sizeof(buf), pbuf, sizeof(pbuf),
               NI_NUMERICHOST|NI_NUMERICSERV);
 

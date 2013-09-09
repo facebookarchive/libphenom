@@ -371,7 +371,7 @@ ph_vprintf_core(void *print_arg,
    * BEWARE, these `goto error' on error, and PAD uses `n'.
    */
 #define PRINT(ptr, len) do { \
-  if (!print_funcs->print(print_arg, ptr, len)) { \
+  if (len > 0 && !print_funcs->print(print_arg, ptr, len)) { \
     print_error = true; \
     goto error; \
   } \

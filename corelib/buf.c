@@ -19,6 +19,7 @@
 #include "phenom/refcnt.h"
 #include "phenom/queue.h"
 #include "phenom/log.h"
+#include "phenom/sysutil.h"
 
 struct ph_buf {
   ph_refcnt_t ref;
@@ -319,6 +320,7 @@ ph_result_t ph_bufq_append(ph_bufq_t *q, void *buf, uint64_t len,
 
   last = PH_STAILQ_LAST(&q->fifo, ph_bufq_ent, ent);
   avail = ph_buf_len(last->buf) - last->wpos;
+  avail = MIN(avail, len);
 
   // Top-off
   if (avail) {
@@ -609,6 +611,7 @@ bool ph_bufq_stm_write(ph_bufq_t *q, ph_stream_t *stm, uint64_t *nwrotep)
     return true;
   }
 
+  nwrote = 0;
   res = ph_stm_writev(stm, iov, nio, &nwrote);
 
   if (nwrotep) {

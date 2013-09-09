@@ -142,6 +142,7 @@ AC_CHECK_HEADERS([pthread_np.h],[],[],[[
 ]])
 
 AC_CHECK_FUNCS(\
+accept4 \
 asprintf \
 backtrace \
 backtrace_symbols \
@@ -163,6 +164,7 @@ pthread_setaffinity_np \
 pthread_mach_thread_np \
 strerror_r \
 strtoll \
+sysctlbyname \
 thread_policy_set \
 timerfd_create \
 )

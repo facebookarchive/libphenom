@@ -53,7 +53,7 @@ typedef struct phenom_sockaddr ph_sockaddr_t;
  * This is useful when passing the sockaddr to lower level
  * socket syscalls
  */
-static inline int ph_sockaddr_socklen(ph_sockaddr_t *addr) {
+static inline int ph_sockaddr_socklen(const ph_sockaddr_t *addr) {
   switch (addr->family) {
     case AF_UNIX:
       return sizeof(addr->sa.nix);
@@ -139,7 +139,7 @@ void ph_socket_set_nonblock(ph_socket_t fd, bool enable);
  *                    PH_SOCK_CLOEXEC|PH_SOCK_NONBLOCK);
  *```
  */
-ph_socket_t ph_socket_for_addr(ph_sockaddr_t *addr, int type, int flags);
+ph_socket_t ph_socket_for_addr(const ph_sockaddr_t *addr, int type, int flags);
 
 /** Handles the results of ph_socket_connect()
  *

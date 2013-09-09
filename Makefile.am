@@ -33,6 +33,7 @@ libphenom_a_SOURCES = \
 	corelib/nbio.c \
 	corelib/job.c \
 	corelib/string.c \
+	corelib/net/listener.c \
 	corelib/net/sockaddr.c \
 	corelib/net/socket.c \
 	corelib/thread.c \
