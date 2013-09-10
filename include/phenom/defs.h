@@ -225,7 +225,11 @@ typedef uint32_t ph_result_t;
 #define PH_EXISTS  5
 #define PH_DONE    6
 
-#define ph_offsetof(type, field) ((size_t)(&((type *)0)->field))
+# ifdef __GNUC__
+#  define ph_offsetof(type, field) __builtin_offsetof(type, field)
+# else
+#  define ph_offsetof(type, field) ((size_t)(&((type *)0)->field))
+# endif
 #define ph_container_of(ptr_, type_, member_)  \
     ((type_ *)((char *)ptr_ - ph_offsetof(type_, member_)))
 
