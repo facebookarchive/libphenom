@@ -187,6 +187,11 @@ ph_result_t ph_job_set_pool_immediate(ph_job_t *job,
  * of MAX(4, ph_power_2(max_queue_len)) * 64 jobs that can be "queued",
  * assuming that all 63 preferred threads and all the non-preferred
  * threads are busy saturating the pool.
+ *
+ * Note that the actual values used for `max_queue_len` and `num_threads`
+ * will be taken from the configuration values `$.threadpool.NAME.queue_len`
+ * and `$.threadpool.NAME.num_threads` respectively, where `NAME` is
+ * replaced by the `name` parameter you specify.
  */
 ph_thread_pool_t *ph_thread_pool_define(
     const char *name,
@@ -247,7 +252,19 @@ void ph_sched_stop(void);
 void ph_job_pool_shutdown(void);
 void ph_job_pool_apply_deferred_items(ph_thread_t *me);
 
+/** Initialize the NBIO pool
+ *
+ * This MUST be called prior to setting any nbio jobs.
+ * `sched_cores` specifies how many threads should be used for
+ * NBIO.  Setting it to `0` selects a reasonable default based
+ * on some experimentation of the core library.
+ *
+ * The actual value used for sched_cores will be taken from
+ * the configuration for `$.nbio.sched_cores`, if present,
+ * otherwise your sched_cores parameter will be used.
+ */
 ph_result_t ph_nbio_init(uint32_t sched_cores);
+
 ph_result_t ph_job_pool_init(void);
 
 void _ph_job_set_pool_immediate(ph_job_t *job, ph_thread_t *me);

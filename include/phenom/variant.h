@@ -147,7 +147,7 @@
  * `S` (string) [ph_string_t \*]
  * Store the string pointer into the ph_string_t parameter.  The reference
  * is incremented.
-  *
+ *
  * `n` (null)
  * Expect a variant null value. Nothing is extracted.
  *
@@ -247,6 +247,36 @@ ph_var_unpack(root, &err, 0, "{s?i, s?[ii]}",
             "bar", &myint2, &myint3);
 // myint1, myint2 or myint3 is no touched as "foo" and "bar" don't exist
 ```
+ *
+ * # JSONPath style queries
+ *
+ * Simple [JSONPath](http://goessner.net/articles/JsonPath/) style queries may be
+ * used to interrogate variants.  Phenom supports only a limited subset of
+ * JSONPath.
+ *
+ * The query must be started at the root (using the `$` character) and will
+ * return only a single value; wildcard selection is not supported.
+ *
+ * * `$` selects the root object
+ * * `.` focuses on a child of the current cursor
+ * * `name` selects an object with the specified name
+ * * `[1]` selects the 2nd array element from the current cursor (arrays are zero
+ *    based).
+ *
+ * For example, given the object:
+ *
+```json
+{
+  "one": {
+    "two": ["a", "b", "c", {
+      "lemon": "cake"
+    }]
+  }
+}
+```
+ *
+ * The query `$.one.two[2]` produces the value `"c"`, while the
+ * query `$.one.two[3].lemon` produces the value `"cake"`.
  */
 
 #ifndef PHENOM_VARIANT_H
@@ -644,6 +674,15 @@ ph_result_t ph_var_unpack(ph_variant_t *root, ph_var_err_t *error,
 ph_result_t ph_var_vunpack(ph_variant_t *root, ph_var_err_t *error,
     uint32_t flags, const char *fmt, va_list ap);
 
+/** Evaluate a JSONPath style expression.
+ *
+ * Phenom supports a limited subset of JSONPath; see the start of this
+ * document for more details on the supported syntax.
+ *
+ * Returns a borrowed reference on the matching element if found, else
+ * returns NULL pointer.
+ */
+ph_variant_t *ph_var_jsonpath_get(ph_variant_t *var, const char *path);
 
 #ifdef __cplusplus
 }

@@ -21,6 +21,7 @@
 #include "phenom/log.h"
 #include "phenom/dns.h"
 #include "phenom/printf.h"
+#include "phenom/configuration.h"
 
 struct connect_job {
   ph_job_t job;
@@ -300,6 +301,7 @@ ph_sock_t *ph_sock_new_from_socket(ph_socket_t s, const ph_sockaddr_t *sockname,
   const ph_sockaddr_t *peername)
 {
   ph_sock_t *sock;
+  int64_t max_buf;
 
   pthread_once(&done_sock_init, do_sock_init);
 
@@ -308,12 +310,15 @@ ph_sock_t *ph_sock_new_from_socket(ph_socket_t s, const ph_sockaddr_t *sockname,
     return NULL;
   }
 
-  sock->wbuf = ph_bufq_new(MAX_SOCK_BUFFER_SIZE);
+  max_buf = ph_config_query_int("$.socket.max_buffer_size",
+              MAX_SOCK_BUFFER_SIZE);
+
+  sock->wbuf = ph_bufq_new(max_buf);
   if (!sock->wbuf) {
     goto fail;
   }
 
-  sock->rbuf = ph_bufq_new(MAX_SOCK_BUFFER_SIZE);
+  sock->rbuf = ph_bufq_new(max_buf);
   if (!sock->rbuf) {
     goto fail;
   }

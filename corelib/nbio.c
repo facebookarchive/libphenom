@@ -20,6 +20,7 @@
 #include "phenom/memory.h"
 #include "phenom/log.h"
 #include "phenom/counter.h"
+#include "phenom/configuration.h"
 
 // We use 100ms resolution
 #define WHEEL_INTERVAL_MS 100
@@ -334,6 +335,8 @@ ph_result_t ph_nbio_init(uint32_t sched_cores)
     return PH_OK;
   }
 
+  sched_cores = ph_config_query_int("$.nbio.sched_cores", sched_cores);
+
   if (sched_cores == 0) {
     /* Pick a reasonable default */
     sched_cores = ph_num_cores() / 2;
@@ -554,6 +557,7 @@ static void kqueue_emitter(ph_counter_block_t *cblock, ph_thread_t *thread)
   // TODO: This should be a property of the scheduler pool and be something
   // that we apply to the epoll and portfs schedulers
   max_chunk = num_schedulers == 1 ? 1024 : 128;
+  ph_config_query_int("$.nbio.max_per_wakeup", max_chunk);
 
   while (ck_pr_load_int(&_ph_run_loop)) {
     n = kevent(kq_fd, set.events, set.used,

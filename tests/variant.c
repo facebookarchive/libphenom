@@ -742,7 +742,61 @@ static void test_unpack(void)
   is(ph_var_unpack(v, &err, 0, "{s?{s?i}}", "foo", "bar", &i1), PH_OK);
   is(i1, 42);
   ph_var_delref(v);
+}
 
+static struct {
+  const char *json;
+  const char *query;
+  const char *expect;
+} path_tests[] = {
+  { "[1,2,3]", "$[0]", "1" },
+  { "[1,2,3]", "$[1]", "2" },
+  { "[1,2,3]", "$[2]", "3" },
+  { "{\"a\": 1}", "$.a", "1" },
+  { "{\"a\": 1}", "$.foo", NULL },
+  { "{\"a\": {\"b\": \"hello\"}}", "$.a", "{\"b\": \"hello\"}" },
+  { "{\"a\": {\"b\": \"hello\"}}", "$.a.b", "\"hello\"" },
+  { "{\"a\": {\"b\": [5,4,3]}}", "$.a.b", "[5, 4, 3]" },
+  { "{\"a\": {\"b\": [5,4,3]}}", "$.a.b[1]", "4" },
+};
+
+static void test_path(void)
+{
+  ph_variant_t *v, *v2;
+  ph_var_err_t err;
+  uint32_t i;
+  PH_STRING_DECLARE_GROW(dumpstr, 128, mt_misc);
+
+  for (i = 0; i < sizeof(path_tests)/sizeof(path_tests[0]); i++) {
+    ph_string_t str;
+    uint32_t len;
+
+    len = strlen(path_tests[i].json);
+    ph_string_init_claim(&str, PH_STRING_STATIC,
+        (char*)path_tests[i].json, len, len);
+
+    diag("load %.*s", len, path_tests[i].json);
+    v = ph_json_load_string(&str, PH_JSON_DECODE_ANY, &err);
+
+    ok(v, "parsed");
+    if (!v) {
+      diag("failed: %s", err.text);
+      continue;
+    }
+
+    v2 = ph_var_jsonpath_get(v, path_tests[i].query);
+    if (v2 == NULL) {
+      ok(path_tests[i].expect == NULL, "expected no result");
+    } else {
+      ph_string_reset(&dumpstr);
+      is(ph_json_dump_string(v2, &dumpstr, PH_JSON_SORT_KEYS), PH_OK);
+      diag("query %s -> %.*s", path_tests[i].query, dumpstr.len, dumpstr.buf);
+      ok(ph_string_equal_cstr(&dumpstr, path_tests[i].expect),
+          "got expected results %s", path_tests[i].expect);
+    }
+
+    ph_var_delref(v);
+  }
 }
 
 int main(int argc, char **argv)
@@ -756,7 +810,7 @@ int main(int argc, char **argv)
   unused_parameter(argv);
 
   ph_library_init();
-  plan_tests(517);
+  plan_tests(543);
 
   mt_misc = ph_memtype_register(&mt_def);
 
@@ -888,6 +942,7 @@ int main(int argc, char **argv)
   test_equal();
   test_pack();
   test_unpack();
+  test_path();
 
   return exit_status();
 }

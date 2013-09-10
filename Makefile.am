@@ -20,6 +20,7 @@ libphenom_a_CFLAGS = @IRONMANCFLAGS@
 libphenom_a_SOURCES = \
 	corelib/init.c \
 	corelib/buf.c \
+	corelib/config.c \
 	corelib/counter.c \
 	corelib/debug_console.c \
 	corelib/dns/addrinfo.c \
@@ -44,6 +45,7 @@ libphenom_a_SOURCES = \
 	corelib/variant/json-dump.c \
 	corelib/variant/json-load.c \
 	corelib/variant/pack.c \
+	corelib/variant/path.c \
 	corelib/hash/murmur.c \
 	corelib/hash/table.c \
 	corelib/streams/make.c \
