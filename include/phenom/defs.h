@@ -187,6 +187,14 @@
 # endif
 
 # ifdef __GNUC__
+#  define PH_GCC_VERSION (__GNUC__ * 10000 \
+    + __GNUC_MINOR__ * 100 \
+    + __GNUC_PATCHLEVEL__)
+# else
+#  define PH_GCC_VERSION 0
+#endif
+
+# ifdef __GNUC__
 #  define likely(x)    __builtin_expect(!!(x), 1)
 #  define unlikely(x)  __builtin_expect(!!(x), 0)
 # else
@@ -232,6 +240,59 @@ typedef uint32_t ph_result_t;
 # endif
 #define ph_container_of(ptr_, type_, member_)  \
     ((type_ *)((char *)ptr_ - ph_offsetof(type_, member_)))
+
+#define ph_static_assert_paste2(pre, post)  pre ## post
+#define ph_static_assert_paste1(pre, post)  ph_static_assert_paste2(pre, post)
+
+/**
+ * # Static Asserts
+ *
+ * To perform compile time assertion checking (useful for things like ABI
+ * checks), you may use the ph_static_assert() macro.  Usage is as follows:
+ *
+ * ```
+ * ph_static_assert(sizeof(int)==4, assuming_32_bits);
+ * ```
+ *
+ * The first parameter is the expression to check, the second is ideally
+ * a meaningful identifier string that gives a descriptive label for the
+ * issue.  It has to be a valid identifier component in order to provide
+ * meaningful error messages on a wider range of compilers.
+ *
+ * If the assertion fails, you'll encounter an error message like this:
+ *
+ * ```
+ * error: zero width for bit-field ‘static_assertion_failed_assuming_32_bits’
+ * ```
+ *
+ * If you are using GCC 4.6 or later you'll see an error message like this:
+ *
+ * ```
+ * error: static assertion failed: "assuming_32_bits"
+ * ```
+ */
+
+# if PH_GCC_VERSION >= 40600
+#  define ph_static_assert(expr, msg)   _Static_assert(expr, #msg)
+# elif PH_GCC_VERSION >= 40300
+   /* has the __COUNTER__ construct */
+#  define ph_static_assert(expr, msg) \
+     typedef struct { \
+       int ph_static_assert_paste1(static_assertion_failed_,msg) : \
+       !!(expr); \
+     } ph_static_assert_paste1(static_assertion_failed_,__COUNTER__)
+# else
+   /* this can generate conflicting type names if
+    * the same assert message is used from the same line of two
+    * different files */
+#  define ph_static_assert(expr, msg) \
+     typedef struct { \
+       int ph_static_assert_paste1(static_assertion_failed_,msg) : \
+       !!(expr); \
+     } ph_static_assert_paste1(ph_static_assert_paste1(\
+            static_assertion_failed_,msg),__LINE__)
+# endif
+
 
 /** Holds a socket descriptor */
 typedef int ph_socket_t;

@@ -213,7 +213,17 @@ AC_SUBST(RTM_ENABLE)
 
 # Do this after we've looked for functions
 if test -n "$GCC" ; then
-  CFLAGS="$CFLAGS -std=gnu99 \
+  GCC_VERSION=`$CC -dumpversion`
+  GCC_VERSION_MAJOR=`echo $GCC_VERSION | cut -d. -f1`
+  GCC_VERSION_MINOR=`echo $GCC_VERSION | cut -d. -f2`
+
+  # Need to select c1x if we want to use _Static_assert
+  if expr \( $GCC_VERSION_MAJOR \* 10000 \) \+ \( $GCC_VERSION_MINOR \* 100 \) \>= 40600 >/dev/null ; then
+    GCC_STD=gnu1x
+  else
+    GCC_STD=gnu99
+  fi
+  CFLAGS="$CFLAGS -std=$GCC_STD \
     -pedantic -Wall -Wextra -Wno-declaration-after-statement \
     -W -Wundef -Wendif-labels -Wshadow -Wpointer-arith -Wcast-align \
     -Wwrite-strings -Wstrict-prototypes -Wmissing-prototypes \
