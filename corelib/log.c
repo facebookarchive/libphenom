@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Facebook, Inc.
+ * Copyright 2012-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,6 +19,7 @@
 #include "phenom/thread.h"
 #include "phenom/sysutil.h"
 #include "phenom/printf.h"
+#include "phenom/hook.h"
 
 static pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
 static uint8_t log_level = PH_LOG_ERR;
@@ -32,6 +33,8 @@ static const char *log_labels[] = {
   "info",
   "debug"
 };
+
+static bool disable_stderr = false;
 
 uint8_t ph_log_level_set(uint8_t level)
 {
@@ -53,31 +56,57 @@ void ph_logv(uint8_t level, const char *fmt, va_list ap)
   ph_thread_t *me;
   int len;
   va_list copy;
+  char *buf;
+  PH_STRING_DECLARE_STACK(mystr, 1024);
+  void *args[] = { &level, &mystr };
+  static ph_hook_point_t *hook = NULL;
 
   if (level > log_level) {
     return;
   }
-
-  me = ph_thread_self();
 
   len = strlen(fmt);
   if (len == 0) {
     return;
   }
 
+  me = ph_thread_self();
   va_copy(copy, ap);
-
-  pthread_mutex_lock(&log_lock);
-  ph_fdprintf(STDERR_FILENO,
+  ph_string_printf(&mystr,
       "%" PRIi64 ".%03d %s: %s/%d `Pv%s%p%s",
       (int64_t)now.tv_sec, (int)(now.tv_usec / 1000),
       log_labels[level], me ? me->name : "", me ? me->tid : 0,
       fmt, ph_vaptr(copy),
       fmt[len-1] == '\n' ? "" : "\n"
   );
-  pthread_mutex_unlock(&log_lock);
-
   va_end(copy);
+
+  if (unlikely(hook == NULL)) {
+    hook = ph_hook_point_get_cstr(PH_LOG_HOOK_NAME, true);
+  }
+  ph_hook_invoke_inner(hook, sizeof(args)/sizeof(args[0]), args);
+
+  if (disable_stderr) {
+    return;
+  }
+
+  pthread_mutex_lock(&log_lock);
+  buf = mystr.buf;
+  len = mystr.len;
+  while (len) {
+    int x = write(STDERR_FILENO, buf, len);
+    if (x <= 0) {
+      break;
+    }
+    buf += x;
+    len -= x;
+  }
+  pthread_mutex_unlock(&log_lock);
+}
+
+void ph_log_disable_stderr(void)
+{
+  disable_stderr = true;
 }
 
 void ph_log(uint8_t level, const char *fmt, ...)

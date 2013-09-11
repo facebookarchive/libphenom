@@ -27,6 +27,7 @@ libphenom_a_SOURCES = \
 	corelib/dns/query.c \
 	corelib/dtoa.c \
 	corelib/error.c \
+	corelib/hook.c \
 	corelib/log.c \
 	corelib/memory.c \
 	corelib/pingfd.c \

@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2013 Facebook, Inc.
+ * Copyright 2012-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -35,6 +35,30 @@
  *
  * The default is `PH_LOG_ERR`, meaning that a log event must be `PH_LOG_ERR`
  * or higher for the message to hit the logs.
+ *
+ * Expanded log messages have a maximum length of 1024 bytes in the
+ * current implementation.
+ *
+ * ## Logging Hook
+ *
+ * You may register to observe log messages.  The constant `PH_LOG_HOOK_NAME`
+ * identifies the hook point.  The hook receives 2 parameters:
+ *
+ * * `args[0]` -> `uint8_t *level` the requested log level
+ * * `args[1]` -> `ph_string_t *str` the string being logged
+ *
+ * Note that the string is only valid for the duration of the call to the hookpoint.
+ * It is stored in transient storage and will be freed after the hookpoint returns.
+ * If you need to retain the string contents for async work, you should copy it
+ * using ph_string_make_copy().
+ *
+ * Logging hooks receive only messages that are at or above the current logging level
+ * setting.
+ *
+ * ## Default Logging
+ *
+ * By default, logs are written to the STDERR file descriptor.  You can turn off
+ * this default by calling ph_log_disable_stderr().
  */
 
 #ifndef PHENOM_LOG_H
@@ -43,6 +67,8 @@
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+#define PH_LOG_HOOK_NAME "phenom::log::ph_log"
 
 #define PH_LOG_PANIC    0
 #define PH_LOG_ALERT    1
@@ -93,6 +119,9 @@ void ph_logv(uint8_t level, const char *fmt, va_list ap);
  * It may be a NOP on some systems.
  */
 void ph_log_stacktrace(uint8_t level);
+
+/** Disable logging to STDERR */
+void ph_log_disable_stderr(void);
 
 #ifdef __cplusplus
 }
