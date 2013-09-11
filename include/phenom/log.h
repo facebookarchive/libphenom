@@ -86,21 +86,6 @@ void ph_log(uint8_t level, const char *fmt, ...)
  */
 void ph_logv(uint8_t level, const char *fmt, va_list ap);
 
-/** Log a PH_LOG_PANIC level message, then abort()
- *
- * This logs a PANIC level message, logs the current stacktrace
- * and then calls `abort()`.
- *
- * It is intended to be used in situations where the world must
- * have an immediate end.
- * */
-void ph_panic(const char *fmt, ...)
-#ifdef __GNUC__
-  __attribute__((format(printf, 1, 2)))
-  __attribute__((noreturn))
-#endif
-  ;
-
 /** Logs the current call stack at the specified log level.
  * This may block or trigger IO while symbols are loaded.
  * It is intended to be used in last-resort or debug situations,

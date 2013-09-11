@@ -227,7 +227,7 @@ if test -n "$GCC" ; then
     -pedantic -Wall -Wextra -Wno-declaration-after-statement \
     -W -Wundef -Wendif-labels -Wshadow -Wpointer-arith -Wcast-align \
     -Wwrite-strings -Wstrict-prototypes -Wmissing-prototypes \
-    -Wnested-externs -Winline -Wdisabled-optimization \
+    -Wno-nested-externs -Winline -Wdisabled-optimization \
     -fstrict-aliasing -pipe -Wno-parentheses"
 fi
 

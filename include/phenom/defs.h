@@ -293,6 +293,90 @@ typedef uint32_t ph_result_t;
             static_assertion_failed_,msg),__LINE__)
 # endif
 
+/** Log a PH_LOG_PANIC level message, then abort()
+ *
+ * This logs a PANIC level message, logs the current stacktrace
+ * and then calls `abort()`.
+ *
+ * It is intended to be used in situations where the world must
+ * have an immediate end.
+ * */
+void ph_panic(const char *fmt, ...)
+#ifdef __GNUC__
+  __attribute__((format(printf, 1, 2)))
+  __attribute__((noreturn))
+#endif
+  ;
+
+/**
+ * # Runtime Assertions
+ *
+ * To perform a runtime assertion, use ph_assert() as shown below.
+ * Phenom makes the assumption that the expression to be asserted
+ * will almost never be true.
+ *
+ * ```
+ * ph_assert(n < 10, "n is within range");
+ * ```
+ *
+ * If your compiler is GCC 4.3 or newer, we'll try to evaluate the
+ * expression at compile time to save you some surprises.  This
+ * works similarly to ph_static_assert().  You'll see an error
+ * message along the lines of:
+ *
+ * ```
+ * file.c:350: error: call to ‘failed_assert_1’ declared with attribute error: 17 < 16 :: nargs too big
+ * ```
+ *
+ * Otherwise, the error will only trigger when the code is executed.
+ *
+ * Unlike assert(), ph_assert() is always enabled and compiled into
+ * your code.
+ *
+ * If you'd like assertions that are disabled when `NDEBUG` is `#define`d,
+ * you may use ph_debug_assert() instead:
+ *
+ * ```
+ * // Never checked in the production build, because there are
+ * // never going to be bugs there...
+ * ph_debug_assert(n < 10, "n is within range");
+ * ```
+ */
+
+# if PH_GCC_VERSION >= 40300
+// You'd think that you could use _Static_assert in here, if your
+// compiler supported it, but it ends up not seeing the const
+// folded expression and complains about it not being a constant
+// expression.  If you try to use _Static_assert(0, msg) then
+// gcc will generate spurious asserts.  So we're stuck with this
+// implementation, which is pretty decent at the end of the day
+# define ph_assert_static_inner(expr, msg, id) do { \
+    extern void ph_static_assert_paste1(failed_assert_,id)(void)\
+      __attribute__((error(#expr " :: " msg))); \
+    ph_static_assert_paste1(failed_assert_,id)(); \
+} while (0)
+# define ph_assert(expr, msg) do { \
+  if (__builtin_constant_p(expr) && !(expr)) { \
+    ph_assert_static_inner(expr, msg, __COUNTER__); \
+  } \
+  if (unlikely(expr)) { \
+    ph_panic("assertion " #expr " failed: " msg); \
+  } \
+} while(0)
+#else
+# define ph_assert(expr, msg) do { \
+  if (unlikely(expr)) { \
+    ph_panic(msg); \
+  } \
+} while(0)
+
+#endif
+
+#ifdef NDEBUG
+# define ph_debug_assert(expr, msg) ((void)0)
+#else
+# define ph_debug_assert(expr, msg) ph_assert(expr, msg)
+#endif
 
 /** Holds a socket descriptor */
 typedef int ph_socket_t;
