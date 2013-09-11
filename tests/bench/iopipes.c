@@ -226,6 +226,12 @@ int main(int argc, char **argv)
     );
   }
 
+  free(events);
+  free(write_ends);
+#ifdef HAVE_LIBEVENT
+  free(levents);
+#endif
+
 #ifdef __APPLE__
   // OS/X "mysteriously" spins CPU cycles somewhere in the kernel after we've
   // exit'd to close out descriptors.  Let folks know that that is what is
