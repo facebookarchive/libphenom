@@ -84,6 +84,11 @@ build-tests: $(TESTS)
 
 all-local: docs
 clean-local: clean-docs
+install-exec-local: install-phenom-hdrs
+
+install-phenom-hdrs:
+	$(MKDIR_P) "$(DESTDIR)$(includedir)/phenom"
+	$(INSTALL_HEADER) include/phenom/*.h $(DESTDIR)$(includedir)/phenom
 
 clean-docs:
 	-rm docs/declmap.js
