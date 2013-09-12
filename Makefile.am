@@ -90,6 +90,10 @@ clean-docs:
 
 docs: docs/declmap.js
 
+update-www: docs
+	test -d ../phenom-pages
+	cp docs/* ../phenom-pages/
+
 docs/declmap.js: mkdoc.php include/phenom/*.h README.markdown
 	php mkdoc.php
 
