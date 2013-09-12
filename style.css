@@ -1,0 +1,172 @@
+@import url(http://fonts.googleapis.com/css?family=Alef:400,700);
+
+body {
+  padding-top: 60px;
+  padding-bottom: 40px;
+  font-size: 15px;
+  line-height: 150%;
+  background: #f9f9f9;
+  font-weight: 400;
+  /* why would we want anything else? */
+  text-rendering: optimizelegibility;
+}
+
+h1,h2,h3,h4,h5,h6,body,.navbar-search .search-query {
+  font-family: "Alef", "Helvetica Neue",Helvetica,Arial,sans-serif;
+}
+h1,h2,h3,h4,h5,h6 {
+  font-weight: 700;
+}
+
+.navbar-search .search-query {
+  font-weight: 400;
+  line-height: 150%;
+  font-size: 15px;
+  border-radius: 7px;
+}
+.navbar-inverse .navbar-search .search-query:focus,
+.navbar-inverse .navbar-search .search-query.focused  {
+  background-color: #f9f9f9;
+}
+
+
+/* Hack for anchors and navbar positioning */
+h1,h2,h3,h4,h5,h6 {
+  padding-top: 60px;
+  margin-top: -60px;
+}
+
+/* Give some space between titles.  Measured negative so that
+ * it doesn't break the anchor hack above */
+h1:not(:first-child),
+h2:not(:first-child),
+h3:not(:first-child),
+h4:not(:first-child),
+h5:not(:first-child),
+h6:not(:first-child) {
+  margin-top: -20px;
+}
+
+#show-source {
+  margin-top: 3em;
+}
+
+.docs-sidebar {
+  overflow-x: hidden;
+}
+#sidenav {
+  overflow-x: hidden;
+}
+
+#sidenav a {
+  color: #666;
+  font-size: 13px;
+  line-height: 125%;
+}
+
+#sidenav.nav-list>li.active>a {
+  background-color: transparent;
+  color: #c05b4d;
+  font-weight: 700;
+}
+
+#sidenav li.active a, #sidenav a:hover, #sidenav a:focus {
+  color: #c05b4d;
+  background-color: transparent;
+}
+
+#sidenav.affix-botom {
+  position: absolute;
+  top: auto;
+  bottom: 80px;
+}
+
+#sidenav.affix {
+  top: 60px;
+  width: 270px;
+}
+
+form.navbar-search ul.typeahead.dropdown-menu {
+  overflow-x: hidden;
+}
+
+form.navbar-search ul.typeahead.dropdown-menu li {
+  max-height: 80px;
+  overflow: hidden;
+  padding-bottom: 8px;
+}
+
+/* Tablet */
+@media (max-width: 767px) {
+  /* Fix in position at top of doc when we're too narrow */
+  #sidenav.affix {
+    width: auto;
+    position: static;
+  }
+}
+
+@media (max-width: 979px) and (min-width: 768px) {
+  #sidenav.affix {
+    width: 208px;
+  }
+}
+
+/* Show counter examples in a red surround */
+pre.COUNTEREXAMPLE {
+  background-color: #f2dede;
+  border-color: #eed3d7;
+}
+
+/* Pretty printing styles. Used with prettify.js. */
+
+/* SPAN elements with the classes below are added by prettyprint. */
+.pln { color: #000 }  /* plain text */
+
+@media screen {
+  .str { color: #080 }  /* string content */
+  .kwd { color: #008 }  /* a keyword */
+  .com { color: #800 }  /* a comment */
+  .typ { color: #606 }  /* a type name */
+  .lit { color: #066 }  /* a literal value */
+  /* punctuation, lisp open bracket, lisp close bracket */
+  .pun, .opn, .clo { color: #660 }
+  .tag { color: #008 }  /* a markup tag name */
+  .atn { color: #606 }  /* a markup attribute name */
+  .atv { color: #080 }  /* a markup attribute value */
+  .dec, .var { color: #606 }  /* a declaration; a variable name */
+  .fun { color: red }  /* a function name */
+}
+
+/* Use higher contrast and text-weight for printable form. */
+@media print, projection {
+  .str { color: #060 }
+  .kwd { color: #006; font-weight: bold }
+  .com { color: #600; font-style: italic }
+  .typ { color: #404; font-weight: bold }
+  .lit { color: #044 }
+  .pun, .opn, .clo { color: #440 }
+  .tag { color: #006; font-weight: bold }
+  .atn { color: #404 }
+  .atv { color: #060 }
+}
+
+/* Put a border around prettyprinted code snippets. */
+pre.prettyprint { padding: 2px; border: 1px solid #888 }
+
+/* Specify class=linenums on a pre to get line numbering */
+ol.linenums { margin-top: 0; margin-bottom: 0 } /* IE indents via margin-left */
+li.L0,
+li.L1,
+li.L2,
+li.L3,
+li.L5,
+li.L6,
+li.L7,
+li.L8 { list-style-type: none }
+/* Alternate shading for lines */
+li.L1,
+li.L3,
+li.L5,
+li.L7,
+li.L9 { background: #eee }
+
