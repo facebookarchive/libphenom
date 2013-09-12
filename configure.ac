@@ -86,13 +86,20 @@ LIBS="$LIBS `$PKG_CONFIG --libs libcares` $ares_rpath"
 CFLAGS="$CFLAGS `$PKG_CONFIG --cflags libcares`"
 AC_CHECK_FUNCS(ares_init)
 
+AC_PATH_PROG(PHP, php, true)
+AC_SUBST(PHP)
+
 dnl for comparitive benchmarking
-SAVE_LIBS="$LIBS"
-AC_SEARCH_LIBS([event_add], [event],[
-  HAVE_LIBEVENT=yes
-  AC_DEFINE(HAVE_LIBEVENT, 1, have libevent)
+AC_ARG_ENABLE(libevent-comparison, [
+  --enable-libevent-comparison  Build iopipes.c with libevent support
+],[
+  SAVE_LIBS="$LIBS"
+  AC_SEARCH_LIBS([event_add], [event],[
+    HAVE_LIBEVENT=yes
+    AC_DEFINE(HAVE_LIBEVENT, 1, have libevent)
+  ])
+  LIBS="$SAVE_LIBS"
 ])
-LIBS="$SAVE_LIBS"
 AM_CONDITIONAL(HAVE_LIBEVENT, test "x$HAVE_LIBEVENT" = xyes)
 
 have_thread=no
