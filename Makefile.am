@@ -87,8 +87,15 @@ clean-local: clean-docs
 install-exec-local: install-phenom-hdrs
 
 install-phenom-hdrs:
-	$(MKDIR_P) "$(DESTDIR)$(includedir)/phenom"
+	$(mkdir_p) "$(DESTDIR)$(includedir)/phenom"
 	$(INSTALL_HEADER) include/phenom/*.h $(DESTDIR)$(includedir)/phenom
+	$(INSTALL_HEADER) thirdparty/ck/include/ck_*.h $(DESTDIR)$(includedir)
+	$(mkdir_p) "$(DESTDIR)$(includedir)/gcc"
+	$(INSTALL_HEADER) thirdparty/ck/include/gcc/*.h $(DESTDIR)$(includedir)/gcc
+	for a in ppc ppc64 sparcv9 x86 x86_64 ; do \
+		$(mkdir_p) "$(DESTDIR)$(includedir)/gcc/$$a" ; \
+		$(INSTALL_HEADER) thirdparty/ck/include/gcc/$$a/*.h $(DESTDIR)$(includedir)/gcc/$$a ; \
+	done
 
 clean-docs:
 	-rm docs/declmap.js
