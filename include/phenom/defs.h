@@ -244,8 +244,8 @@ typedef uint32_t ph_result_t;
 #define ph_static_assert_paste2(pre, post)  pre ## post
 #define ph_static_assert_paste1(pre, post)  ph_static_assert_paste2(pre, post)
 
-/**
- * # Static Asserts
+#if 0 /* fake prototype for documentation purposes */
+/** Perform a compile time assertion
  *
  * To perform compile time assertion checking (useful for things like ABI
  * checks), you may use the ph_static_assert() macro.  Usage is as follows:
@@ -254,10 +254,14 @@ typedef uint32_t ph_result_t;
  * ph_static_assert(sizeof(int)==4, assuming_32_bits);
  * ```
  *
- * The first parameter is the expression to check, the second is ideally
- * a meaningful identifier string that gives a descriptive label for the
- * issue.  It has to be a valid identifier component in order to provide
- * meaningful error messages on a wider range of compilers.
+ * The first parameter is the constant expression to check.  It has to be
+ * constant for the compiler to check it at compile time.  If you wish to
+ * assert that function parameters are correct, you should use ph_assert()
+ * instead.
+ *
+ * The second parameter is ideally a meaningful identifier string that gives a
+ * descriptive label for the issue.  It has to be a valid identifier component
+ * in order to provide meaningful error messages on a wider range of compilers.
  *
  * If the assertion fails, you'll encounter an error message like this:
  *
@@ -271,6 +275,8 @@ typedef uint32_t ph_result_t;
  * error: static assertion failed: "assuming_32_bits"
  * ```
  */
+void ph_static_assert(bool constexpr, identifier_message);
+#endif
 
 # if PH_GCC_VERSION >= 40600
 #  define ph_static_assert(expr, msg)   _Static_assert(expr, #msg)
@@ -295,8 +301,8 @@ typedef uint32_t ph_result_t;
 
 /** Log a PH_LOG_PANIC level message, then abort()
  *
- * This logs a PANIC level message, logs the current stacktrace
- * and then calls `abort()`.
+ * This logs a PANIC level message using ph_log(), logs the current
+ * stacktrace using ph_log_stacktrace(), and then calls `abort()`.
  *
  * It is intended to be used in situations where the world must
  * have an immediate end.
@@ -308,8 +314,8 @@ void ph_panic(const char *fmt, ...)
 #endif
   ;
 
-/**
- * # Runtime Assertions
+#if 0 /* fake prototype for documentation purposes */
+/** Perform a runtime assertion
  *
  * To perform a runtime assertion, use ph_assert() as shown below.
  * Phenom makes the assumption that the expression to be asserted
@@ -334,7 +340,14 @@ void ph_panic(const char *fmt, ...)
  * your code.
  *
  * If you'd like assertions that are disabled when `NDEBUG` is `#define`d,
- * you may use ph_debug_assert() instead:
+ * you may use ph_debug_assert() instead.
+ */
+void ph_assert(bool condition, const char *message);
+
+/** Perform a runtime assertion in debug code
+ *
+ * Works exactly like ph_assert(), except that the assertion code is
+ * elided from a "production" build; one that has `NDEBUG` defined.
  *
  * ```
  * // Never checked in the production build, because there are
@@ -342,6 +355,8 @@ void ph_panic(const char *fmt, ...)
  * ph_debug_assert(n < 10, "n is within range");
  * ```
  */
+void ph_debug_assert(bool condition, const char *message);
+#endif
 
 # if PH_GCC_VERSION >= 40300
 // You'd think that you could use _Static_assert in here, if your
