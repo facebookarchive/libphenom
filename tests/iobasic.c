@@ -54,8 +54,8 @@ static void pipe_dispatch(ph_job_t *job, ph_iomask_t why, void *data)
   int64_t diffn;
   struct timeval now = ph_time_now();
 
-  unused_parameter(why);
-  unused_parameter(data);
+  ph_unused_parameter(why);
+  ph_unused_parameter(data);
 
   timersub(&now, &start_time, &diff);
   diffn = (diff.tv_sec * 1000) + (diff.tv_usec / 1000);
@@ -73,8 +73,8 @@ static void pipe_dispatch(ph_job_t *job, ph_iomask_t why, void *data)
 
 int main(int argc, char **argv)
 {
-  unused_parameter(argc);
-  unused_parameter(argv);
+  ph_unused_parameter(argc);
+  ph_unused_parameter(argv);
 
   ph_library_init();
   plan_tests(13);

@@ -56,7 +56,7 @@ static void lev_read(int fd, short which, void *arg)
 
   off = job - events;
 
-  unused_parameter(which);
+  ph_unused_parameter(which);
 
   ignore_result(read(fd, buf, sizeof(buf)));
   ignore_result(write(write_ends[off], "y", 1));
@@ -69,9 +69,9 @@ static void lev_read(int fd, short which, void *arg)
 
 static void deadline_reached(ph_job_t *job, ph_iomask_t why, void *data)
 {
-  unused_parameter(job);
-  unused_parameter(why);
-  unused_parameter(data);
+  ph_unused_parameter(job);
+  ph_unused_parameter(why);
+  ph_unused_parameter(data);
 
   gettimeofday(&end_time, NULL);
   ph_nbio_stat(&stats);
@@ -85,8 +85,8 @@ static void consume_data(ph_job_t *job, ph_iomask_t why, void *data)
 
   off = job - events;
 
-  unused_parameter(why);
-  unused_parameter(data);
+  ph_unused_parameter(why);
+  ph_unused_parameter(data);
 
   ignore_result(read(job->fd, buf, sizeof(buf)));
   ignore_result(write(write_ends[off], "y", 1));

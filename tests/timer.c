@@ -28,8 +28,8 @@ static void record_tick(ph_job_t *job, ph_iomask_t why,
   struct timeval now, diff;
   int64_t diffn;
 
-  unused_parameter(why);
-  unused_parameter(data);
+  ph_unused_parameter(why);
+  ph_unused_parameter(data);
 
   now = ph_time_now();
   // ~100ms resolution
@@ -49,8 +49,8 @@ static void record_tick(ph_job_t *job, ph_iomask_t why,
 int main(int argc, char **argv)
 {
   ph_job_t timer;
-  unused_parameter(argc);
-  unused_parameter(argv);
+  ph_unused_parameter(argc);
+  ph_unused_parameter(argv);
 
   ph_library_init();
   plan_tests(8);

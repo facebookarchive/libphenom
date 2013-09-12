@@ -24,8 +24,8 @@ static ph_memtype_t mt_misc = 0;
 
 int main(int argc, char **argv)
 {
-  unused_parameter(argc);
-  unused_parameter(argv);
+  ph_unused_parameter(argc);
+  ph_unused_parameter(argv);
 
   ph_library_init();
   plan_tests(22);

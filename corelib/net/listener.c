@@ -51,7 +51,7 @@ static void listener_dtor(ph_job_t *job)
 {
   ph_listener_t *lstn = (ph_listener_t*)job;
 
-  unused_parameter(lstn);
+  ph_unused_parameter(lstn);
 }
 
 static void accept_dispatch(ph_job_t *j, ph_iomask_t why, void *data)
@@ -62,7 +62,7 @@ static void accept_dispatch(ph_job_t *j, ph_iomask_t why, void *data)
   socklen_t alen = sizeof(addr.sa);
   ph_sock_t *sock;
 
-  unused_parameter(why);
+  ph_unused_parameter(why);
 
 #ifdef HAVE_ACCEPT4
   {

@@ -136,7 +136,7 @@ static int sock_create_cb(ares_socket_t socket_fd, int type, void *data)
   ph_dns_channel_t *chan = data;
   ph_job_t *job = ph_mem_alloc(mt.job);
 
-  unused_parameter(type);
+  ph_unused_parameter(type);
 
   if (!job) {
     return -1;

@@ -230,7 +230,7 @@ done:
 
 static void acceptor(ph_listener_t *lstn, ph_sock_t *sock)
 {
-  unused_parameter(lstn);
+  ph_unused_parameter(lstn);
 
   sock->callback = debug_con_processor;
   ph_sock_enable(sock, true);

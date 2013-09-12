@@ -151,7 +151,7 @@ static void hs_free(void *p, size_t b, bool r)
   ck_epoch_entry_t *e = p;
   e--; /* See comment above hs_malloc */
 
-  unused_parameter(b);
+  ph_unused_parameter(b);
 
   if (r == true) {
     /* Freeing requires same memory reclamation */
@@ -300,7 +300,7 @@ static bool scope_id_compare(const void *a, const void *b)
 static unsigned long scope_id_hash(const void *key,
     unsigned long seed)
 {
-  unused_parameter(seed);
+  ph_unused_parameter(seed);
 
   return 1 + *(uint32_t*)key;
 }

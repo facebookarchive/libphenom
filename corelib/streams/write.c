@@ -128,7 +128,7 @@ static bool stm_print(void *arg, const char *buf, size_t len)
 
 static bool stm_flush(void *arg)
 {
-  unused_parameter(arg);
+  ph_unused_parameter(arg);
   // We don't need to (and shouldn't) flush here; this is just telling
   // us that we could do it.
   return true;

@@ -50,8 +50,8 @@ static char *commaprint(uint64_t n, char *retbuf, uint32_t size)
 
 static void busyjob(ph_job_t *job, ph_iomask_t why, void *data)
 {
-  unused_parameter(why);
-  unused_parameter(data);
+  ph_unused_parameter(why);
+  ph_unused_parameter(data);
 
   // stack it up again
   //ph_job_set_pool(job, otherpool);
@@ -60,9 +60,9 @@ static void busyjob(ph_job_t *job, ph_iomask_t why, void *data)
 
 static void jobfunc(ph_job_t *job, ph_iomask_t why, void *data)
 {
-  unused_parameter(job);
-  unused_parameter(why);
-  unused_parameter(data);
+  ph_unused_parameter(job);
+  ph_unused_parameter(why);
+  ph_unused_parameter(data);
 
   ok(1, "executed jobfunc");
 
@@ -82,9 +82,9 @@ static void jobfunc(ph_job_t *job, ph_iomask_t why, void *data)
 
 static void sched_job(ph_job_t *job, ph_iomask_t why, void *data)
 {
-  unused_parameter(job);
-  unused_parameter(why);
-  unused_parameter(data);
+  ph_unused_parameter(job);
+  ph_unused_parameter(why);
+  ph_unused_parameter(data);
 
   ok(1, "executed timer");
   ph_job_init(&myjob);
@@ -95,9 +95,9 @@ static void sched_job(ph_job_t *job, ph_iomask_t why, void *data)
 
 static void overall_failure(ph_job_t *job, ph_iomask_t why, void *data)
 {
-  unused_parameter(job);
-  unused_parameter(why);
-  unused_parameter(data);
+  ph_unused_parameter(job);
+  ph_unused_parameter(why);
+  ph_unused_parameter(data);
 
   ok(0, "took too long to complete");
   ph_sched_stop();
@@ -112,8 +112,8 @@ int main(int argc, char **argv)
   double duration, jps;
   char niceb[32];
 
-  unused_parameter(argc);
-  unused_parameter(argv);
+  ph_unused_parameter(argc);
+  ph_unused_parameter(argv);
 
   ph_library_init();
   plan_tests(11);

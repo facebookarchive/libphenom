@@ -150,9 +150,9 @@ static bool before_dispatch_timer(
 {
   ph_job_t *job;
 
-  unused_parameter(w);
-  unused_parameter(now);
-  unused_parameter(arg);
+  ph_unused_parameter(w);
+  ph_unused_parameter(now);
+  ph_unused_parameter(arg);
 
   job = job_from_timer(timer);
 
@@ -173,8 +173,8 @@ static void dispatch_timer(
   ph_job_t *job;
   ph_counter_block_t *cblock = arg;
 
-  unused_parameter(w);
-  unused_parameter(now);
+  ph_unused_parameter(w);
+  ph_unused_parameter(now);
 
   // map the timer address back to that of its containing
   // work item
@@ -188,9 +188,9 @@ static void tick_epoll(ph_job_t *job, ph_iomask_t why, void *data)
 {
   uint64_t expirations = 0;
 
-  unused_parameter(job);
-  unused_parameter(why);
-  unused_parameter(data);
+  ph_unused_parameter(job);
+  ph_unused_parameter(why);
+  ph_unused_parameter(data);
 
   /* consume the number of ticks; ideally this is 1; anything bigger
    * means that we've fallen behind */
@@ -598,7 +598,7 @@ static void *sched_loop(void *arg)
   ph_counter_block_t *cblock;
 
   me->is_worker = true;
-  unused_parameter(arg);
+  ph_unused_parameter(arg);
 
   if (!ph_thread_set_affinity(me, me->tid % ph_num_cores())) {
     ph_log(PH_LOG_ERR,
@@ -667,7 +667,7 @@ static ph_result_t apply_io_mask(ph_job_t *job, ph_iomask_t mask, void *impl)
   struct epoll_event evt;
   int res;
   int want_mask;
-  unused_parameter(impl);
+  ph_unused_parameter(impl);
 
   if (job->fd == -1) {
     return PH_OK;
@@ -727,7 +727,7 @@ static ph_result_t apply_io_mask(ph_job_t *job, ph_iomask_t mask, void *impl)
 #ifdef HAVE_PORT_CREATE
   int res;
   int want_mask = 0;
-  unused_parameter(impl);
+  ph_unused_parameter(impl);
 
   if (job->fd == -1) {
     return PH_OK;

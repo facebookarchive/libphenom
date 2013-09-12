@@ -81,7 +81,7 @@ static void connect_complete(ph_job_t *j, ph_iomask_t why, void *data)
   int status = 0;
   struct timeval done;
 
-  unused_parameter(j);
+  ph_unused_parameter(j);
 
   if (why == PH_IOMASK_TIME) {
     // Timed out waiting for connect
@@ -237,17 +237,17 @@ void ph_socket_connect(ph_socket_t s, const ph_sockaddr_t *addr,
 
 static bool sock_stm_close(ph_stream_t *stm)
 {
-  unused_parameter(stm);
+  ph_unused_parameter(stm);
   return false;
 }
 
 static bool sock_stm_readv(ph_stream_t *stm, const struct iovec *iov,
     int iovcnt, uint64_t *nread)
 {
-  unused_parameter(stm);
-  unused_parameter(iov);
-  unused_parameter(iovcnt);
-  unused_parameter(nread);
+  ph_unused_parameter(stm);
+  ph_unused_parameter(iov);
+  ph_unused_parameter(iovcnt);
+  ph_unused_parameter(nread);
   stm->last_err = ENOSYS;
   return false;
 }
@@ -283,9 +283,9 @@ static bool sock_stm_writev(ph_stream_t *stm, const struct iovec *iov,
 static bool sock_stm_seek(ph_stream_t *stm, int64_t delta, int whence,
     uint64_t *newpos)
 {
-  unused_parameter(delta);
-  unused_parameter(whence);
-  unused_parameter(newpos);
+  ph_unused_parameter(delta);
+  ph_unused_parameter(whence);
+  ph_unused_parameter(newpos);
   stm->last_err = ESPIPE;
   return false;
 }
@@ -397,7 +397,7 @@ static void connected_sock(ph_socket_t s, const ph_sockaddr_t *addr,
   struct resolve_and_connect *rac = arg;
   ph_sock_t *sock = NULL;
 
-  unused_parameter(elapsed);
+  ph_unused_parameter(elapsed);
 
   if (status == 0) {
     sock = ph_sock_new_from_socket(s, NULL, addr);
@@ -456,7 +456,7 @@ static void resolve_ares(void *arg, int status, int timeouts, struct hostent *ho
 {
   struct resolve_and_connect *rac = arg;
 
-  unused_parameter(timeouts);
+  ph_unused_parameter(timeouts);
 
   if (status != ARES_SUCCESS) {
     calc_elapsed(rac);

@@ -53,8 +53,8 @@ int main(int argc, char **argv)
   ph_ht_ordered_iter_t oiter;
   ph_ht_iter_t iter;
 
-  unused_parameter(argc);
-  unused_parameter(argv);
+  ph_unused_parameter(argc);
+  ph_unused_parameter(argv);
 
   ph_library_init();
   plan_tests(217);

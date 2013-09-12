@@ -74,10 +74,10 @@ static void lookup_aaaa(
 {
   PH_STRING_DECLARE_STACK(str, 128);
 
-  unused_parameter(timeouts);
-  unused_parameter(arg);
-  unused_parameter(abuf);
-  unused_parameter(alen);
+  ph_unused_parameter(timeouts);
+  ph_unused_parameter(arg);
+  ph_unused_parameter(abuf);
+  ph_unused_parameter(alen);
 
   pthread_mutex_lock(&single);
   ok(ARES_SUCCESS == status, "expected aaaa lookup to succeed: %s", ares_strerror(status));
@@ -101,10 +101,10 @@ static void lookup_mx(
     unsigned int alen,
     struct ph_dns_query_response *resp)
 {
-  unused_parameter(timeouts);
-  unused_parameter(arg);
-  unused_parameter(abuf);
-  unused_parameter(alen);
+  ph_unused_parameter(timeouts);
+  ph_unused_parameter(arg);
+  ph_unused_parameter(abuf);
+  ph_unused_parameter(alen);
 
   pthread_mutex_lock(&single);
   ok(ARES_SUCCESS == status, "expected mx lookup to succeed: %s", ares_strerror(status));
@@ -132,10 +132,10 @@ static void lookup_a(
 {
   PH_STRING_DECLARE_STACK(str, 128);
 
-  unused_parameter(timeouts);
-  unused_parameter(arg);
-  unused_parameter(abuf);
-  unused_parameter(alen);
+  ph_unused_parameter(timeouts);
+  ph_unused_parameter(arg);
+  ph_unused_parameter(abuf);
+  ph_unused_parameter(alen);
 
   pthread_mutex_lock(&single);
   ok(ARES_SUCCESS == status, "expected a lookup to succeed: %s", ares_strerror(status));
@@ -156,8 +156,8 @@ int main(int argc, char **argv)
 {
   uint8_t i;
 
-  unused_parameter(argc);
-  unused_parameter(argv);
+  ph_unused_parameter(argc);
+  ph_unused_parameter(argv);
 
   ph_library_init();
   ph_nbio_init(0);

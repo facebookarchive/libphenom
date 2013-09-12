@@ -97,7 +97,7 @@ static inline ph_result_t ph_timerwheel_disable(
     ph_timerwheel_t *wheel,
     struct ph_timerwheel_timer *timer)
 {
-  unused_parameter(wheel);
+  ph_unused_parameter(wheel);
 
   if (ck_pr_load_int(&timer->enable) == PH_TIMER_DISABLED) {
     return PH_OK;

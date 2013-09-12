@@ -148,7 +148,7 @@ static void wait_destroy(struct ph_thread_pool_wait *waiter)
   pthread_mutex_destroy(&waiter->m);
   pthread_cond_destroy(&waiter->c);
 #else
-  unused_parameter(waiter);
+  ph_unused_parameter(waiter);
 #endif
 }
 
@@ -158,7 +158,7 @@ static void wait_init(struct ph_thread_pool_wait *waiter)
   pthread_mutex_init(&waiter->m, NULL);
   pthread_cond_init(&waiter->c, NULL);
 #else
-  unused_parameter(waiter);
+  ph_unused_parameter(waiter);
 #endif
 }
 

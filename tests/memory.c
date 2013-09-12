@@ -54,8 +54,8 @@ int main(int argc, char** argv)
 {
   uint32_t i;
 
-  unused_parameter(argc);
-  unused_parameter(argv);
+  ph_unused_parameter(argc);
+  ph_unused_parameter(argv);
 
   plan_tests(46);
 

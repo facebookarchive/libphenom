@@ -52,8 +52,8 @@ static void dns_addrinfo(ph_job_t *job, ph_iomask_t why, void *data)
 {
   ph_dns_addrinfo_t *info = data;
 
-  unused_parameter(job);
-  unused_parameter(why);
+  ph_unused_parameter(job);
+  ph_unused_parameter(why);
 
   info->result = getaddrinfo(info->node, info->service,
       &info->hints, &info->ai);

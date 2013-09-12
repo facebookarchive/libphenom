@@ -149,12 +149,12 @@
  * There are a couple of useful source annotations that you can
  * use to avoid triggering some classes of error.
  *
- * ### unused_parameter
+ * ### ph_unused_parameter
  *
  * ```
  * void myfunc(int not_used)
  * {
- *    unused_parameter(not_used);
+ *    ph_unused_parameter(not_used);
  * }
  * ```
  *
@@ -173,9 +173,10 @@
  * ```
  */
 
-#if defined(PHENOM_IMPL)
 // Use this to eliminate 'unused parameter' warnings
-# define unused_parameter(x)  (void)x
+# define ph_unused_parameter(x)  (void)x
+
+#if defined(PHENOM_IMPL)
 
 // Use this to cleanly indicate that we intend to ignore
 // the result of functions marked with warn_unused_result

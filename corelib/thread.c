@@ -112,7 +112,7 @@ static void destroy_thread(void *ptr)
 #ifndef HAVE___THREAD
   ph_mem_free(mt_thread, thr);
 #else
-  unused_parameter(thr);
+  ph_unused_parameter(thr);
 #endif
 }
 

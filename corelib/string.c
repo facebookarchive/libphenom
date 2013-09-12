@@ -225,7 +225,7 @@ static bool str_print(void *arg, const char *buf, size_t len)
 
 static bool str_flush(void *arg)
 {
-  unused_parameter(arg);
+  ph_unused_parameter(arg);
   return true;
 }
 

@@ -27,8 +27,8 @@ int main(int argc, char **argv)
   uint64_t amount;
   int len;
 
-  unused_parameter(argc);
-  unused_parameter(argv);
+  ph_unused_parameter(argc);
+  ph_unused_parameter(argv);
 
   ph_library_init();
   plan_tests(18);
