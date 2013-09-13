@@ -89,6 +89,54 @@ AC_CHECK_FUNCS(ares_init)
 AC_PATH_PROG(PHP, php, true)
 AC_SUBST(PHP)
 
+gimli=no
+AC_ARG_WITH(gimli, [
+  --with-gimli    Enable support for the gimli process monitor
+                  https://bitbucket.org/wez/gimli/
+],[
+   gimli=$withval
+])
+if test "x$gimli" != "xno" ; then
+  AC_DEFINE([USE_GIMLI], 1, [Use gimli])
+
+  prefixes="$gimli /usr/local /usr"
+  mylibdir="lib"
+  rpath="-R"
+  case $target_os-$target_cpu in
+    linux-*64)
+      mylibdir=lib64
+      rpath="-Wl,-rpath="
+      ;;
+    linux*)
+      rpath="-Wl,-rpath="
+      ;;
+  esac
+  save_flags="$LDFLAGS"
+  save_libs="$LIBS"
+  save_cppflags="$CPPFLAGS"
+  gimli_dir=""
+  for dir in $prefixes ; do
+    LDFLAGS="$save_flags $rpath$dir/$mylibdir -L$dir/$mylibdir"
+    LIBS="$save_libs -lgimli"
+    CPPFLAGS="$save_cppflags -I$dir/include"
+    AC_TRY_LINK([
+#include <libgimli.h>
+],[gimli_heartbeat_attach();],
+      [gimli_dir=$dir]
+    )
+    if test -n "$gimli_dir" ; then
+      AC_CHECK_HEADERS(libgimli.h)
+      save_flags="$save_flags $rpath$dir/$mylibdir -L$dir/$mylibdir"
+      save_libs="$save_libs -lgimli"
+      save_cppflags="$save_cppflags -I$dir/include"
+      break
+    fi
+  done
+  LDFLAGS="$save_flags"
+  LIBS="$save_libs"
+  CPPFLAGS="$save_cppflags"
+fi
+
 dnl for comparitive benchmarking
 AC_ARG_ENABLE(libevent-comparison, [
   --enable-libevent-comparison  Build iopipes.c with libevent support

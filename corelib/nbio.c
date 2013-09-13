@@ -21,6 +21,10 @@
 #include "phenom/log.h"
 #include "phenom/counter.h"
 #include "phenom/configuration.h"
+#include "ck_epoch.h"
+#ifdef USE_GIMLI
+#include "libgimli.h"
+#endif
 
 // We use 100ms resolution
 #define WHEEL_INTERVAL_MS 100
@@ -629,6 +633,28 @@ static void *sched_loop(void *arg)
   return NULL;
 }
 
+#ifdef USE_GIMLI
+static ck_epoch_entry_t hb_entry;
+static ph_job_t hb_job;
+static volatile struct gimli_heartbeat *hb = NULL;
+
+static void perform_heart_beat(ck_epoch_entry_t *ent)
+{
+  ph_unused_parameter(ent);
+  gimli_heartbeat_set(hb, GIMLI_HB_RUNNING);
+  ph_job_set_timer_in_ms(&hb_job, 5000);
+}
+
+static void arrange_heart_beat(ph_job_t *job, ph_iomask_t why, void *data)
+{
+  ph_unused_parameter(job);
+  ph_unused_parameter(why);
+  ph_unused_parameter(data);
+
+  ph_thread_epoch_defer(&hb_entry, perform_heart_beat);
+}
+#endif
+
 ph_result_t ph_sched_run(void)
 {
   ph_thread_t *me = ph_thread_self();
@@ -643,6 +669,17 @@ ph_result_t ph_sched_run(void)
 
   _ph_job_pool_start_threads();
   process_deferred(me, NULL);
+
+#ifdef USE_GIMLI
+  hb = gimli_heartbeat_attach();
+  if (hb) {
+    ph_job_init(&hb_job);
+    hb_job.callback = arrange_heart_beat;
+    ph_job_set_timer_in_ms(&hb_job, 5000);
+    gimli_heartbeat_set(hb, GIMLI_HB_STARTING);
+  }
+#endif
+
   sched_loop(NULL);
 
   for (i = 1; i < num_schedulers; i++) {
