@@ -97,7 +97,7 @@ static void basicCounterFunctionality(void)
   // Get ourselves a real child
   kid_scope = ph_counter_scope_define(scope, "child", 8);
   is_true(kid_scope != NULL);
-  is_string("test1/child",
+  is_string("test1.child",
       ph_counter_scope_get_name(kid_scope));
 
   ph_counter_scope_t *resolved;
@@ -105,7 +105,7 @@ static void basicCounterFunctionality(void)
   resolved = ph_counter_scope_resolve(NULL, "test1");
   is(scope, resolved);
 
-  resolved = ph_counter_scope_resolve(NULL, "test1/child");
+  resolved = ph_counter_scope_resolve(NULL, "test1.child");
   is(kid_scope, resolved);
 
   ph_counter_scope_register_counter(kid_scope, "w00t");
@@ -148,7 +148,7 @@ static void basicCounterFunctionality(void)
     { "test1", "dummy", 5 },
     { "test1", "recd", 5 },
     { "test1", "sent", 4 },
-    { "test1/child", "w00t", 0 },
+    { "test1.child", "w00t", 0 },
   };
   int num_expected = sizeof(expected_data) / sizeof(expected_data[0]);
 

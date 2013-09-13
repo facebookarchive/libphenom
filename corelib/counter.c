@@ -322,7 +322,7 @@ ph_counter_scope_t *ph_counter_scope_define(
   pthread_once(&done_tls_init, ph_counter_init);
 
   if (parent) {
-    full_name_len = strlen(path) + 1 /* '/' */ +
+    full_name_len = strlen(path) + 1 /* '.' */ +
       strlen(parent->full_scope_name);
   }
 
@@ -359,7 +359,7 @@ ph_counter_scope_t *ph_counter_scope_define(
     // name lives right after scope->scope_name
     scope->full_scope_name = scope->scope_name + strlen(path) + 1;
     snprintf(scope->full_scope_name,
-        full_name_len + 1, "%s/%s", parent->full_scope_name, path);
+        full_name_len + 1, "%s.%s", parent->full_scope_name, path);
   }
 
   // Record in the map
@@ -414,7 +414,7 @@ ph_counter_scope_t *ph_counter_scope_resolve(
   ck_epoch_record_t *er = get_epoch_record();
 
   if (parent) {
-    ph_asprintf(&full_name, "%s/%s",
+    ph_asprintf(&full_name, "%s.%s",
         parent->full_scope_name, path);
   } else {
     full_name = (char*)path;
