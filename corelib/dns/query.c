@@ -483,7 +483,7 @@ static void result_cb(void *arg, int status, int timeouts,
 static inline ph_dns_channel_t *fixup_chan(ph_dns_channel_t *chan)
 {
   if (!chan) {
-    if (unlikely(default_channel == NULL)) {
+    if (ph_unlikely(default_channel == NULL)) {
       pthread_once(&done_ares_init, do_ares_init);
     }
     chan = default_channel;

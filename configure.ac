@@ -258,8 +258,19 @@ else
   VMA_BITS_VALUE="${VMA}ULL"
   POINTER_PACK_ENABLE="CK_MD_POINTER_PACK_ENABLE"
 fi
-AC_DEFINE_UNQUOTED(PHENOM_TARGET_CPU, PHENOM_TARGET_CPU_$CPU,
-                   "Target platform name")
+
+dnl flags we'll export to the pkg-config file
+PC_CFLAGS=""
+case "$CPU" in
+  X86_64)
+    PC_CFLAGS="-D__x86_64__=1"
+    ;;
+  X86)
+    PC_CFLAGS="-D__x86__=1"
+    ;;
+esac
+CFLAGS="$CFLAGS $PC_CFLAGS"
+
 AC_SUBST(MM)
 AC_SUBST(VMA_BITS)
 AC_SUBST(VMA_BITS_VALUE)
@@ -278,6 +289,8 @@ if test -n "$GCC" ; then
   else
     GCC_STD=gnu99
   fi
+  # export the std setting so that clients can use ph_static_assert
+  PC_CFLAGS="$PC_CFLAGS -std=$GCC_STD"
   CFLAGS="$CFLAGS -std=$GCC_STD \
     -pedantic -Wall -Wextra -Wno-declaration-after-statement \
     -W -Wundef -Wendif-labels -Wshadow -Wpointer-arith -Wcast-align \
@@ -285,6 +298,7 @@ if test -n "$GCC" ; then
     -Wno-nested-externs -Winline -Wdisabled-optimization \
     -fstrict-aliasing -pipe -Wno-parentheses"
 fi
+AC_SUBST(PC_CFLAGS)
 
 if test -n "$GCC" -a "$stack_protect" == "yes" ; then
   CFLAGS="$CFLAGS -Wp,-D_FORTIFY_SOURCE=2 -fexceptions \
@@ -310,8 +324,8 @@ if test -n "$GCC" -a "$lenient" == "no" ; then
 fi
 AC_SUBST(IRONMANCFLAGS)
 
-AC_CONFIG_HEADER([include/phenom/config.h])
-AC_CONFIG_FILES([Makefile thirdparty/ck/include/ck_md.h])
+AC_CONFIG_HEADER([include/phenom_build_config.h])
+AC_CONFIG_FILES([Makefile thirdparty/ck/include/ck_md.h libphenom.pc])
 AC_OUTPUT
 
 dnl vim:ts=2:sw=2:

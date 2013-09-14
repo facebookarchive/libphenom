@@ -17,9 +17,10 @@ config.status
 *.swp
 compile
 stamp-h1
-include/phenom/config.h.in~
-include/phenom/config.h.in
 include/phenom/config.h
+include/phenom_build_config.h.in~
+include/phenom_build_config.h.in
+include/phenom_build_config.h
 compile
 tests/*.t
 tests/bench/*.t
@@ -31,3 +32,4 @@ tests/bench/*.t
 .nfs*
 core
 docs/declmap.js
+libphenom.pc

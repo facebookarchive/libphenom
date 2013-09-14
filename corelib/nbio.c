@@ -1014,7 +1014,8 @@ struct timeval ph_time_now(void)
 {
   ph_thread_t *me = ph_thread_self();
 
-  if (!me->is_worker || me->refresh_time || unlikely(!timerisset(&me->now))) {
+  if (!me->is_worker || me->refresh_time ||
+      ph_unlikely(!timerisset(&me->now))) {
     gettimeofday(&me->now, NULL);
     me->refresh_time = false;
   }

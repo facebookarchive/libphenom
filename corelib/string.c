@@ -31,7 +31,7 @@ static void do_string_init(void)
 
 static inline void init_string(void)
 {
-  if (unlikely(mt_string == PH_MEMTYPE_INVALID)) {
+  if (ph_unlikely(mt_string == PH_MEMTYPE_INVALID)) {
     pthread_once(&done_string_init, do_string_init);
   }
 }

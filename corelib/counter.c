@@ -100,7 +100,7 @@ static CK_CC_INLINE ck_epoch_record_t *get_epoch_record(void)
 {
   struct ph_counter_head *head = get_counter_head();
 
-  if (unlikely(!head)) {
+  if (ph_unlikely(!head)) {
     head = init_head();
     if (!head) {
       return NULL;
@@ -554,7 +554,7 @@ static ph_counter_block_t *get_block_for_scope(
 
   head = get_counter_head();
 
-  if (unlikely(!head)) {
+  if (ph_unlikely(!head)) {
     head = init_head();
     if (!head) {
       return NULL;
@@ -563,7 +563,7 @@ static ph_counter_block_t *get_block_for_scope(
 
   /* locate my counter block */
   block = ck_hs_get(&head->ht, scope->hash, &scope->scope_id);
-  if (likely(block)) {
+  if (ph_likely(block)) {
     /* got it! */
     return block;
   }
@@ -571,14 +571,14 @@ static ph_counter_block_t *get_block_for_scope(
   /* not present; we get to create it */
   block = calloc(1, sizeof(*block) +
       ((scope->num_slots - 1) * sizeof(int64_t)));
-  if (unlikely(!block)) {
+  if (ph_unlikely(!block)) {
     return NULL;
   }
   /* the hash table owns this reference */
   block->refcnt = 1;
   block->scope_id = scope->scope_id;
 
-  if (unlikely(!ck_hs_put(&head->ht, scope->hash, &block->scope_id))) {
+  if (ph_unlikely(!ck_hs_put(&head->ht, scope->hash, &block->scope_id))) {
     free(block);
     return NULL;
   }
@@ -593,7 +593,7 @@ void ph_counter_scope_add(
 {
   ph_counter_block_t *block = get_block_for_scope(scope);
 
-  if (unlikely(!block)) return;
+  if (ph_unlikely(!block)) return;
   ph_counter_block_add(block, offset, value);
 }
 

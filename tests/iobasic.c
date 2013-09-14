@@ -35,7 +35,7 @@ static void *ping_thread(void *arg)
   start_time = ph_time_now();
   nanosleep(&ts, NULL);
 
-  ignore_result(write(pipe_fd[1], "a", 1));
+  ph_ignore_result(write(pipe_fd[1], "a", 1));
   return NULL;
 }
 

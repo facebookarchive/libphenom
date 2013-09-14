@@ -394,7 +394,7 @@ bool ph_ht_ordered_iter_first(ph_ht_t *ht, ph_ht_ordered_iter_t *iter,
     return false;
   }
 
-  if (unlikely(ht->kdef->key_compare == NULL)) {
+  if (ph_unlikely(ht->kdef->key_compare == NULL)) {
     ph_panic("you must define a key_compare function to use ordered_iter");
   }
 

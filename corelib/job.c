@@ -177,7 +177,7 @@ static void wait_pool(struct ph_thread_pool_wait *waiter)
 }
 
 #define should_wake_pool(waiter)  \
-    unlikely(ck_pr_load_32(&(waiter)->num_waiting))
+    ph_unlikely(ck_pr_load_32(&(waiter)->num_waiting))
 static void wake_pool(struct ph_thread_pool_wait *waiter)
 {
 #ifdef USE_FUTEX
@@ -343,7 +343,7 @@ static inline ph_job_t *pop_job(ph_thread_pool_t *pool,
   }
 }
 
-#define should_init_ring(pool, bucket) unlikely(pool->rings[bucket] == NULL)
+#define should_init_ring(pool, bucket) ph_unlikely(pool->rings[bucket] == NULL)
 static void init_ring(ph_thread_pool_t *pool, int bucket)
 {
   uint32_t ring_size;
@@ -400,7 +400,7 @@ static void *worker_thread(void *arg)
 
   cblock = ph_counter_block_open(pool->counters);
 
-  while (likely(ck_pr_load_int(&_ph_run_loop))) {
+  while (ph_likely(ck_pr_load_int(&_ph_run_loop))) {
     job = pop_job(pool, cblock, my_bucket);
     if (!job) {
       continue;
@@ -462,7 +462,7 @@ static inline void do_set_pool(ph_job_t *job, ph_thread_t *me)
 
   pool = job->pool;
 
-  if (unlikely(me->tid >= MAX_RINGS)) {
+  if (ph_unlikely(me->tid >= MAX_RINGS)) {
     ck_spinlock_lock(&pool->lock);
     if (should_init_ring(pool, MAX_RINGS)) {
       init_ring(pool, MAX_RINGS);
@@ -478,7 +478,7 @@ static inline void do_set_pool(ph_job_t *job, ph_thread_t *me)
     if (should_init_ring(pool, me->tid)) {
       init_ring(pool, me->tid);
     }
-    while (unlikely(!ck_ring_enqueue_spmc(pool->rings[me->tid], job))) {
+    while (ph_unlikely(!ck_ring_enqueue_spmc(pool->rings[me->tid], job))) {
       ph_counter_scope_add(pool->counters, SLOT_PRODUCER_SLEEP, 1);
       wait_pool(&pool->producer);
     }

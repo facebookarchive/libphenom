@@ -29,7 +29,7 @@ static pthread_mutexattr_t mtx_attr;
 void ph_stm_lock(ph_stream_t *stm)
 {
   int res = pthread_mutex_lock(&stm->lock);
-  if (unlikely(res != 0)) {
+  if (ph_unlikely(res != 0)) {
     ph_panic("ph_stm_lock: `Pe%d", res);
   }
 }
@@ -37,7 +37,7 @@ void ph_stm_lock(ph_stream_t *stm)
 void ph_stm_unlock(ph_stream_t *stm)
 {
   int res = pthread_mutex_unlock(&stm->lock);
-  if (unlikely(res != 0)) {
+  if (ph_unlikely(res != 0)) {
     ph_panic("ph_stm_unlock: `Pe%d", res);
   }
 }

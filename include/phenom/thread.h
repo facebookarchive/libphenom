@@ -103,7 +103,7 @@ static inline ph_thread_t *ph_thread_self(void)
   ph_thread_t *me = ph_thread_self_fast();
 
 #ifndef HAVE___THREAD
-  if (unlikely(me == NULL)) {
+  if (ph_unlikely(me == NULL)) {
     return ph_thread_self_slow();
   }
 #endif

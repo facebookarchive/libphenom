@@ -255,7 +255,7 @@ ph_thread_t *ph_thread_self_slow(void)
 {
   ph_thread_t *thr = pthread_getspecific(__ph_thread_key);
 
-  if (likely(thr != NULL)) {
+  if (ph_likely(thr != NULL)) {
     return thr;
   }
 

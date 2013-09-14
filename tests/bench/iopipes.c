@@ -58,8 +58,8 @@ static void lev_read(int fd, short which, void *arg)
 
   ph_unused_parameter(which);
 
-  ignore_result(read(fd, buf, sizeof(buf)));
-  ignore_result(write(write_ends[off], "y", 1));
+  ph_ignore_result(read(fd, buf, sizeof(buf)));
+  ph_ignore_result(write(write_ends[off], "y", 1));
 
   event_add(&levents[off], NULL);
 
@@ -88,8 +88,8 @@ static void consume_data(ph_job_t *job, ph_iomask_t why, void *data)
   ph_unused_parameter(why);
   ph_unused_parameter(data);
 
-  ignore_result(read(job->fd, buf, sizeof(buf)));
-  ignore_result(write(write_ends[off], "y", 1));
+  ph_ignore_result(read(job->fd, buf, sizeof(buf)));
+  ph_ignore_result(write(write_ends[off], "y", 1));
 
   ph_job_set_nbio(job, PH_IOMASK_READ, 0);
 }
@@ -175,7 +175,7 @@ int main(int argc, char **argv)
       ph_job_set_nbio(&events[i], PH_IOMASK_READ, 0);
     }
 
-    ignore_result(write(write_ends[i], "x", 1));
+    ph_ignore_result(write(write_ends[i], "x", 1));
   }
 
   if (use_libevent) {

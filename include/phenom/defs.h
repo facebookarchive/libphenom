@@ -39,21 +39,6 @@
 #define _GNU_SOURCE
 #define _DARWIN_C_SOURCE
 
-#include <phenom/config.h>
-
-/* This is working around eccentricities in the CK build system */
-#if PHENOM_TARGET_CPU == PHENOM_TARGET_CPU_X86_64
-# ifndef __x86_64__
-#  define __x86_64__ 1
-# endif
-#elif PHENOM_TARGET_CPU == PHENOM_TARGET_CPU_X86
-# ifndef __x86__
-#  define __x86__ 1
-# endif
-#else
-# error unsupported target platform
-#endif
-
 #ifdef __FreeBSD__
 /* need this to get u_short so we can include sys/event.h.
  * This has to happen before we include sys/types.h */
@@ -62,82 +47,78 @@
 #endif
 
 #include <sys/types.h>
-
-#ifdef HAVE_ALLOCA_H
-# include <alloca.h>
-#endif
-#ifdef HAVE_STDINT_H
-# include <stdint.h>
-#endif
-#ifdef HAVE_STDBOOL_H
-# include <stdbool.h>
-#endif
-#ifdef HAVE_INTTYPES_H
-# include <inttypes.h>
-#endif
-#ifdef HAVE_SYS_TIMERFD_H
-# include <sys/timerfd.h>
-#endif
-#ifdef HAVE_SYS_EVENTFD_H
-# include <sys/eventfd.h>
-#endif
-#ifdef HAVE_SYS_EPOLL_H
-# include <sys/epoll.h>
-#endif
-#ifdef HAVE_SYS_EVENT_H
-# include <sys/event.h>
-#endif
-
-#ifdef HAVE_PTHREAD_H
-# include <pthread.h>
-#endif
-#ifdef HAVE_PTHREAD_NP_H
-# include <pthread_np.h>
-#endif
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <stdarg.h>
+#include <stdbool.h>
+#include <pthread.h>
+#include <sys/uio.h>
+#include <stdint.h>
+#include <inttypes.h>
 #include <time.h>
 #include <sys/time.h>
-#include <unistd.h>
-#include <errno.h>
-#include <signal.h>
-#include <fcntl.h>
-#include <limits.h>
+#include <stdarg.h>
 
-#ifdef HAVE_SYS_CPUSET_H
-# include <sys/cpuset.h>
-#endif
-#ifdef HAVE_SYS_RESOURCE_H
-# include <sys/resource.h>
-#endif
-#ifdef HAVE_SYS_PROCESSOR_H
-# include <sys/processor.h>
-#endif
-#ifdef HAVE_SYS_PROCSET_H
-# include <sys/procset.h>
-#endif
+# ifdef PHENOM_IMPL
+#  include "phenom_build_config.h"
 
-#ifdef HAVE_LOCALE_H
-# include <locale.h>
-#endif
+# ifdef HAVE_ALLOCA_H
+#  include <alloca.h>
+# endif
+# ifdef HAVE_SYS_TIMERFD_H
+#  include <sys/timerfd.h>
+# endif
+# ifdef HAVE_SYS_EVENTFD_H
+#  include <sys/eventfd.h>
+# endif
+# ifdef HAVE_SYS_EPOLL_H
+#  include <sys/epoll.h>
+# endif
+# ifdef HAVE_SYS_EVENT_H
+#  include <sys/event.h>
+# endif
 
-#ifdef HAVE_PORT_CREATE
-# include <port.h>
-# include <sys/poll.h>
-#endif
+# ifdef HAVE_PTHREAD_NP_H
+#  include <pthread_np.h>
+# endif
+# include <stdio.h>
+# include <stdlib.h>
+# include <string.h>
+# include <unistd.h>
+# include <errno.h>
+# include <signal.h>
+# include <fcntl.h>
+# include <limits.h>
 
-#include <sys/uio.h>
+# ifdef HAVE_SYS_CPUSET_H
+#  include <sys/cpuset.h>
+# endif
+# ifdef HAVE_SYS_RESOURCE_H
+#  include <sys/resource.h>
+# endif
+# ifdef HAVE_SYS_PROCESSOR_H
+#  include <sys/processor.h>
+# endif
+# ifdef HAVE_SYS_PROCSET_H
+#  include <sys/procset.h>
+# endif
 
-#if defined(__APPLE__)
-/* for thread affinity */
-#include <mach/thread_policy.h>
-#include <mach/mach_init.h>
-#include <mach/thread_act.h>
-/* clock */
-#include <mach/mach_time.h>
-#endif
+# ifdef HAVE_LOCALE_H
+#  include <locale.h>
+# endif
+
+# ifdef HAVE_PORT_CREATE
+#  include <port.h>
+#  include <sys/poll.h>
+# endif
+
+# if defined(__APPLE__)
+ /* for thread affinity */
+# include <mach/thread_policy.h>
+# include <mach/mach_init.h>
+# include <mach/thread_act.h>
+ /* clock */
+# include <mach/mach_time.h>
+# endif
+
+# endif
 
 /**
  * ## Pedantic compilation
@@ -168,7 +149,7 @@
  * ```
  * void myfunc(void)
  * {
- *    ignore_result(poll(&pfd, 1, 100));
+ *    ph_ignore_result(poll(&pfd, 1, 100));
  * }
  * ```
  */
@@ -176,15 +157,13 @@
 // Use this to eliminate 'unused parameter' warnings
 # define ph_unused_parameter(x)  (void)x
 
-#if defined(PHENOM_IMPL)
-
 // Use this to cleanly indicate that we intend to ignore
 // the result of functions marked with warn_unused_result
 # if defined(__USE_FORTIFY_LEVEL) && __USE_FORTIFY_LEVEL > 0
-#  define ignore_result(x) \
+#  define ph_ignore_result(x) \
   do { __typeof__(x) _res = x; (void)_res; } while(0)
 # else
-#  define ignore_result(x) x
+#  define ph_ignore_result(x) x
 # endif
 
 # ifdef __GNUC__
@@ -196,14 +175,12 @@
 #endif
 
 # ifdef __GNUC__
-#  define likely(x)    __builtin_expect(!!(x), 1)
-#  define unlikely(x)  __builtin_expect(!!(x), 0)
+#  define ph_likely(x)    __builtin_expect(!!(x), 1)
+#  define ph_unlikely(x)  __builtin_expect(!!(x), 0)
 # else
-#  define likely(x)    (x)
-#  define unlikely(x)  (x)
+#  define ph_likely(x)    (x)
+#  define ph_unlikely(x)  (x)
 # endif
-
-#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -267,7 +244,7 @@ typedef uint32_t ph_result_t;
  * If the assertion fails, you'll encounter an error message like this:
  *
  * ```
- * error: zero width for bit-field ‘static_assertion_failed_assuming_32_bits’
+ * error: zero width for bit-field 'static_assertion_failed_assuming_32_bits'
  * ```
  *
  * If you are using GCC 4.6 or later you'll see an error message like this:
@@ -332,7 +309,7 @@ void ph_panic(const char *fmt, ...)
  * message along the lines of:
  *
  * ```
- * file.c:350: error: call to ‘failed_assert_1’ declared with attribute error: 17 < 16 :: nargs too big
+ * file.c:350: error: call to 'failed_assert_1' declared with attribute error: 17 < 16 :: nargs too big
  * ```
  *
  * Otherwise, the error will only trigger when the code is executed.
@@ -375,13 +352,13 @@ void ph_debug_assert(bool condition, const char *message);
   if (__builtin_constant_p(expr) && !(expr)) { \
     ph_assert_static_inner(expr, msg, __COUNTER__); \
   } \
-  if (unlikely(expr)) { \
+  if (ph_unlikely(expr)) { \
     ph_panic("assertion " #expr " failed: " msg); \
   } \
 } while(0)
 #else
 # define ph_assert(expr, msg) do { \
-  if (unlikely(expr)) { \
+  if (ph_unlikely(expr)) { \
     ph_panic(msg); \
   } \
 } while(0)

@@ -81,7 +81,7 @@ void ph_logv(uint8_t level, const char *fmt, va_list ap)
   );
   va_end(copy);
 
-  if (unlikely(hook == NULL)) {
+  if (ph_unlikely(hook == NULL)) {
     hook = ph_hook_point_get_cstr(PH_LOG_HOOK_NAME, true);
   }
   ph_hook_invoke_inner(hook, sizeof(args)/sizeof(args[0]), args);

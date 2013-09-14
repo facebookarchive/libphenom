@@ -1,6 +1,9 @@
 
 lib_LIBRARIES = libphenom.a
 
+pkgconfigdir = $(libdir)/pkgconfig
+pkgconfig_DATA = libphenom.pc
+
 ck_SOURCES = \
 	thirdparty/ck/src/ck_bag.c \
 	thirdparty/ck/src/ck_barrier_centralized.c \
