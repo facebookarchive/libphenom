@@ -92,7 +92,7 @@ install-phenom-hdrs:
 	$(INSTALL_HEADER) thirdparty/ck/include/ck_*.h $(DESTDIR)$(includedir)
 	$(mkdir_p) "$(DESTDIR)$(includedir)/gcc"
 	$(INSTALL_HEADER) thirdparty/ck/include/gcc/*.h $(DESTDIR)$(includedir)/gcc
-	for a in ppc ppc64 sparcv9 x86 x86_64 ; do \
+	for a in arm ppc ppc64 sparcv9 x86 x86_64 ; do \
 		$(mkdir_p) "$(DESTDIR)$(includedir)/gcc/$$a" ; \
 		$(INSTALL_HEADER) thirdparty/ck/include/gcc/$$a/*.h $(DESTDIR)$(includedir)/gcc/$$a ; \
 	done

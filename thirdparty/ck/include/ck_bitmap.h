@@ -92,7 +92,7 @@
 #define CK_BITMAP_TEST(a, b) \
 	ck_bitmap_test(&(a)->bitmap, (b))
 
-#define CK_BITMAP_BITS(a, b) \
+#define CK_BITMAP_BITS(a) \
 	ck_bitmap_bits(&(a)->bitmap)
 
 #define CK_BITMAP_BUFFER(a) \
@@ -293,3 +293,4 @@ ck_bitmap_next(struct ck_bitmap *bitmap,
 }
 
 #endif /* _CK_BITMAP_H */
+
