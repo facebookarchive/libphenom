@@ -215,11 +215,7 @@ static void *ph_thread_boot(void *arg)
 
   /* this publishes that we're ready to run to
    * the thread that spawned us */
-  ck_pr_store_ptr(data.thr, me);
-  // Well, seems like either a GCC bug or a VMware problem,
-  // but the store above yields the wrong results.  Workaround
-  // it using a good old fashioned store
-  *data.thr = me;
+  ck_pr_store_ptr(data.thr, ck_pr_load_ptr(&me));
   ck_pr_fence_store();
 
   return data.func(data.arg);
