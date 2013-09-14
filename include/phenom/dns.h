@@ -29,7 +29,7 @@ extern "C" {
 /**
  * # DNS Resolution facilities
  *
- * Phenom provides two sets of DNS resolution facilities.
+ * libPhenom provides two sets of DNS resolution facilities.
  *
  * The first is an asynchronous wrapper around the system resolver that
  * delegates to the system provided getaddrinfo() library function but

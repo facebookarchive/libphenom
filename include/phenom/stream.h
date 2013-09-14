@@ -24,7 +24,7 @@
 /**
  * # Streams
  *
- * Phenom provides a portable layer over streaming IO
+ * libPhenom provides a portable layer over streaming IO
  */
 
 #ifdef __cplusplus

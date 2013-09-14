@@ -16,7 +16,7 @@
 
 /**
  * # Counters
- * The phenom counter subsystem provides a set of functions that
+ * The counter subsystem provides a set of functions that
  * allows the application to build a hierarchy of 64-bit
  * counter values.
  *
@@ -26,7 +26,7 @@
  * related counters can be read consistently.  Note that the system does
  * not provide a means for snapshotting the entire counter hierarchy.
  *
- * Phenom counters are implemented such that individual threads may
+ * Counters are implemented such that individual threads may
  * manipulate their values uncontested (with no locking!), but allowing
  * for a reader to obtain a consistent view of a related set of counters.
  *
@@ -330,7 +330,7 @@ int64_t ph_counter_scope_get(
  *
  * Since counters may be atomically modified from any thread, it can
  * be difficult to make sense of the set of related counters.
- * The phenom counter subsystem uses a sequence synchronization
+ * The counter subsystem uses a sequence synchronization
  * mechanism that allows counter updates to proceed unimpeded but that
  * allows readers to determine whether they have a consistent view.
  * The get_view operation will retry its counter reads until is

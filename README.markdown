@@ -1,16 +1,16 @@
-# Phenom
+# libPhenom
 
-Phenom is an eventing framework for building high performance and high
+libPhenom is an eventing framework for building high performance and high
 scalability systems in C
 
 ## System Requirements
 
-Phenom is known to compile and pass its test suite on:
+libPhenom is known to compile and pass its test suite on:
 
  * Linux systems with `epoll`
  * OS X
 
-Phenom has been known to compile and pass its test suite on these
+libPhenom has been known to compile and pass its test suite on these
 systems, but they have not been tried in a little while, so may require
 a little bit of TLC:
 
@@ -18,7 +18,7 @@ a little bit of TLC:
    FreeBSD 9.1 and OpenBSD 5.2
  * Illumos and Solaris style systems that have `port_create(3C)`.
 
-Phenom depends on:
+libPhenom depends on:
 
  * [c-ares](http://c-ares.haxx.se) for DNS resolution.
    It expects to find it via `pkg-config`; you need to provide this in
@@ -27,7 +27,7 @@ Phenom depends on:
    concrrency primitives and key data structures.  We include CK
    with phenom.
 
-Phenom works best if built with GCC version 4.3 or later, but should build
+libPhenom works best if built with GCC version 4.3 or later, but should build
 with any C99 compiler.
 
 ## Facilities
@@ -52,9 +52,9 @@ with any C99 compiler.
 
 ## How to use these docs
 
-If you're reading these via the web, simply start typing and the search
-box will suggest topics.  You may select topics from the `Topics` menu
-or browse the header files via the `Headers` menu.
+If you're reading these on http://facebook.github.io/libphenom, simply start
+typing and the search box will suggest topics.  You may select topics from the
+`Topics` menu or browse the header files via the `Headers` menu.
 
 ## Build
 
@@ -110,7 +110,7 @@ below.
 
 ## Contributing
 
-If you're thinking of hacking on Phenom we'd love to hear from you!
+If you're thinking of hacking on libPhenom we'd love to hear from you!
 Feel free to use the Github issue tracker and pull requests to discuss and
 submit code changes.
 
@@ -125,7 +125,7 @@ easily.  We use the same form as the Apache CLA so that friction is minimal.
 
 ## License
 
-Phenom is made available under the terms of the Apache License 2.0.  See the
+libPhenom is made available under the terms of the Apache License 2.0.  See the
 LICENSE file that accompanies this distribution for the full text of the
 license.
 

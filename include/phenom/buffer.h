@@ -20,7 +20,7 @@
 /**
  * # Buffers
  *
- * The Phenom buffer API allows for fixed-size buffers to be used reasonably
+ * The libPhenom buffer API allows for fixed-size buffers to be used reasonably
  * efficiently in an application.  The API provides a couple of benefits:
  *
  * * Slices can be made over a region of another buffer.  The slice allows

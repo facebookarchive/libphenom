@@ -24,7 +24,7 @@ extern "C" {
 /**
  * # Hash Table
  *
- * Phenom provides a hash table facility that allows the
+ * libPhenom provides a hash table facility that allows the
  * construction of maps from an arbitrary key type to
  * an arbitrary value type.
  *

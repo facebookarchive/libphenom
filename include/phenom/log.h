@@ -16,7 +16,7 @@
 
 /**
  * # Logging
- * Phenom provides simple but useful logging utilities.
+ * libPhenom provides simple but useful logging utilities.
  *
  * Each logged message is associated with one of the following
  * severity levels:

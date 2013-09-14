@@ -142,7 +142,7 @@
 /**
  * ## Pedantic compilation
  *
- * To stave off undefined or unexpected conditions, Phenom is
+ * To stave off undefined or unexpected conditions, libPhenom is
  * compiled in an extremely unforgiving mode that causes warnings
  * to be treated as errors.
  *
@@ -319,7 +319,7 @@ void ph_panic(const char *fmt, ...)
 /** Perform a runtime assertion
  *
  * To perform a runtime assertion, use ph_assert() as shown below.
- * Phenom makes the assumption that the expression to be asserted
+ * libPhenom makes the assumption that the expression to be asserted
  * will almost never be true.
  *
  * ```

@@ -27,14 +27,14 @@ extern "C" {
 #endif
 
 /**
- * # Phenom Jobs
+ * # Jobs
  * Jobs describe a parcel of work.  Jobs may be triggered or dispatched
  * in one of a number of "run classes".  There are three run classes:
  *
  * - Immediate. The work is dispatched immediately on the calling thread.
  * - NBIO. The work is dispatched when a descriptor is signalled for I/O.
  * - Pool. The work is queued to a thread pool and is dispatched as soon as a
- *   worker becomes available.  Phenom allows multiple pools to be defined to
+ *   worker becomes available.  libPhenom allows multiple pools to be defined to
  *   better partition and prioritize your workload.
  */
 

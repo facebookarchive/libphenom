@@ -28,7 +28,7 @@ extern "C" {
 /**
  * # JSON Support
  *
- * Phenom provides JSON encoding and decoding support functions.
+ * libPhenom provides JSON encoding and decoding support functions.
  * These are implemented in terms of the variant datatype; you
  * may encode from a variant to JSON and vice-versa.
  *

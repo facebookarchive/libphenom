@@ -251,7 +251,7 @@ ph_var_unpack(root, &err, 0, "{s?i, s?[ii]}",
  * # JSONPath style queries
  *
  * Simple [JSONPath](http://goessner.net/articles/JsonPath/) style queries may be
- * used to interrogate variants.  Phenom supports only a limited subset of
+ * used to interrogate variants.  libPhenom supports only a limited subset of
  * JSONPath.
  *
  * The query must be started at the root (using the `$` character) and will
@@ -676,7 +676,7 @@ ph_result_t ph_var_vunpack(ph_variant_t *root, ph_var_err_t *error,
 
 /** Evaluate a JSONPath style expression.
  *
- * Phenom supports a limited subset of JSONPath; see the start of this
+ * libPhenom supports a limited subset of JSONPath; see the start of this
  * document for more details on the supported syntax.
  *
  * Returns a borrowed reference on the matching element if found, else

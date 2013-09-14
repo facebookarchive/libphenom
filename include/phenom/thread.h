@@ -111,7 +111,7 @@ static inline ph_thread_t *ph_thread_self(void)
 }
 
 /** Set the name of the currently executing thread.
- * Used for debugging.  Phenom will set this up
+ * Used for debugging.  libPhenom will set this up
  * when initializing thread pools, you probably don't
  * need to call it */
 void ph_thread_set_name(const char *name);

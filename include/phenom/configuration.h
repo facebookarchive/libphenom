@@ -20,7 +20,7 @@
 /**
  * # Configuration
  *
- * Phenom provides a relatively simple configuration facility; the
+ * libPhenom provides a relatively simple configuration facility; the
  * process has a global configuration expressed as a variant object.
  *
  * There is limited support for mutating the configuration: any
