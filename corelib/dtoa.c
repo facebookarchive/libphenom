@@ -3622,7 +3622,7 @@ ph_freedtoa(s) char *s;
 ph_freedtoa(char *s)
 #endif
 {
-  Bigint *b = (Bigint *)((int *)s - 1);
+  Bigint *b = (Bigint *)(void*)((int *)(void*)s - 1);
   b->maxwds = 1 << (b->k = *(int*)b);
   Bfree(b);
 #ifndef MULTIPLE_THREADS

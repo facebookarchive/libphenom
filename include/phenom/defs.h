@@ -217,7 +217,7 @@ typedef uint32_t ph_result_t;
 #  define ph_offsetof(type, field) ((size_t)(&((type *)0)->field))
 # endif
 #define ph_container_of(ptr_, type_, member_)  \
-    ((type_ *)((char *)ptr_ - ph_offsetof(type_, member_)))
+    ((type_ *)(void*)((char *)ptr_ - ph_offsetof(type_, member_)))
 
 #define ph_static_assert_paste2(pre, post)  pre ## post
 #define ph_static_assert_paste1(pre, post)  ph_static_assert_paste2(pre, post)

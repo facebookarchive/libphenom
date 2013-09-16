@@ -44,7 +44,7 @@ static inline void *valptr(ph_ht_t *ht, struct ph_ht_elem *elem)
 
 static inline struct ph_ht_elem *elemptr(ph_ht_t *ht, uint32_t p)
 {
-  return (struct ph_ht_elem*)(ht->table + (p * ht->elem_size));
+  return (struct ph_ht_elem*)(void*)(ht->table + (p * ht->elem_size));
 }
 
 ph_result_t ph_ht_init(ph_ht_t *ht, uint32_t size_hint,
@@ -122,7 +122,7 @@ void ph_ht_free_entries(ph_ht_t *ht)
   struct ph_ht_elem *elem;
 
   for (i = 0; i < ht->table_size; i++) {
-    elem = (struct ph_ht_elem*)(ht->table + (i * ht->elem_size));
+    elem = (struct ph_ht_elem*)(void*)(ht->table + (i * ht->elem_size));
 
     if (elem->status == PH_HT_ELEM_EMPTY) {
       continue;
@@ -183,7 +183,7 @@ static struct ph_ht_elem *find_new_slot(ph_ht_t *ht, char *table,
   struct ph_ht_elem *elem;
 
   while (true) {
-    elem = (struct ph_ht_elem*)(table + ((pos & mask) * ht->elem_size));
+    elem = (struct ph_ht_elem*)(void*)(table + ((pos & mask) * ht->elem_size));
 
     if (elem->status == PH_HT_ELEM_EMPTY) {
       return elem;

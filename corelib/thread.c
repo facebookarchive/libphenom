@@ -102,7 +102,10 @@ static void destroy_thread(void *ptr)
 {
   ph_thread_t *thr = ptr;
 
-  ph_thread_epoch_barrier();
+  // Call direct to the barrier function, as ph_thread_epoch_barrier
+  // will try to re-create the TLS which is currently partially
+  // destructed when this code is built to clang
+  ck_epoch_barrier(&misc_epoch, thr->epoch_record);
 
   if (thr->epoch_record) {
     ck_epoch_unregister(&misc_epoch, thr->epoch_record);

@@ -47,7 +47,7 @@ ph_hash_bytes_murmur(const void *key, const int len, const uint32_t seed, void *
   uint64_t k2 = 0;
 
   /* body */
-  const uint64_t * blocks = (const uint64_t *)(data);
+  const uint64_t * blocks = (const uint64_t *)(void*)(data);
 
   for (i = 0; i < nblocks; i++) {
     k1 = blocks[i*2+0];

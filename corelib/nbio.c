@@ -143,7 +143,7 @@ static inline void trigger_now(
 // work item
 static inline ph_job_t *job_from_timer(struct ph_timerwheel_timer *timer)
 {
-  return (ph_job_t*)(((char*)timer) - ph_offsetof(ph_job_t, timer));
+  return (ph_job_t*)(void*)(((char*)timer) - ph_offsetof(ph_job_t, timer));
 }
 
 static bool before_dispatch_timer(

@@ -515,7 +515,7 @@ static struct ph_counter_head *init_head(void)
   // Try to recycle a head from a dead thread
   er = ck_epoch_recycle(&ph_counter_epoch);
   if (er) {
-    head = (struct ph_counter_head*)
+    head = (struct ph_counter_head*)(void*)
            ((char*)er - ph_offsetof(struct ph_counter_head, epoch_record));
   } else {
     // Otherwise, make a new one and prep it
