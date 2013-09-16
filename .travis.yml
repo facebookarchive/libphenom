@@ -1,0 +1,9 @@
+language:
+  - c
+
+compiler:
+  - gcc
+  - clang
+
+before_script: ./travis/deps.sh
+script: ./travis/run.sh
