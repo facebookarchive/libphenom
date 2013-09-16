@@ -1,4 +1,4 @@
-AC_INIT([phenom], [1.0], [], [phenom])
+AC_INIT([phenom], [0.1], [], [phenom])
 AC_CANONICAL_TARGET
 
 case "$target_os-$target_cpu" in
