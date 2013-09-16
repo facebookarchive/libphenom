@@ -24,7 +24,7 @@ libPhenom depends on:
    It expects to find it via `pkg-config`; you need to provide this in
    order for phenom to build successfully.
  * [Concurrency Kit](http://concurrencykit.org/) for its excellent
-   concrrency primitives and key data structures.  We include CK
+   concurrency primitives and key data structures.  We include CK
    with phenom.
 
 libPhenom works best if built with GCC version 4.3 or later, but should
