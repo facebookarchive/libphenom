@@ -27,13 +27,13 @@ libPhenom depends on:
    concrrency primitives and key data structures.  We include CK
    with phenom.
 
-libPhenom works best if built with GCC version 4.3 or later, but should build
-with any C99 compiler.
+libPhenom works best if built with GCC version 4.3 or later, but should
+be able to build with any C99 compiler.
 
 ## Facilities
 
  * Memory management with counters - record how much of which kinds
-   of memory that your application is using.
+   of memory your application is using.
  * Jobs - decompose your application into portions of work
    and let the phenom scheduler manage getting them done
  * streaming I/O with buffers
@@ -101,7 +101,7 @@ int main(int argc, char **argv)
   // that allows you to run diagnostic commands:
   // `echo memory | nc -UC /tmp/phenom-debug-console`
   // The code behind this is in
-  // https://github.com/facebook/phenom/blob/master/corelib/debug_console.c
+  // https://github.com/facebook/libphenom/blob/master/corelib/debug_console.c
   ph_debug_console_start("/tmp/phenom-debug-console");
 
   // Run
