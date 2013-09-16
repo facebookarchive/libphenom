@@ -17,6 +17,7 @@
 #include "phenom/string.h"
 #include "phenom/sysutil.h"
 #include "phenom/printf.h"
+#include <ctype.h>
 
 static ph_memtype_t mt_string = PH_MEMTYPE_INVALID;
 static ph_memtype_def_t string_def = {
@@ -48,6 +49,25 @@ void ph_string_init_slice(ph_string_t *str,
   str->alloc = len;
 
   ph_string_addref(slice);
+}
+
+ph_string_t *ph_string_make_slice(ph_string_t *str,
+    uint32_t start, uint32_t len)
+{
+  ph_string_t *slice;
+
+  if (start == 0 && len == str->len) {
+    ph_string_addref(str);
+    return str;
+  }
+
+  slice = ph_mem_alloc(mt_string);
+  if (!slice) {
+    return NULL;
+  }
+
+  ph_string_init_slice(slice, str, start, len);
+  return slice;
 }
 
 void ph_string_init_claim(ph_string_t *str,
@@ -174,6 +194,26 @@ ph_result_t ph_string_append_buf(ph_string_t *str,
   memcpy(str->buf + str->len, buf, len);
   str->len += len;
   return PH_OK;
+}
+
+bool ph_string_equal_caseless(const ph_string_t *a, const ph_string_t *b)
+{
+  uint32_t i;
+
+  if (a == b) {
+    return true;
+  }
+  if (a->len != b->len) {
+    return false;
+  }
+
+  for (i = 0; i < a->len; i++) {
+    if (tolower(a->buf[i]) != tolower(b->buf[i])) {
+      return false;
+    }
+  }
+
+  return true;
 }
 
 bool ph_string_equal(const ph_string_t *a, const ph_string_t *b)

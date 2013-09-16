@@ -264,7 +264,7 @@ ph_thread_t *ph_thread_self_slow(void)
 
 void ph_thread_set_name(const char *name)
 {
-  ph_thread_t *thr = ph_thread_self();
+  ph_thread_t *thr = ph_thread_self_slow();
   unsigned int namelen;
 
   if (!thr) {

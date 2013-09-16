@@ -170,6 +170,14 @@ void ph_string_init_claim(ph_string_t *str,
 void ph_string_init_slice(ph_string_t *str,
     ph_string_t *slice, uint32_t start, uint32_t len);
 
+/** Make a new string instance by slicing over another string.
+ *
+ * Maintains a reference to the sliced string that is released
+ * when this one is released.
+ */
+ph_string_t *ph_string_make_slice(ph_string_t *str,
+    uint32_t start, uint32_t len);
+
 /** Make a new string instance from a source buffer
  *
  * Allocates a new string object that claims ownership
@@ -327,6 +335,15 @@ static inline void ph_string_reset(ph_string_t *str) {
  * and other nuances of multi-byte encodings.
  */
 bool ph_string_equal(const ph_string_t *a, const ph_string_t *b);
+
+/** Compare the value of two strings for equality, case insensitive
+ *
+ * Return true the strings compare equal, with each byte passed
+ * to the tolower() function.  Aside form lower casing each byte,
+ * this function ignores locale and other nuances of multi-byte
+ * encodings.
+ */
+bool ph_string_equal_caseless(const ph_string_t *a, const ph_string_t *b);
 
 /** Compare the value of the string against a C-string for equality
  */
