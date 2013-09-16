@@ -56,6 +56,18 @@ If you're reading these on http://facebook.github.io/libphenom, simply start
 typing and the search box will suggest topics.  You may select topics from the
 `Topics` menu or browse the header files via the `Headers` menu.
 
+## Getting it
+
+You can obtain the sources from https://github.com/facebook/libphenom:
+
+```bash
+$ git clone https://github.com/facebook/libphenom.git
+```
+
+or [grab a snapshot of master](https://github.com/facebook/libphenom/archive/master.zip)
+
+
+
 ## Build
 
 ```bash
