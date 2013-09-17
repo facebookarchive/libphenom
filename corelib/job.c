@@ -359,7 +359,7 @@ static void init_ring(ph_thread_pool_t *pool, int bucket)
   ck_ring_init(pool->rings[bucket], ringbuf, ring_size);
 
   mask = 1ULL << bucket;
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__clang__)
   /* optimization bug prevents use of ck_pr_or_64 */
   {
     uint64_t old, want;
