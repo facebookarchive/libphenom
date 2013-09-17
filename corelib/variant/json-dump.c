@@ -31,10 +31,10 @@ static int do_dump(ph_variant_t *json, uint32_t flags,
 /* 32 spaces (the maximum indentation size) */
 static const char whitespace[] = "                                ";
 
-static inline int dump(const char *buf, uint32_t len, ph_stream_t *stm)
-{
-  return ph_stm_write(stm, buf, len, NULL) ? 0 : -1;
-}
+// I prefer to inline, but gcc 4.4.6 on RHEL 6.2 and 6.3 are unhappy, so
+// we get to use good old fashioned define
+// https://github.com/facebook/libphenom/issues/7
+#define dump(buf, len, stm) (ph_stm_write(stm, buf, len, NULL) ? 0 : -1)
 
 static int dump_indent(uint32_t flags, int depth, int space, ph_stream_t *stm)
 {
