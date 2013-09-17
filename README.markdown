@@ -30,6 +30,8 @@ libPhenom depends on:
 libPhenom works best if built with GCC version 4.3 or later, but should
 be able to build with any C99 compiler.
 
+[![Build Status](https://travis-ci.org/facebook/libphenom.png)](https://travis-ci.org/facebook/libphenom)
+
 ## Facilities
 
  * Memory management with counters - record how much of which kinds
