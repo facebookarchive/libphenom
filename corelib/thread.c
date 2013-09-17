@@ -102,20 +102,17 @@ static void destroy_thread(void *ptr)
 {
   ph_thread_t *thr = ptr;
 
-  // Call direct to the barrier function, as ph_thread_epoch_barrier
-  // will try to re-create the TLS which is currently partially
-  // destructed when this code is built to clang
-  ck_epoch_barrier(&misc_epoch, thr->epoch_record);
-
   if (thr->epoch_record) {
+    // Call direct to the barrier function, as ph_thread_epoch_barrier
+    // will try to re-create the TLS which is currently partially
+    // destructed when this code is built to clang
+    ck_epoch_barrier(&misc_epoch, thr->epoch_record);
     ck_epoch_unregister(&misc_epoch, thr->epoch_record);
     thr->epoch_record = NULL;
   }
 
 #ifndef HAVE___THREAD
   ph_mem_free(mt_thread, thr);
-#else
-  ph_unused_parameter(thr);
 #endif
 }
 
@@ -210,6 +207,7 @@ static void *ph_thread_boot(void *arg)
 {
   struct ph_thread_boot_data data;
   ph_thread_t *me;
+  void *retval;
 
   /* copy in the boot data from the stack of our creator */
   memcpy(&data, arg, sizeof(data));
@@ -221,7 +219,10 @@ static void *ph_thread_boot(void *arg)
   ck_pr_store_ptr(data.thr, ck_pr_load_ptr(&me));
   ck_pr_fence_store();
 
-  return data.func(data.arg);
+  retval = data.func(data.arg);
+  ph_thread_epoch_barrier();
+
+  return retval;
 }
 
 ph_thread_t *ph_thread_spawn(ph_thread_func func, void *arg)
