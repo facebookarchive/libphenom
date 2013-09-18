@@ -262,6 +262,17 @@ void ph_job_pool_apply_deferred_items(ph_thread_t *me);
  * The actual value used for sched_cores will be taken from
  * the configuration for `$.nbio.sched_cores`, if present,
  * otherwise your sched_cores parameter will be used.
+ *
+ * Other applicable parameters:
+ *
+ * `$.nbio.epoch_interval` specifies how often we'll schedule a
+ * call to ph_thread_epoch_barrier().  The configuration is specified
+ * in milliseconds.  If you enabled Gimli support, libphenom will
+ * update the heartbeat after performing the barrier.  This ensures
+ * that all worker threads are healthy and making progress.
+ * The default value for this `5000` milliseconds; it should be
+ * more frequent than your Gimli watchdog interval.  You may disable
+ * barrier and heartbeat by setting this option to `0`.
  */
 ph_result_t ph_nbio_init(uint32_t sched_cores);
 

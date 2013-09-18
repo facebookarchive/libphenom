@@ -43,6 +43,11 @@ static ph_timerwheel_t wheel;
 static int num_schedulers;
 int _ph_run_loop = 1;
 static ph_thread_t **scheduler_threads;
+static ph_job_t gc_job;
+static int gc_interval;
+#ifdef USE_GIMLI
+static volatile struct gimli_heartbeat *hb = NULL;
+#endif
 
 #ifdef HAVE_EPOLL_CREATE
 static int ep_fd = -1;
@@ -633,27 +638,27 @@ static void *sched_loop(void *arg)
   return NULL;
 }
 
-#ifdef USE_GIMLI
-static ck_epoch_entry_t hb_entry;
-static ph_job_t hb_job;
-static volatile struct gimli_heartbeat *hb = NULL;
-
-static void perform_heart_beat(ck_epoch_entry_t *ent)
+static void epoch_gc(ph_job_t *job, ph_iomask_t why, void *data)
 {
-  ph_unused_parameter(ent);
-  gimli_heartbeat_set(hb, GIMLI_HB_RUNNING);
-  ph_job_set_timer_in_ms(&hb_job, 5000);
-}
-
-static void arrange_heart_beat(ph_job_t *job, ph_iomask_t why, void *data)
-{
-  ph_unused_parameter(job);
   ph_unused_parameter(why);
   ph_unused_parameter(data);
 
-  ph_thread_epoch_defer(&hb_entry, perform_heart_beat);
-}
+  // This looks weird: it's because the timer dispatch implicitly
+  // brackets each event callback with a begin/end.  Since we can't
+  // barrier inside a begin/end, we turn it inside out with an
+  // end/begin.  The alternative is to spin up a thread just to trigger
+  // the reclamation and heart beat, which seems OTT.
+  ph_thread_epoch_end();
+  ph_thread_epoch_barrier();
+  ph_thread_epoch_begin();
+
+#ifdef USE_GIMLI
+  if (hb) {
+    gimli_heartbeat_set(hb, GIMLI_HB_RUNNING);
+  }
 #endif
+  ph_job_set_timer_in_ms(job, gc_interval);
+}
 
 ph_result_t ph_sched_run(void)
 {
@@ -670,15 +675,21 @@ ph_result_t ph_sched_run(void)
   _ph_job_pool_start_threads();
   process_deferred(me, NULL);
 
+  gc_interval = ph_config_query_int("$.nbio.epoch_interval", 5000);
+  if (gc_interval > 0) {
 #ifdef USE_GIMLI
-  hb = gimli_heartbeat_attach();
-  if (hb) {
-    ph_job_init(&hb_job);
-    hb_job.callback = arrange_heart_beat;
-    ph_job_set_timer_in_ms(&hb_job, 5000);
-    gimli_heartbeat_set(hb, GIMLI_HB_STARTING);
-  }
+    if (getenv("GIMLI_HB_FD")) {
+      hb = gimli_heartbeat_attach();
+      if (hb) {
+        gimli_heartbeat_set(hb, GIMLI_HB_STARTING);
+      }
+    }
 #endif
+
+    ph_job_init(&gc_job);
+    gc_job.callback = epoch_gc;
+    ph_job_set_timer_in_ms(&gc_job, gc_interval);
+  }
 
   sched_loop(NULL);
 
