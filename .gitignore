@@ -26,6 +26,8 @@ tests/*.t
 tests/*.t.*
 tests/bench/*.t
 tests/bench/*.t.*
+tests/bench/*.png
+*.png
 .dirstamp
 *.a
 *.rpm

@@ -36,7 +36,6 @@ static ph_job_t deadline;
 static struct ph_nbio_stats stats = {0, 0, 0, 0};
 
 int num_socks = 100;
-int num_active = 1;
 int time_duration = 1000;
 int io_threads = 0;
 int use_libevent = 0;
@@ -106,9 +105,6 @@ int main(int argc, char **argv)
       case 'n':
         num_socks = atoi(optarg);
         break;
-      case 'a':
-        num_active = atoi(optarg);
-        break;
       case 'c':
         io_threads = atoi(optarg);
         break;
@@ -122,7 +118,17 @@ int main(int argc, char **argv)
 #endif
         break;
       default:
-        fprintf(stderr, "Illegal arguments %c\n", c);
+        fprintf(stderr,
+            "-n NUMBER   specify number of sockets (default %d)\n",
+            num_socks);
+        fprintf(stderr,
+            "-c NUMBER   specify IO sched concurrency level (default: auto)\n"
+        );
+        fprintf(stderr,
+            "-t NUMBER   specify duration of test in seconds "
+            "(default %ds)\n", time_duration/1000);
+        fprintf(stderr,
+            "-e          Use libevent instead of libphenom\n");
         exit(EX_USAGE);
     }
   }
@@ -210,6 +216,7 @@ int main(int argc, char **argv)
     double duration;
     double rate;
     char cbuf[64];
+    char *logname;
 
     ph_log(PH_LOG_INFO, "%" PRIi64 " timer ticks\n", stats.timer_ticks);
     timersub(&end_time, &start_time, &elapsed_time);
@@ -220,6 +227,23 @@ int main(int argc, char **argv)
         duration,
         commaprint((uint64_t)rate, cbuf, sizeof(cbuf))
     );
+
+    // To support automated data collection by run-pipes.php
+    logname = getenv("APPEND_FILE");
+    if (logname && logname[0]) {
+      ph_stream_t *s = ph_stm_file_open(logname,
+                          O_WRONLY|O_CREAT|O_APPEND, 0666);
+      if (s) {
+        ph_stm_printf(s, "%s,%d,%d,%f\n",
+            use_libevent ? "libevent" : "libphenom",
+            num_socks,
+            io_threads,
+            rate);
+        ph_stm_flush(s);
+        ph_stm_close(s);
+      }
+    }
+
     ph_log(PH_LOG_INFO, "Over %.3fs, fired %s events/core/s",
         duration,
         commaprint((uint64_t)(rate/io_threads), cbuf, sizeof(cbuf))
