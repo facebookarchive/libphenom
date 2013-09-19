@@ -11,6 +11,6 @@ sockets_only = ggplot(st, aes(x = Sockets, y = Rate, colour = Library, fill = Li
 ggsave(sockets_only, file = "sockets.png", width=6, height=4.5)
 
 scale = ggplot(pt, aes(x = Sockets, y = Rate)) + geom_line() + facet_grid(. ~ Threads) +
-    theme(axis.text.x = element_text(angle = 90, hjust = 1))
+    theme(axis.text.x = element_text(angle = 90, hjust = 1, size=5))
 
 ggsave(scale, file = "scale.png", width=6, height=4.5)
