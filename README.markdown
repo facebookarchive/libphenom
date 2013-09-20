@@ -26,6 +26,7 @@ libPhenom depends on:
  * [Concurrency Kit](http://concurrencykit.org/) for its excellent
    concurrency primitives and key data structures.  We include CK
    with phenom.
+ * **autoconf** and **automake** are required to build libPhenom
 
 libPhenom works best if built with GCC version 4.3 or later, but should
 be able to build with any C99 compiler.
