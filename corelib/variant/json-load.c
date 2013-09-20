@@ -139,6 +139,18 @@ static void error_set(ph_var_err_t *error, const lex_t *lex,
   ph_snprintf(error->text, sizeof(error->text), "%s", result);
 }
 
+static void error_set_oom(ph_var_err_t *error, const lex_t *lex)
+{
+  if (!error || error->text[0]) {
+    return;
+  }
+  error->transient = true;
+  if (lex) {
+    error_set(error, lex, "out of memory");
+  } else {
+    strcpy(error->text, "out of memory");
+  }
+}
 
 /*** lexical analyzer ***/
 
@@ -467,6 +479,7 @@ static void lex_scan_string(lex_t *lex, ph_var_err_t *error)
   lex->value.string = ph_mem_alloc_size(mt_json,
       ph_string_len(&lex->saved_text) + 1);
   if (!lex->value.string) {
+    error_set_oom(error, lex);
     /* this is not very nice, since TOKEN_INVALID is returned */
     goto out;
   }
@@ -823,6 +836,7 @@ static ph_variant_t *parse_object(lex_t *lex, size_t flags,
   ph_variant_t *object = ph_var_object(8);
 
   if (!object) {
+    error_set_oom(error, lex);
     return NULL;
   }
 
@@ -868,6 +882,7 @@ static ph_variant_t *parse_object(lex_t *lex, size_t flags,
     }
 
     if (ph_var_object_set_claim_kv(object, key, value) != PH_OK) {
+      error_set_oom(error, lex);
       ph_string_delref(key);
       ph_var_delref(value);
       goto error;
@@ -898,6 +913,7 @@ static ph_variant_t *parse_array(lex_t *lex, size_t flags, ph_var_err_t *error)
   ph_variant_t *array = ph_var_array(8);
 
   if (!array) {
+    error_set_oom(error, lex);
     return NULL;
   }
 
@@ -913,6 +929,7 @@ static ph_variant_t *parse_array(lex_t *lex, size_t flags, ph_var_err_t *error)
     }
 
     if (ph_var_array_append_claim(array, elem) != PH_OK) {
+      error_set_oom(error, lex);
       ph_var_delref(elem);
       goto error;
     }
@@ -974,12 +991,10 @@ static ph_variant_t *parse_value(lex_t *lex, size_t flags, ph_var_err_t *error)
       break;
 
     case '{':
-      json = parse_object(lex, flags, error);
-      break;
+      return parse_object(lex, flags, error);
 
     case '[':
-      json = parse_array(lex, flags, error);
-      break;
+      return parse_array(lex, flags, error);
 
     case TOKEN_INVALID:
       error_set(error, lex, "invalid token");
@@ -988,6 +1003,10 @@ static ph_variant_t *parse_value(lex_t *lex, size_t flags, ph_var_err_t *error)
     default:
       error_set(error, lex, "unexpected token");
       return NULL;
+  }
+
+  if (!json) {
+    error_set_oom(error, lex);
   }
 
   return json;
@@ -999,6 +1018,7 @@ static ph_variant_t *parse_json(lex_t *lex, size_t flags, ph_var_err_t *error)
 
   if (error) {
     error->text[0] = 0;
+    error->transient = false;
   }
 
   lex_scan(lex, error);
@@ -1051,6 +1071,9 @@ ph_variant_t *ph_json_load_string(ph_string_t *str, uint32_t flags,
 
   stm = ph_stm_string_open(str);
   if (!stm) {
+    if (err) {
+      error_set_oom(err, NULL);
+    }
     return 0;
   }
 

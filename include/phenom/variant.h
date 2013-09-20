@@ -325,6 +325,10 @@ typedef struct ph_variant ph_variant_t;
 #define PH_VAR_ERROR_TEXT_LENGTH    160
 struct ph_var_err {
   uint32_t line, column, position;
+  // Transient failures are likely due to memory limitations or any class
+  // of issue that means that a later attempt to parse this same data might
+  // result in a successful outcome.
+  bool transient;
   char text[PH_VAR_ERROR_TEXT_LENGTH];
 };
 typedef struct ph_var_err ph_var_err_t;

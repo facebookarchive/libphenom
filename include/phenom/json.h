@@ -69,6 +69,7 @@ extern "C" {
  * * `column` - the offset within the line measured in code points
  * * `position` - the byte offset within the JSON stream
  * * `text` - a human readable error message explaining the problem
+ * * `transient` - if true, indicates that retrying later might yield success
  *
  * If the load operation was successful, the `position` field is updated to
  * hold the number of bytes consumed from the input.  This is useful in
