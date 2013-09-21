@@ -898,7 +898,7 @@ fp_begin:
        *  -- ANSI X3J11
        */
       /* NOSTRICT */
-      _umax = (uintmax_t)GETARG(void *);
+      _umax = (uintmax_t)(intptr_t)GETARG(void *);
       base = HEX;
       xdigs = xdigs_lower;
       ox[1] = 'x';

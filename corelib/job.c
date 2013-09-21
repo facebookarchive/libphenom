@@ -92,7 +92,7 @@ struct ph_thread_pool_wait {
 // of available bits.  sizeof(used_rings) is in-turn
 // bounded by the number of bits supported by the ffs()
 // intrinsic
-#define MAX_RINGS 63
+#define MAX_RINGS ((sizeof(intptr_t)*8)-1)
 
 struct ph_thread_pool {
   struct ph_thread_pool_wait consumer CK_CC_CACHELINE;
@@ -100,7 +100,7 @@ struct ph_thread_pool {
   uint32_t max_queue_len;
 
   ck_ring_t *rings[MAX_RINGS+1];
-  uint64_t used_rings;
+  intptr_t used_rings;
 
   ck_spinlock_t lock CK_CC_CACHELINE;
   char pad1[CK_MD_CACHELINE - sizeof(ck_spinlock_t)];
@@ -311,7 +311,7 @@ static inline ph_job_t *pop_job(ph_thread_pool_t *pool,
 {
   ph_job_t *job;
   uint32_t i;
-  uint64_t bits;
+  intptr_t bits;
 
   for (;;) {
     // Try the my own bucket first, as this is lowest contention
@@ -348,7 +348,7 @@ static void init_ring(ph_thread_pool_t *pool, int bucket)
 {
   uint32_t ring_size;
   char *ringbuf;
-  uint64_t mask;
+  intptr_t mask;
 
   ring_size = MAX(4, ph_power_2(pool->max_queue_len));
 
@@ -362,14 +362,16 @@ static void init_ring(ph_thread_pool_t *pool, int bucket)
 #if defined(__APPLE__) || defined(__clang__)
   /* optimization bug prevents use of ck_pr_or_64 */
   {
-    uint64_t old, want;
+    intptr_t old, want;
     do {
       old = pool->used_rings;
       want = old | mask;
-    } while (!ck_pr_cas_64(&pool->used_rings, old, want));
+    } while (!ck_pr_cas_ptr(&pool->used_rings, (void*)old, (void*)want));
   }
+#elif defined(CK_F_PR_CAS_64)
+  ck_pr_or_64((uint64_t*)&pool->used_rings, mask);
 #else
-  ck_pr_or_64(&pool->used_rings, mask);
+  ck_pr_or_32((uint32_t*)&pool->used_rings, mask);
 #endif
   ck_pr_fence_store();
 }

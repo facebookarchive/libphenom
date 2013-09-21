@@ -187,7 +187,8 @@ ph_result_t ph_job_set_pool_immediate(ph_job_t *job,
  * to maintain and enforce), but there is a theoretical upper bound
  * of MAX(4, ph_power_2(max_queue_len)) * 64 jobs that can be "queued",
  * assuming that all 63 preferred threads and all the non-preferred
- * threads are busy saturating the pool.
+ * threads are busy saturating the pool.  On 32-bit systems, the multiplier
+ * is 32 instead of 64 and the preferred ring count is 31 instead of 63.
  *
  * Note that the actual values used for `max_queue_len` and `num_threads`
  * will be taken from the configuration values `$.threadpool.NAME.queue_len`

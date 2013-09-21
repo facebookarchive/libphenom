@@ -381,7 +381,7 @@ uint8_t ph_counter_scope_get_num_slots(
 /* an iterator for scopes */
 struct ph_counter_scope_iterator {
   void *ptr;
-  uint64_t offset;
+  intptr_t offset;
 };
 typedef struct ph_counter_scope_iterator ph_counter_scope_iterator_t;
 

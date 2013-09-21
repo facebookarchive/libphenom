@@ -232,21 +232,19 @@ static unsigned long scope_map_hash(const void *key,
   return h[0];
 }
 
+/* If you see this trigger, it means that our definition of the counter
+ * iterator doesn't match the size of the underlying ck_hs_iterator and that
+ * it needs to be fixed.
+ * We do this for historical reasons for C++ compatibility, but may be able
+ * to simply declare the iterator using a typedef; something to revisit later.
+ */
+ph_static_assert(sizeof(struct ph_counter_scope_iterator)
+    == sizeof(struct ck_hs_iterator), counter_iterator_definition_bad);
+
 static void ph_counter_init(void)
 {
   ck_epoch_init(&ph_counter_epoch);
   pthread_key_create(&tls_key, ph_counter_head_tls_dtor);
-
-  if (sizeof(struct ph_counter_scope_iterator) !=
-      sizeof(struct ck_hs_iterator)) {
-    /* ideally, we'd let the compiler catch this, but we
-     * don't want to pollute ph_counter.h with the CK
-     * functions, because C++ compilers hate it.
-     * If you're seeing this abort trigger, you need to
-     * update struct ph_counter_scope_iterator to
-     * have the same size as struct ck_hs_iterator */
-    abort();
-  }
 
   if (!ck_hs_init(&scope_map, CK_HS_MODE_SPMC | CK_HS_MODE_OBJECT,
       scope_map_hash, scope_map_compare, &hs_allocator, 65536, lrand48())) {
