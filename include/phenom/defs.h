@@ -358,8 +358,8 @@ void ph_debug_assert(bool condition, const char *message);
 } while(0)
 #else
 # define ph_assert(expr, msg) do { \
-  if (ph_unlikely(expr)) { \
-    ph_panic(msg); \
+  if (ph_unlikely(!(expr))) { \
+    ph_panic("assertion " #expr " failed: " msg " at %s:%d", __FILE__, __LINE__); \
   } \
 } while(0)
 
