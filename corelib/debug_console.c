@@ -230,6 +230,8 @@ done:
       funcs[i].func(sock);
       break;
     }
+
+    ph_buf_delref(buf);
   }
 }
 

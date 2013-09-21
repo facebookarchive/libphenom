@@ -238,7 +238,7 @@ void ph_socket_connect(ph_socket_t s, const ph_sockaddr_t *addr,
 static bool sock_stm_close(ph_stream_t *stm)
 {
   ph_unused_parameter(stm);
-  return false;
+  return true;
 }
 
 static bool sock_stm_readv(ph_stream_t *stm, const struct iovec *iov,
