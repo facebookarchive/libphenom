@@ -86,6 +86,7 @@ You'll want to set up the main loop using something like this:
 
 ```c
 #include "phenom/defs.h"
+#include "phenom/configuration.h"
 #include "phenom/job.h"
 #include "phenom/log.h"
 #include "phenom/sysutil.h"
@@ -114,8 +115,15 @@ int main(int argc, char **argv)
 }
 ```
 
-And link against `libphenom` and `libcares`.  Want more inspiration?
-Take a look at the code in the test suite.
+And compile it using something like this:
+
+```bash
+$ gcc main.c `pkg-config libphenom --cflags --libs`
+```
+
+(this will link against `libphenom` and `libcares`).
+
+Want more inspiration?  Take a look at the code in the test suite.
 
 ## Status
 

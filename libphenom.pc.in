@@ -5,6 +5,7 @@ libdir=@libdir@
 
 Name: libPhenom
 Description: library of awesome for C apps
+Requires: libcares
 URL: https://github.com/facebook/libphenom
 Version: @VERSION@
 Libs: -L${libdir} -lphenom
