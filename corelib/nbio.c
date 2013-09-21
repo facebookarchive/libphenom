@@ -529,9 +529,15 @@ static inline void dispatch_kevent(ph_counter_block_t *cblock,
     case EVFILT_READ:
       mask = PH_IOMASK_READ;
 
+      // You'd think that we'd want to do this here, but EV_EOF can
+      // be set when we notice that read has been shutdown, but while
+      // we still have data in the buffer that we want to read.
+      // On this platform we detect EOF as part of attempting to read
+      /*
       if (event->flags & EV_EOF) {
         mask |= PH_IOMASK_ERR;
       }
+      */
 
       thread->refresh_time = true;
       job = event->udata;
@@ -921,6 +927,7 @@ static void process_deferred(ph_thread_t *me, void *impl)
     ph_iomask_t mask;
 
     PH_STAILQ_REMOVE(&me->pending_nbio, job, ph_job, q_ent);
+    job->in_apply = false;
 
     // Swap out the mask so that we can apply it safely
     mask = job->mask;
@@ -979,7 +986,10 @@ ph_result_t ph_job_set_nbio(ph_job_t *job, ph_iomask_t mask,
   // an explicit teardown function
 
   // queue to our deferred list
-  PH_STAILQ_INSERT_TAIL(&me->pending_nbio, job, q_ent);
+  if (ph_likely(!job->in_apply)) {
+    PH_STAILQ_INSERT_TAIL(&me->pending_nbio, job, q_ent);
+    job->in_apply = true;
+  }
 
   return PH_OK;
 }

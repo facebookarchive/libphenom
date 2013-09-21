@@ -72,6 +72,7 @@ struct ph_job {
   ph_job_func_t callback;
   /* deferred apply list */
   PH_STAILQ_ENTRY(ph_job) q_ent;
+  bool in_apply;
 
   /* for PH_RUNCLASS_NBIO, trigger mask */
   ph_iomask_t mask;
