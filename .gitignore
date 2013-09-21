@@ -39,3 +39,4 @@ docs/declmap.js
 libphenom.pc
 test-driver
 test-suite.log
+examples/echo

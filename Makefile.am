@@ -78,7 +78,9 @@ TESTS = tests/counter.t tests/memory.t tests/timer.t tests/printf.t \
 				tests/dns.t \
 				tests/variant.t \
 				tests/bench/iopipes.t
-noinst_PROGRAMS = $(TESTS)
+noinst_PROGRAMS = $(TESTS) $(EXAMPLES)
+
+EXAMPLES = examples/echo
 
 # generate a rule that we can use to ensure that
 # the test programs are built
@@ -111,6 +113,9 @@ update-www: docs
 
 docs/declmap.js: mkdoc.php include/phenom/*.h README.markdown
 	@PHP@ mkdoc.php
+
+examples_echo_CPPFLAGS = $(TEST_CPPFLAGS)
+examples_echo_LDADD = $(TEST_LDADD)
 
 tests_counter_t_CPPFLAGS = $(TEST_CPPFLAGS)
 tests_counter_t_LDADD = $(TEST_LDADD)

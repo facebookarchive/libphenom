@@ -104,6 +104,7 @@ int main(int argc, char **argv)
   // This enables a very simple request/response console
   // that allows you to run diagnostic commands:
   // `echo memory | nc -UC /tmp/phenom-debug-console`
+  // (on BSD systems, use `nc -Uc`!)
   // The code behind this is in
   // https://github.com/facebook/libphenom/blob/master/corelib/debug_console.c
   ph_debug_console_start("/tmp/phenom-debug-console");
@@ -122,6 +123,8 @@ $ gcc main.c `pkg-config libphenom --cflags --libs`
 ```
 
 (this will link against `libphenom` and `libcares`).
+
+A more detailed example can be found at https://github.com/facebook/libphenom/blob/master/examples/echo.c
 
 Want more inspiration?  Take a look at the code in the test suite.
 
