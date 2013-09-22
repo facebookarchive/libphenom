@@ -76,7 +76,7 @@ PC_LIBS="$LIBS"
 
 AC_PATH_PROG(PKG_CONFIG, pkg-config, false)
 
-if ! $PKG_CONFIG --exists --print-errors libcares ; then
+if ! $PKG_CONFIG --exists --print-errors libcares openssl ; then
   AC_MSG_ERROR([c-ares is required])
 fi
 
@@ -92,6 +92,18 @@ esac
 LIBS="$LIBS `$PKG_CONFIG --libs libcares` $ares_rpath"
 CFLAGS="$CFLAGS `$PKG_CONFIG --cflags libcares`"
 AC_CHECK_FUNCS(ares_init)
+
+CFLAGS="$CFLAGS `$PKG_CONFIG --cflags openssl`"
+LIBS="$LIBS `$PKG_CONFIG --libs openssl`"
+
+case "$target_os" in
+  darwin*)
+    dnl Apple deprecated the use of their OpenSSL headers in 10.7 and up.
+    dnl Pretend we're building for 10.6 and up and the deprecation warnings
+    dnl go away
+    PC_CFLAGS="$PC_CFLAGS -DMAC_OS_X_VERSION_MIN_REQUIRED=MAC_OS_X_VERSION_10_6"
+    ;;
+esac
 
 AC_PATH_PROG(PHP, php, true)
 AC_SUBST(PHP)
@@ -268,10 +280,10 @@ fi
 
 case "$CPU" in
   X86_64)
-    PC_CFLAGS="-D__x86_64__=1"
+    PC_CFLAGS="$PC_CFLAGS -D__x86_64__=1"
     ;;
   X86)
-    PC_CFLAGS="-D__x86__=1"
+    PC_CFLAGS="$PC_CFLAGS -D__x86__=1"
     ;;
 esac
 CFLAGS="$CFLAGS $PC_CFLAGS"

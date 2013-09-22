@@ -40,3 +40,4 @@ libphenom.pc
 test-driver
 test-suite.log
 examples/echo
+examples/sclient

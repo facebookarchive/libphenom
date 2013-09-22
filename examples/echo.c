@@ -40,7 +40,15 @@
  * `telnet ::1 8080`
  * and type in text.
  * You can use CTRL-] and then type `quit` to terminate the telnet session.
+ *
+ * If you're using the `-s` option; it enables SSL for the listener.
+ * This code expects to be run from the root of the repo so that it can
+ * find the `examples/server.pem` file.
+ *
+ * You can then connect to the server using `./examples/sclient -h ::1 -p 8080`
  */
+
+static bool enable_ssl = false;
 
 // Each connected session will have one of these structs associated with it.
 // We don't really do anything useful with it here, it's just to show how
@@ -112,6 +120,12 @@ static void echo_processor(ph_sock_t *sock, ph_iomask_t why, void *arg)
   }
 }
 
+static void done_handshake(ph_sock_t *sock, int res)
+{
+  ph_unused_parameter(sock);
+  ph_log(PH_LOG_ERR, "handshake completed with res=%d", res);
+}
+
 // Called each time the listener has accepted a client connection
 static void acceptor(ph_listener_t *lstn, ph_sock_t *sock)
 {
@@ -126,6 +140,19 @@ static void acceptor(ph_listener_t *lstn, ph_sock_t *sock)
   sock->callback = echo_processor;
 
   ph_log(PH_LOG_ERR, "accepted `P{sockaddr:%p}", (void*)&sock->peername);
+
+  if (enable_ssl) {
+    SSL_CTX *ctx = SSL_CTX_new(SSLv23_server_method());
+    SSL *ssl;
+
+    SSL_CTX_set_cipher_list(ctx, "ALL");
+    SSL_CTX_use_RSAPrivateKey_file(ctx, "examples/server.pem", SSL_FILETYPE_PEM);
+    SSL_CTX_use_certificate_file(ctx, "examples/server.pem", SSL_FILETYPE_PEM);
+    SSL_CTX_set_options(ctx, SSL_OP_ALL);
+    ssl = SSL_new(ctx);
+
+    ph_sock_openssl_enable(sock, ssl, false, done_handshake);
+  }
 
   ph_sock_enable(sock, true);
 }
@@ -142,10 +169,13 @@ int main(int argc, char **argv)
   // Must be called prior to calling any other phenom functions
   ph_library_init();
 
-  while ((c = getopt(argc, argv, "p:l:4")) != -1) {
+  while ((c = getopt(argc, argv, "p:l:4s")) != -1) {
     switch (c) {
       case '4':
         use_v4 = true;
+        break;
+      case 's':
+        enable_ssl = true;
         break;
       case 'l':
         addrstring = optarg;
@@ -159,9 +189,14 @@ int main(int argc, char **argv)
             " -4          - interpret address as an IPv4 address\n"
             " -l ADDRESS  - which address to listen on\n"
             " -p PORTNO   - which port to listen on\n"
+            " -s          - enable SSL\n"
         );
         exit(EX_USAGE);
     }
+  }
+
+  if (enable_ssl) {
+    ph_library_init_openssl();
   }
 
   // Set up the address that we're going to listen on

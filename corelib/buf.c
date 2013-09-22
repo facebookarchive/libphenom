@@ -246,7 +246,7 @@ ph_buf_t *ph_buf_slice(ph_buf_t *buf, uint64_t start, uint64_t len)
   return slice;
 }
 
-bool ph_buf_copy_mem(ph_buf_t *dest, void *mem, uint64_t len, uint64_t dest_start)
+bool ph_buf_copy_mem(ph_buf_t *dest, const void *mem, uint64_t len, uint64_t dest_start)
 {
   if (dest_start + len > dest->size) {
     return false;
@@ -365,16 +365,18 @@ ph_bufq_t *ph_bufq_new(uint64_t max_size)
   return q;
 }
 
-ph_result_t ph_bufq_append(ph_bufq_t *q, void *buf, uint64_t len,
+ph_result_t ph_bufq_append(ph_bufq_t *q, const void *buf, uint64_t len,
     uint64_t *added_bytes)
 {
   struct ph_bufq_ent *last, *append;
-  char *cbuf = buf;
-  uint64_t avail, buflen;
+  const char *cbuf = buf;
+  uint64_t avail = 0, buflen;
 
   last = PH_STAILQ_LAST(&q->fifo, ph_bufq_ent, ent);
-  avail = ph_buf_len(last->buf) - last->wpos;
-  avail = MIN(avail, len);
+  if (last) {
+    avail = ph_buf_len(last->buf) - last->wpos;
+    avail = MIN(avail, len);
+  }
 
   // Top-off
   if (avail) {
@@ -695,11 +697,13 @@ bool ph_bufq_stm_write(ph_bufq_t *q, ph_stream_t *stm, uint64_t *nwrotep)
 bool ph_bufq_stm_read(ph_bufq_t *q, ph_stream_t *stm, uint64_t *nreadp)
 {
   struct ph_bufq_ent *last;
-  uint64_t avail, nread;
+  uint64_t avail = 0, nread;
   bool res;
 
   last = PH_STAILQ_LAST(&q->fifo, ph_bufq_ent, ent);
-  avail = ph_buf_len(last->buf) - last->wpos;
+  if (last) {
+    avail = ph_buf_len(last->buf) - last->wpos;
+  }
 
   if (!avail) {
     last = q_add_new_buf(q, 0);

@@ -26,6 +26,8 @@ libPhenom depends on:
  * [Concurrency Kit](http://concurrencykit.org/) for its excellent
    concurrency primitives and key data structures.  We include CK
    with phenom.
+ * **OpenSSL** is required; this should be provided by your OS.
+   We expect that `pkg-config` can find it.
  * **autoconf** and **automake** are required to build libPhenom
 
 libPhenom works best if built with GCC version 4.3 or later, but should

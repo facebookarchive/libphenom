@@ -33,6 +33,10 @@ libphenom_a_SOURCES = \
 	corelib/hook.c \
 	corelib/log.c \
 	corelib/memory.c \
+	corelib/openssl/bio_stream.c \
+	corelib/openssl/bio_bufq.c \
+	corelib/openssl/init.c \
+	corelib/openssl/ssl_stream.c \
 	corelib/pingfd.c \
 	corelib/pipe2.c \
 	corelib/pprintf.c \
@@ -83,7 +87,7 @@ TESTS = tests/counter.t tests/memory.t tests/timer.t tests/printf.t \
 				tests/bench/iopipes.t
 noinst_PROGRAMS = $(TESTS) $(EXAMPLES)
 
-EXAMPLES = examples/echo
+EXAMPLES = examples/echo examples/sclient
 
 # generate a rule that we can use to ensure that
 # the test programs are built
@@ -119,6 +123,9 @@ docs/declmap.js: mkdoc.php include/phenom/*.h README.markdown
 
 examples_echo_CPPFLAGS = $(TEST_CPPFLAGS)
 examples_echo_LDADD = $(TEST_LDADD)
+
+examples_sclient_CPPFLAGS = $(TEST_CPPFLAGS)
+examples_sclient_LDADD = $(TEST_LDADD)
 
 tests_counter_t_CPPFLAGS = $(TEST_CPPFLAGS)
 tests_counter_t_LDADD = $(TEST_LDADD)

@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Facebook, Inc.
+ * Copyright 2013-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -54,6 +54,7 @@ static struct {
   ph_memtype_t connect_job, sock, resolve_and_connect;
 } mt;
 static pthread_once_t done_sock_init = PTHREAD_ONCE_INIT;
+static int ssl_sock_idx;
 
 ph_socket_t ph_socket_for_addr(const ph_sockaddr_t *addr, int type, int flags)
 {
@@ -105,6 +106,21 @@ static void sock_dtor(ph_job_t *job)
 {
   ph_sock_t *sock = (ph_sock_t*)job;
 
+  if (sock->sslwbuf) {
+    ph_bufq_free(sock->sslwbuf);
+  }
+  if (sock->ssl) {
+    SSL_CTX *ctx = sock->ssl->ctx;
+
+    if (sock->ssl_stream) {
+      ph_stm_close(sock->ssl_stream);
+    } else {
+      SSL_free(sock->ssl);
+    }
+
+    SSL_CTX_free(ctx);
+  }
+
   if (sock->wbuf) {
     ph_bufq_free(sock->wbuf);
   }
@@ -131,8 +147,10 @@ static bool try_send(ph_sock_t *sock)
 
 static bool try_read(ph_sock_t *sock)
 {
-  if (!ph_bufq_stm_read(sock->rbuf, sock->conn, NULL) &&
-      ph_stm_errno(sock->conn) != EAGAIN) {
+  ph_stream_t *stm = sock->ssl_stream ? sock->ssl_stream : sock->conn;
+
+  if (!ph_bufq_stm_read(sock->rbuf, stm, NULL) &&
+      ph_stm_errno(stm) != EAGAIN) {
     return false;
   }
   return true;
@@ -143,6 +161,12 @@ static void sock_dispatch(ph_job_t *j, ph_iomask_t why, void *data)
   ph_sock_t *sock = (ph_sock_t*)j;
 
   sock->conn->need_mask = 0;
+
+  // Push data into the SSL stream
+  if (sock->sslwbuf && ph_bufq_len(sock->sslwbuf)) {
+    ph_bufq_stm_write(sock->sslwbuf, sock->ssl_stream, NULL);
+    why |= PH_IOMASK_WRITE;
+  }
 
   if ((why & (PH_IOMASK_WRITE|PH_IOMASK_ERR)) == PH_IOMASK_WRITE) {
     // If we have data pending write, try to get that sent, and flag
@@ -157,12 +181,46 @@ static void sock_dispatch(ph_job_t *j, ph_iomask_t why, void *data)
     }
   }
 
+  if (sock->ssl && SSL_in_init(sock->ssl)
+      && SSL_total_renegotiations(sock->ssl) == 0) {
+    switch (SSL_get_error(sock->ssl, SSL_do_handshake(sock->ssl))) {
+      case SSL_ERROR_NONE:
+        break;
+      case SSL_ERROR_WANT_READ:
+        if (try_send(sock)) {
+          ph_job_set_nbio_timeout_in(&sock->job,
+              PH_IOMASK_READ,
+              sock->timeout_duration);
+          return;
+        }
+        why |= PH_IOMASK_ERR;
+        break;
+      case SSL_ERROR_WANT_WRITE:
+        if (try_send(sock)) {
+          ph_job_set_nbio_timeout_in(&sock->job,
+              PH_IOMASK_WRITE,
+              sock->timeout_duration);
+          return;
+        }
+        why |= PH_IOMASK_ERR;
+        break;
+      default:
+        why |= PH_IOMASK_ERR;
+        break;
+    }
+  }
+
   sock->callback(sock, why, data);
+
+  if (sock->sslwbuf && ph_bufq_len(sock->sslwbuf)) {
+    ph_bufq_stm_write(sock->sslwbuf, sock->ssl_stream, NULL);
+  }
 
   if (sock->enabled) {
     ph_iomask_t mask = sock->conn->need_mask | PH_IOMASK_READ;
 
-    if (ph_bufq_len(sock->wbuf)) {
+    if (ph_bufq_len(sock->wbuf) ||
+        (sock->sslwbuf && ph_bufq_len(sock->sslwbuf))) {
       mask |= PH_IOMASK_WRITE;
     }
 
@@ -187,6 +245,7 @@ static void do_sock_init(void)
   ph_memtype_register_block(sizeof(defs)/sizeof(defs[0]), defs, &mt.connect_job);
   sock_job_template.memtype = mt.sock;
   connect_job_template.memtype = mt.connect_job;
+  ssl_sock_idx = SSL_get_ex_new_index(0, NULL, NULL, NULL, NULL);
 }
 
 void ph_socket_connect(ph_socket_t s, const ph_sockaddr_t *addr,
@@ -244,12 +303,42 @@ static bool sock_stm_close(ph_stream_t *stm)
 static bool sock_stm_readv(ph_stream_t *stm, const struct iovec *iov,
     int iovcnt, uint64_t *nread)
 {
-  ph_unused_parameter(stm);
-  ph_unused_parameter(iov);
-  ph_unused_parameter(iovcnt);
-  ph_unused_parameter(nread);
-  stm->last_err = ENOSYS;
-  return false;
+  ph_sock_t *sock = stm->cookie;
+  int i;
+  uint64_t tot = 0;
+  uint64_t avail;
+  ph_buf_t *b;
+  bool res = true;
+
+  for (i = 0; i < iovcnt; i++) {
+    avail = MIN(ph_bufq_len(sock->rbuf), iov[i].iov_len);
+    if (avail == 0) {
+      continue;
+    }
+
+    // This allocates a buf slice; in theory, we can eliminate this
+    // allocation, but in practice it's probably fine until profiling
+    // tells us otherwise
+    b = ph_bufq_consume_bytes(sock->rbuf, avail);
+    if (!b) {
+      stm->last_err = ENOMEM;
+      res = false;
+      break;
+    }
+    memcpy(iov[i].iov_base, ph_buf_mem(b), avail);
+    ph_buf_delref(b);
+    tot += avail;
+  }
+
+  if (nread) {
+    *nread = tot;
+  }
+
+  if (tot > 0) {
+    return true;
+  }
+
+  return res;
 }
 
 static bool sock_stm_writev(ph_stream_t *stm, const struct iovec *iov,
@@ -258,12 +347,13 @@ static bool sock_stm_writev(ph_stream_t *stm, const struct iovec *iov,
   int i;
   uint64_t n, total = 0;
   ph_sock_t *sock = stm->cookie;
+  ph_bufq_t *bufq = sock->sslwbuf ? sock->sslwbuf : sock->wbuf;
 
   for (i = 0; i < iovcnt; i++) {
     if (iov[i].iov_len == 0) {
       continue;
     }
-    if (ph_bufq_append(sock->wbuf, iov[i].iov_base,
+    if (ph_bufq_append(bufq, iov[i].iov_base,
           iov[i].iov_len, &n) != PH_OK) {
       stm->last_err = EAGAIN;
       break;
@@ -549,6 +639,53 @@ ph_buf_t *ph_sock_read_line(ph_sock_t *sock)
   return ph_bufq_consume_record(sock->rbuf, "\r\n", 2);
 }
 
+static void ssl_info_callback(const SSL *ssl, int where, int ret)
+{
+  if (where & SSL_CB_HANDSHAKE_DONE) {
+    ph_sock_t *sock = SSL_get_ex_data(ssl, ssl_sock_idx);
+    if (sock->handshake_cb) {
+      sock->handshake_cb(sock, ret);
+    }
+  }
+}
+
+void ph_sock_openssl_enable(ph_sock_t *sock, SSL *ssl,
+    bool is_client, ph_sock_openssl_handshake_func handshake_cb)
+{
+  BIO *rbio, *wbio;
+
+  if (sock->ssl) {
+    return;
+  }
+
+  // Read from the socket
+  rbio = ph_openssl_bio_wrap_stream(sock->conn);
+
+  // Write to our bufq
+  wbio = ph_openssl_bio_wrap_bufq(sock->wbuf);
+
+  sock->ssl = ssl;
+  SSL_set_bio(ssl, rbio, wbio);
+
+  // Allow looking up the sock from the SSL object
+  SSL_set_ex_data(ssl, ssl_sock_idx, sock);
+
+  sock->ssl_stream = ph_stm_ssl_open(ssl);
+  SSL_set_mode(ssl, SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER);
+
+  sock->sslwbuf = ph_bufq_new(ph_config_query_int(
+        "$.socket.max_buffer_size", MAX_SOCK_BUFFER_SIZE));
+  sock->handshake_cb = handshake_cb;
+  if (handshake_cb) {
+    SSL_set_info_callback(ssl, ssl_info_callback);
+  }
+
+  if (is_client) {
+    SSL_set_connect_state(ssl);
+  } else {
+    SSL_set_accept_state(ssl);
+  }
+}
 
 /* vim:ts=2:sw=2:et:
  */
