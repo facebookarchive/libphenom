@@ -78,6 +78,7 @@ $ ./autogen.sh
 $ ./configure
 $ make
 $ make check
+$ sudo make install
 ```
 
 ## Quick Start for using the library
@@ -116,10 +117,10 @@ int main(int argc, char **argv)
 }
 ```
 
-And compile it using something like this:
+And compile it using something like this: (you need optimization enabled)
 
 ```bash
-$ gcc main.c `pkg-config libphenom --cflags --libs`
+$ gcc -O2 main.c `pkg-config libphenom --cflags --libs`
 ```
 
 (this will link against `libphenom` and `libcares`).
@@ -133,6 +134,11 @@ Want more inspiration?  Take a look at the code in the test suite.
 We're still hacking and evolving this library, so there may be some rough
 edges.  We're very open to feedback; check out the Contributing section
 below.
+
+## Getting Help
+
+We've started an IRC channel for realtime conversations; join us in
+[#phenom @ freenode](irc://#phenom@chat.freenode.net/)
 
 ## Contributing
 
