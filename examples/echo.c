@@ -23,6 +23,7 @@
 #include "phenom/listener.h"
 #include "phenom/socket.h"
 #include <sysexits.h>
+#include <unistd.h>
 
 /* Implements an echo server.
  * It reads CRLF separated lines and repeats them back to you with a prefix
