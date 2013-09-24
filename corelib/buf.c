@@ -466,7 +466,7 @@ static void gc_bufq(ph_bufq_t *q)
 static ph_buf_t *slice_bufq(ph_bufq_t *q, uint64_t len, bool consume)
 {
   struct ph_bufq_ent *ent;
-  uint64_t next;
+  uint64_t copy_len, next = 0;
   uint32_t n;
   ph_buf_t *buf = NULL;
 
@@ -496,12 +496,15 @@ static ph_buf_t *slice_bufq(ph_bufq_t *q, uint64_t len, bool consume)
     return NULL;
   }
 
-  next = 0;
   PH_STAILQ_FOREACH(ent, &q->fifo, ent) {
-    ph_buf_copy(ent->buf, buf, ent->rpos, ent->wpos - ent->rpos, next);
-    next += ent->wpos - ent->rpos;
+    copy_len = MIN(ent->wpos - ent->rpos, len - next);
+    ph_buf_copy(ent->buf, buf, ent->rpos, copy_len, next);
+    next += copy_len;
     if (consume) {
-      ent->rpos = ent->wpos;
+      ent->rpos += copy_len;
+    }
+    if (next == len) {
+        break;
     }
   }
 
