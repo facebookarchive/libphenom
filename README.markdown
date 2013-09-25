@@ -9,6 +9,7 @@ libPhenom is known to compile and pass its test suite on:
 
  * Linux systems with `epoll`
  * OS X
+ * Illumos and Solaris style systems that have `port_create(3C)`.
 
 libPhenom has been known to compile and pass its test suite on these
 systems, but they have not been tried in a little while, so may require
@@ -16,7 +17,6 @@ a little bit of TLC:
 
  * BSDish systems that have the `kqueue(2)` facility, including
    FreeBSD 9.1 and OpenBSD 5.2
- * Illumos and Solaris style systems that have `port_create(3C)`.
 
 libPhenom depends on:
 

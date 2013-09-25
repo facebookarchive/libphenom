@@ -32,6 +32,7 @@ extern "C" {
 struct ph_thread;
 struct ph_job;
 struct ph_thread_pool;
+struct ph_nbio_emitter;
 
 typedef struct ph_thread ph_thread_t;
 
@@ -41,6 +42,7 @@ struct ph_thread {
   uint32_t tid;
 
   PH_STAILQ_HEAD(pdisp, ph_job) pending_nbio, pending_pool;
+  struct ph_nbio_emitter *is_emitter;
 
   bool is_worker;
   bool is_init;

@@ -149,7 +149,7 @@ int main(int argc, char **argv)
   levents = calloc(num_socks, sizeof(*levents));
 #endif
 
-  rl.rlim_cur = rl.rlim_max = num_socks * 2 + 64;
+  rl.rlim_cur = rl.rlim_max = (num_socks * 2) + (io_threads * 2) + 64;
   if (setrlimit(RLIMIT_NOFILE, &rl)) {
     perror("setrlimit");
     // Don't exit: valgrind causes this to fail and terminating
@@ -160,6 +160,7 @@ int main(int argc, char **argv)
     int pair[2];
 
     ph_job_init(&events[i]);
+    events[i].emitter_affinity = i;
     if (socketpair(AF_UNIX, SOCK_STREAM, 0, pair)) {
       perror("socketpair");
       exit(EX_OSERR);

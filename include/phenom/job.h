@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Facebook, Inc.
+ * Copyright 2013-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -66,24 +66,32 @@ struct ph_job_def {
   void (*dtor)(ph_job_t *job);
 };
 
+/** Job
+ * Use either ph_job_alloc() to allocate and initialize, or allocate it yourself
+ * and use ph_job_init() to initialize the fields.
+ */
 struct ph_job {
-  /* data associated with job */
+  // data associated with job
   void *data;
+  // the callback to run when the job is dispatched
   ph_job_func_t callback;
-  /* deferred apply list */
+  // deferred apply list
   PH_STAILQ_ENTRY(ph_job) q_ent;
   bool in_apply;
-
-  /* for PH_RUNCLASS_NBIO, trigger mask */
+  // for PH_RUNCLASS_NBIO, trigger mask */
   ph_iomask_t mask;
+  // use ph_job_get_kmask() to interpret
   int kmask;
-
+  // Hashed over the scheduler threads; two jobs with
+  // the same emitter hash will run serially wrt. each other
+  uint32_t emitter_affinity;
+  // For nbio, the socket we're bound to for IO events
   ph_socket_t fd;
-  struct timeval   timeout;
+  // Holds timeout state
   struct ph_timerwheel_timer timer;
-
+  // When targeting a thread pool, which pool
   ph_thread_pool_t *pool;
-
+  // for SMR
   ck_epoch_entry_t epoch_entry;
   struct ph_job_def *def;
 };
@@ -288,6 +296,52 @@ static inline bool ph_job_have_deferred_items(ph_thread_t *me)
   return PH_STAILQ_FIRST(&me->pending_nbio) ||
          PH_STAILQ_FIRST(&me->pending_pool);
 }
+
+#ifdef PHENOM_IMPL
+#include "phenom/timerwheel.h"
+#include "phenom/counter.h"
+#ifdef HAVE_KQUEUE
+struct ph_nbio_kq_set {
+  int size;
+  int used;
+  struct kevent *events;
+  struct kevent base[16];
+};
+#endif
+struct ph_nbio_emitter {
+  ph_timerwheel_t wheel;
+  ph_job_t timer_job;
+  uint32_t emitter_id;
+  int io_fd, timer_fd;
+#ifdef HAVE_PORT_CREATE
+  timer_t port_timer;
+#endif
+  ph_thread_t *thread;
+  ph_counter_block_t *cblock;
+#ifdef HAVE_KQUEUE
+  struct ph_nbio_kq_set kqset;
+#endif
+};
+
+#define SLOT_DISP 0
+#define SLOT_TIMER_TICK 1
+#define SLOT_BUSY 2
+// We use 100ms resolution
+#define WHEEL_INTERVAL_MS 100
+
+void ph_nbio_emitter_init(struct ph_nbio_emitter *emitter);
+ph_result_t ph_nbio_emitter_apply_io_mask(struct ph_nbio_emitter *emitter,
+    ph_job_t *job, ph_iomask_t mask);
+void ph_nbio_emitter_run(struct ph_nbio_emitter *emitter, ph_thread_t *me);
+
+void ph_nbio_emitter_timer_tick(struct ph_nbio_emitter *emitter);
+void ph_nbio_emitter_dispatch_immediate(struct ph_nbio_emitter *emitter,
+    ph_job_t *job, ph_iomask_t why);
+
+extern int _ph_run_loop;
+
+#endif
+
 
 #ifdef __cplusplus
 }

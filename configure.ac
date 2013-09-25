@@ -63,9 +63,16 @@ AC_ARG_ENABLE(stack-protector, [
    stack_protect=$enableval
 ])
 
+dnl flags we'll export to the pkg-config file
+PC_CFLAGS=""
+PC_LIBS=""
+
 AC_SEARCH_LIBS([pthread_create], [pthread])
 AC_SEARCH_LIBS([socket], [socket])
 AC_SEARCH_LIBS([clock_gettime], [rt])
+AC_SEARCH_LIBS([inet_pton], [nsl])
+
+PC_LIBS="$LIBS"
 
 AC_PATH_PROG(PKG_CONFIG, pkg-config, false)
 
@@ -259,8 +266,6 @@ else
   POINTER_PACK_ENABLE="CK_MD_POINTER_PACK_ENABLE"
 fi
 
-dnl flags we'll export to the pkg-config file
-PC_CFLAGS=""
 case "$CPU" in
   X86_64)
     PC_CFLAGS="-D__x86_64__=1"
@@ -299,6 +304,7 @@ if test -n "$GCC" ; then
     -fstrict-aliasing -pipe -Wno-parentheses"
 fi
 AC_SUBST(PC_CFLAGS)
+AC_SUBST(PC_LIBS)
 
 if test -n "$GCC" -a "$stack_protect" == "yes" ; then
   CFLAGS="$CFLAGS -Wp,-D_FORTIFY_SOURCE=2 -fexceptions \

@@ -36,7 +36,10 @@ libphenom_a_SOURCES = \
 	corelib/pingfd.c \
 	corelib/pipe2.c \
 	corelib/pprintf.c \
-	corelib/nbio.c \
+	corelib/nbio/common.c \
+	corelib/nbio/epoll.c \
+	corelib/nbio/kqueue.c \
+	corelib/nbio/portfs.c \
 	corelib/job.c \
 	corelib/string.c \
 	corelib/net/listener.c \
