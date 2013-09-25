@@ -127,12 +127,13 @@ ph_memtype_t ph_memtype_register(const ph_memtype_def_t *def)
     return PH_MEMTYPE_INVALID;
   }
 
-  if ((uint32_t)next_memtype + 1 >= memtypes_size) {
-    // TODO: grow the array
-    return PH_MEMTYPE_INVALID;
-  }
+  do {
+    mt = next_memtype;
+    if ((uint32_t)next_memtype + 1 >= memtypes_size) {
+      return PH_MEMTYPE_INVALID;
+    }
+  } while (!ck_pr_cas_int(&next_memtype, mt, mt + 1));
 
-  mt = ck_pr_faa_int(&next_memtype, 1);
   mem_type = &memtypes[mt];
   memset(mem_type, 0, sizeof(*mem_type));
 
