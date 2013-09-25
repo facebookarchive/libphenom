@@ -388,10 +388,10 @@ uint8_t ph_counter_scope_register_counter(
   uint8_t slot;
 
   do {
+    slot = scope->next_slot;
     if (scope->next_slot >= scope->num_slots) {
       return PH_COUNTER_INVALID;
     }
-    slot = scope->next_slot;
   } while (!ck_pr_cas_8(&scope->next_slot, slot, slot + 1));
 
   /* we've claimed slot; copy the name in */
