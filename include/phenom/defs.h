@@ -39,6 +39,12 @@
 #define _GNU_SOURCE
 #define _DARWIN_C_SOURCE
 
+// Ensure that PRIu32 and friends get defined for both C99
+// and C++ consumers of libphenom
+#ifndef __STDC_FORMAT_MACROS
+# define __STDC_FORMAT_MACROS
+#endif
+
 #ifdef __FreeBSD__
 /* need this to get u_short so we can include sys/event.h.
  * This has to happen before we include sys/types.h */

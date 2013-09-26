@@ -17,6 +17,8 @@
 #ifndef PHENOM_PRINTF_H
 #define PHENOM_PRINTF_H
 
+#include "phenom/defs.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
