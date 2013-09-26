@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Facebook, Inc.
+ * Copyright 2013-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -236,6 +236,16 @@ void ph_string_delref(ph_string_t *str);
  */
 ph_result_t ph_string_append_buf(ph_string_t *str,
     const char *buf, uint32_t len);
+
+/** Append a string to a string
+ *
+ * The contents of `str` are appended to `target`
+ */
+static inline ph_result_t ph_string_append_str(ph_string_t *target,
+    ph_string_t *str)
+{
+  return ph_string_append_buf(target, str->buf, str->len);
+}
 
 /** Append a C-string to a ph_string_t instance
  */
