@@ -19,9 +19,15 @@
 #define PHENOM_OPENSSL_H
 
 #include "phenom/buffer.h"
+
+// Avoid fatal compilation error due to an #if TARGET_OS_MAC line in
+// a kerberos related include
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wundef"
 #include <openssl/err.h>
 #include <openssl/engine.h>
 #include <openssl/ssl.h>
+#pragma GCC diagnostic pop
 
 #ifdef __cplusplus
 extern "C" {
