@@ -406,14 +406,18 @@ bool ph_counter_scope_register_counter_block(
     const char **names)
 {
   int i;
+  uint8_t slot;
 
   if (scope->next_slot != first_slot) {
     return false;
   }
-  if (scope->next_slot + num_slots > scope->num_slots) {
-    return false;
-  }
-  scope->next_slot += num_slots;
+
+  do {
+    slot = scope->next_slot;
+    if (scope->next_slot + num_slots > scope->num_slots) {
+      return PH_COUNTER_INVALID;
+    }
+  } while (!ck_pr_cas_8(&scope->next_slot, slot, slot + num_slots));
 
   for (i = 0; i < num_slots; i++) {
     scope->slot_names[first_slot + i] = strdup(names[i]);
