@@ -22,12 +22,11 @@
 
 // Avoid fatal compilation error due to an #if TARGET_OS_MAC line in
 // a kerberos related include
-#pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wundef"
 #include <openssl/err.h>
 #include <openssl/engine.h>
 #include <openssl/ssl.h>
-#pragma GCC diagnostic pop
+#pragma GCC diagnostic error "-Wundef"
 
 #ifdef __cplusplus
 extern "C" {
