@@ -129,7 +129,8 @@ ph_memtype_t ph_memtype_register(const ph_memtype_def_t *def)
 
   mt = ck_pr_faa_int(&next_memtype, 1);
   if ((uint32_t)mt >= memtypes_size) {
-    ph_panic("You need to recompile libphenom with memtypes_size = %d", 2 * memtypes_size);
+    ph_panic("You need to recompile libphenom with memtypes_size = %d",
+        2 * memtypes_size);
   }
   mem_type = &memtypes[mt];
   memset(mem_type, 0, sizeof(*mem_type));
@@ -180,7 +181,8 @@ ph_memtype_t ph_memtype_register_block(
 
   mt = ck_pr_faa_int(&next_memtype, num_types);
   if ((uint32_t)mt >= memtypes_size) {
-    ph_panic("You need to recompile libphenom with memtypes_size = %d", 2 * memtypes_size);
+    ph_panic("You need to recompile libphenom with memtypes_size = %d",
+        2 * memtypes_size);
   }
 
   for (i = 0; i < num_types; i++) {

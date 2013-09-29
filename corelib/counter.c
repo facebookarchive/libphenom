@@ -387,12 +387,10 @@ uint8_t ph_counter_scope_register_counter(
 {
   uint8_t slot;
 
-  do {
-    slot = scope->next_slot;
-    if (scope->next_slot >= scope->num_slots) {
-      return PH_COUNTER_INVALID;
-    }
-  } while (!ck_pr_cas_8(&scope->next_slot, slot, slot + 1));
+  slot = ck_pr_faa_8(&scope->next_slot, 1);
+  if (slot >= scope->num_slots) {
+    return PH_COUNTER_INVALID;
+  }
 
   /* we've claimed slot; copy the name in */
   scope->slot_names[slot] = strdup(name);
@@ -406,18 +404,15 @@ bool ph_counter_scope_register_counter_block(
     const char **names)
 {
   int i;
-  uint8_t slot;
 
   if (scope->next_slot != first_slot) {
     return false;
   }
 
-  do {
-    slot = scope->next_slot;
-    if (scope->next_slot + num_slots > scope->num_slots) {
-      return PH_COUNTER_INVALID;
-    }
-  } while (!ck_pr_cas_8(&scope->next_slot, slot, slot + num_slots));
+  ck_pr_add_8(&scope->next_slot, num_slots);
+  if (scope->next_slot > scope->num_slots) {
+    return false;
+  }
 
   for (i = 0; i < num_slots; i++) {
     scope->slot_names[first_slot + i] = strdup(names[i]);
