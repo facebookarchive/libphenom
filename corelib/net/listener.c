@@ -101,6 +101,7 @@ static void accept_dispatch(ph_job_t *j, ph_iomask_t why, void *data)
     goto done;
   }
 
+  sock->job.emitter_affinity = ck_pr_faa_32(&lstn->emitter_affinity, 1);
   lstn->acceptor(lstn, sock);
 
 done:

@@ -33,6 +33,11 @@ struct ph_listener {
   // Embedded job so we can participate in NBIO
   ph_job_t job;
 
+  // When accepting, we default to setting the next
+  // emitter in a round robin fashion.  This holds
+  // our state
+  uint32_t emitter_affinity;
+
   // Local address (to which we are bound)
   ph_sockaddr_t addr;
 
@@ -40,7 +45,6 @@ struct ph_listener {
   int flags;
 
   bool enabled;
-
   bool listening;
 
   // Desired backlog
