@@ -104,7 +104,6 @@ struct formatter {
 };
 
 static ph_ht_t formatters;
-static pthread_once_t once_init = PTHREAD_ONCE_INIT;
 static pthread_rwlock_t formatter_lock;
 
 static void free_val(void *ptrptr)
@@ -130,8 +129,8 @@ static void init_vprintf(void)
 {
   pthread_rwlock_init(&formatter_lock, NULL);
   ph_ht_init(&formatters, 4, &ph_ht_string_key_def, &val_def);
-  atexit(fini_vprintf);
 }
+PH_LIBRARY_INIT_PRI(init_vprintf, fini_vprintf, 50)
 
 bool ph_vprintf_register(const char *name, void *formatter_arg,
     ph_vprintf_named_formatter_func func)
@@ -139,8 +138,6 @@ bool ph_vprintf_register(const char *name, void *formatter_arg,
   struct formatter *f;
   bool res;
   ph_string_t *kptr;
-
-  pthread_once(&once_init, init_vprintf);
 
   f = malloc(sizeof(*f));
   if (!f) {
@@ -538,7 +535,6 @@ ph_vprintf_core(void *print_arg,
 
             object = GETARG(void*);
 
-            pthread_once(&once_init, init_vprintf);
             ph_string_init_claim(&key, PH_STRING_STATIC, fmt,
                 term - fmt, term - fmt);
 

@@ -24,6 +24,7 @@
 #include "ck_stack.h"
 #include "ck_queue.h"
 #include "ck_epoch.h"
+#include "ck_hs.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -45,10 +46,12 @@ struct ph_thread {
   struct ph_nbio_emitter *is_emitter;
 
   bool is_worker;
-  bool is_init;
   struct timeval now;
 
-  ck_epoch_record_t *epoch_record;
+  ck_epoch_record_t epoch_record;
+  ck_hs_t counter_hs;
+  // linkage so that a stat reader can find all counters
+  ck_stack_entry_t thread_linkage;
 
   // OS level representation
   pthread_t thr;
@@ -79,14 +82,12 @@ ph_thread_t *ph_thread_spawn(ph_thread_func func, void *arg);
 /** Wait for a thread to complete */
 int ph_thread_join(ph_thread_t *thr, void **res);
 
-bool ph_thread_init(void);
-
 ph_thread_t *ph_thread_self_slow(void);
 
 extern pthread_key_t __ph_thread_key;
 #ifdef HAVE___THREAD
-extern __thread ph_thread_t __ph_thread_self;
-# define ph_thread_self_fast()   (&__ph_thread_self)
+extern __thread ph_thread_t *__ph_thread_self;
+# define ph_thread_self_fast()   (__ph_thread_self)
 #else
 # define ph_thread_self_fast()   \
   ((ph_thread_t*)pthread_getspecific(__ph_thread_key))
@@ -95,16 +96,18 @@ extern __thread ph_thread_t __ph_thread_self;
 /** Return my own thread handle.
  *
  * If you create a thread for yourself, not using ph_thread_spawn(),
- * you must call ph_thread_self_slow() at least once prior to calling
+ * you must call ph_library_init() at least once prior to calling
  * any phenom function in that thread.
  *
- * This restriction avoids a conditional branch on every ph_thread_self() call
- **/
+ * This restriction avoids a conditional branch on every ph_thread_self() call,
+ * which can amount to over a million thread pool callback dispatches per
+ * second difference in throughput.
+ */
 static inline ph_thread_t *ph_thread_self(void)
 {
   ph_thread_t *me = ph_thread_self_fast();
 
-#ifndef HAVE___THREAD
+#if 0 /* enabling this costs 1mm dispatches per second */
   if (ph_unlikely(me == NULL)) {
     return ph_thread_self_slow();
   }
@@ -184,6 +187,10 @@ bool ph_thread_epoch_poll(void);
  * in the NBIO or thread pool subsystems.
  */
 void ph_thread_epoch_barrier(void);
+
+void ph_counter_tear_down_thread(ph_thread_t *thr);
+void ph_counter_init_thread(ph_thread_t *thr);
+extern ck_stack_t ph_thread_all_threads;
 
 #ifdef __cplusplus
 }

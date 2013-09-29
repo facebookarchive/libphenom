@@ -254,7 +254,7 @@ ph_thread_pool_t *ph_thread_pool_define(
   return pool;
 }
 
-ph_result_t ph_job_pool_init(void)
+static void job_pool_init(void)
 {
   if (ph_memtype_register_block(sizeof(defs) / sizeof(defs[0]),
         defs, &mt.pool) == PH_MEMTYPE_INVALID) {
@@ -262,9 +262,9 @@ ph_result_t ph_job_pool_init(void)
   }
 
   pool_counter_scope = ph_counter_scope_define(NULL, "threadpool", 16);
-
-  return PH_OK;
 }
+
+PH_LIBRARY_INIT_PRI(job_pool_init, 0, 4)
 
 // Wait for all pools to be torn down
 void ph_job_pool_shutdown(void)

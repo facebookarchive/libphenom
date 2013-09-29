@@ -21,7 +21,6 @@
 #include "phenom/memory.h"
 #include "phenom/log.h"
 
-static pthread_once_t ht_once = PTHREAD_ONCE_INIT;
 static ph_memtype_t mt_table;
 static struct ph_memtype_def table_def = {
   "hashtable", "table", 0, PH_MEM_FLAGS_ZERO
@@ -31,6 +30,8 @@ static void init_hashtable(void)
 {
   mt_table = ph_memtype_register(&table_def);
 }
+
+PH_LIBRARY_INIT_PRI(init_hashtable, 0, 5)
 
 static inline void *keyptr(struct ph_ht_elem *elem)
 {
@@ -51,8 +52,6 @@ ph_result_t ph_ht_init(ph_ht_t *ht, uint32_t size_hint,
     const struct ph_ht_key_def *kdef,
     const struct ph_ht_val_def *vdef)
 {
-  pthread_once(&ht_once, init_hashtable);
-
   ht->kdef = kdef;
   ht->vdef = vdef;
   ht->nelems = 0;

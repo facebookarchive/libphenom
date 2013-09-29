@@ -36,7 +36,6 @@ static ph_memtype_t next_memtype = PH_MEMTYPE_FIRST;
 
 static struct mem_type *memtypes = NULL;
 static ph_counter_scope_t *memory_scope = NULL;
-static pthread_once_t memory_once_init = PTHREAD_ONCE_INIT;
 
 static const char *sized_counter_names[] = {
   "bytes",   // current number of allocated bytes
@@ -92,9 +91,9 @@ static void memory_init(void)
   if (!memory_scope) {
     abort();
   }
-
-  atexit(memory_destroy);
 }
+
+PH_LIBRARY_INIT_PRI(memory_init, memory_destroy, 3)
 
 static ph_counter_scope_t *resolve_facility(const char *fac)
 {
@@ -115,8 +114,6 @@ ph_memtype_t ph_memtype_register(const ph_memtype_def_t *def)
   struct mem_type *mem_type;
   const char **names;
   int num_slots;
-
-  pthread_once(&memory_once_init, memory_init);
 
   fac_scope = resolve_facility(def->facility);
   if (!fac_scope) {
@@ -170,8 +167,6 @@ ph_memtype_t ph_memtype_register_block(
   struct mem_type *mem_type;
   const char **names;
   uint32_t num_slots;
-
-  pthread_once(&memory_once_init, memory_init);
 
   /* must all be same facility */
   for (i = 0; i < num_types; i++) {

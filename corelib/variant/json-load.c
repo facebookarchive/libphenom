@@ -72,7 +72,6 @@ typedef struct {
 
 #define stream_to_lex(stream) ph_container_of(stream, lex_t, stream)
 
-static pthread_once_t var_once = PTHREAD_ONCE_INIT;
 static ph_memtype_t mt_json;
 static struct ph_memtype_def def = {
   "variant", "json", 0, 0
@@ -800,11 +799,10 @@ static void init_json_mem(void)
 {
   mt_json = ph_memtype_register(&def);
 }
+PH_LIBRARY_INIT(init_json_mem, 0)
 
 static int lex_init(lex_t *lex, ph_stream_t *stm)
 {
-  pthread_once(&var_once, init_json_mem);
-
   memset(lex, 0, sizeof(*lex));
   stream_init(&lex->stream, stm);
 
@@ -1103,8 +1101,6 @@ ph_variant_t *ph_var_string_make_cstr(const char *cstr)
   ph_string_t *str;
   ph_variant_t *var;
 
-  pthread_once(&var_once, init_json_mem);
-
   str = ph_string_make_cstr(mt_json, cstr);
   if (!str) {
     return 0;
@@ -1123,8 +1119,6 @@ ph_result_t ph_var_object_set_claim_cstr(ph_variant_t *obj,
 {
   ph_string_t *str;
   ph_result_t res;
-
-  pthread_once(&var_once, init_json_mem);
 
   str = ph_string_make_cstr(mt_json, cstr);
   if (!str) {

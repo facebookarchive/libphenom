@@ -38,7 +38,6 @@ struct ph_dns_query {
   } func;
 };
 
-static pthread_once_t done_ares_init = PTHREAD_ONCE_INIT;
 static struct {
   ph_memtype_t chan, query, job, string, aresp;
 } mt;
@@ -210,8 +209,6 @@ static void do_ares_init(void)
 {
   int res = ares_library_init(ARES_LIB_INIT_ALL);
 
-  atexit(do_ares_fini);
-
   if (res) {
     ph_panic("ares_library_init failed: %s", ares_strerror(res));
   }
@@ -225,10 +222,10 @@ static void do_ares_init(void)
   }
 }
 
+PH_LIBRARY_INIT(do_ares_init, do_ares_fini)
+
 ph_dns_channel_t *ph_dns_channel_create(void)
 {
-  pthread_once(&done_ares_init, do_ares_init);
-
   return create_chan();
 }
 
@@ -483,9 +480,6 @@ static void result_cb(void *arg, int status, int timeouts,
 static inline ph_dns_channel_t *fixup_chan(ph_dns_channel_t *chan)
 {
   if (!chan) {
-    if (ph_unlikely(default_channel == NULL)) {
-      pthread_once(&done_ares_init, do_ares_init);
-    }
     chan = default_channel;
   }
   return chan;

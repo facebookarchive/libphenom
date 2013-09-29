@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Facebook, Inc.
+ * Copyright 2012-present Facebook, Inc.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -123,8 +123,101 @@
  /* clock */
 # include <mach/mach_time.h>
 # endif
-
 # endif
+
+// Helpers for pasting __LINE__ for symbol generation
+#define ph_defs_paste2(pre, post)  pre ## post
+#define ph_defs_paste1(pre, post)  ph_defs_paste2(pre, post)
+
+#if 0 /* fake prototype for documentation purposes */
+/** Records an initialization and finalization routine with a specific priority
+ *
+ * This macro sets up a constructor routine to record the init
+ * entry.  These init entries are processed when ph_library_init()
+ * is called by the process.  You should restrict initialization to
+ * low level actions like preparing memtypes, initializing locks
+ * and bootstrapping subsystems.  You **must not** make these functions
+ * dependent upon configuration, as the configuration will not have
+ * been loaded at the time these are invoked.
+ *
+ * This exists to facilitate initialization of the library itself,
+ * but you may also use it aid with registering modules and facilities
+ * with the library.  For example, the `PH_TYPE_FORMATTER_REGISTER`
+ * uses this mechanism to arrange for ph_vprintf_register() to be
+ * called at the appropriate time.
+ *
+ * You may specify either `initfn` or `finifn` as NULL; this just means
+ * that the item doesn't have an initializer or finalizer, respectively.
+ * It probably doesn't make much sense to specify both as NULL, but it is
+ * allowed and does not cause an error.
+ *
+ * ```
+ * static void init(void) {
+ *   mt = ph_memtype_register(...);
+ * }
+ * PH_LIBRARY_INIT(init, 0)
+ * ```
+ */
+void PH_LIBRARY_INIT_PRI(initfn, finifn, pri);
+
+/** Records an initialization and finalization routine
+ *
+ * Delegates to PH_LIBRARY_INIT_PRI() with a default priority.
+ */
+void PH_LIBRARY_INIT(initfn, finifn);
+#endif
+
+/** Records an initialization and finalization routine.
+ *
+ * Use PH_LIBRARY_INIT_PRI() or PH_LIBRARY_INIT() rather than using
+ * this directly.
+ *
+ * The relative priorities of entries are computed thus:
+ *
+ * * The lowest `pri` values are initialized first.
+ * * If two items have the same `pri` value, the `file` values are
+ *   ordered using using strcmp.
+ * * If two items have the same `file`, the item with the lowest
+ *   `line` value is initialized first.
+ * * If the `line` values are the same, the address of the entry is
+ *   used to order the items relative to each other.
+ *
+ * At finalization time, the reverse of the above ordering is used;
+ * the items will be finalized in the opposite of the order that they
+ * were initialized.
+ */
+struct ph_library_init_entry {
+  // the file where this init entry is defined
+  const char *file;
+  // the line number where this init entry is defined
+  uint32_t line;
+  // the priority of this init entry.
+  // Clients of the library should use values >= 100.
+  // During init, the `init` functions are calling in order of ascending
+  // priority.  During finalization, the `fini` functions are called in
+  // order of descending priority.
+  int pri;
+  // initializer (may be NULL)
+  void (*init)(void);
+  // finalizer (may be NULL)
+  void (*fini)(void);
+  // this is really a ck_stack_entry_t but we don't want to pull in
+  // that definition from here.  This is protected by a static assert
+  // in corelib/init.c
+  intptr_t st;
+};
+
+void ph_library_init_register(struct ph_library_init_entry *ent);
+#define PH_LIBRARY_INIT_PRI(initfn, finifn, pri) \
+  static __attribute__((constructor)) \
+  void ph_defs_paste1(ph__lib__init__,__LINE__)(void) { \
+    static struct ph_library_init_entry ent = { \
+      __FILE__, __LINE__, pri, initfn, finifn, 0 \
+    }; \
+    ph_library_init_register(&ent); \
+  }
+#define PH_LIBRARY_INIT(initfn, finifn) \
+  PH_LIBRARY_INIT_PRI(initfn, finifn, 100)
 
 /**
  * ## Pedantic compilation
@@ -225,9 +318,6 @@ typedef uint32_t ph_result_t;
 #define ph_container_of(ptr_, type_, member_)  \
     ((type_ *)(void*)((char *)ptr_ - ph_offsetof(type_, member_)))
 
-#define ph_static_assert_paste2(pre, post)  pre ## post
-#define ph_static_assert_paste1(pre, post)  ph_static_assert_paste2(pre, post)
-
 #if 0 /* fake prototype for documentation purposes */
 /** Perform a compile time assertion
  *
@@ -268,18 +358,18 @@ void ph_static_assert(bool constexpr, identifier_message);
    /* has the __COUNTER__ construct */
 #  define ph_static_assert(expr, msg) \
      typedef struct { \
-       int ph_static_assert_paste1(static_assertion_failed_,msg) : \
+       int ph_defs_paste1(static_assertion_failed_,msg) : \
        !!(expr); \
-     } ph_static_assert_paste1(static_assertion_failed_,__COUNTER__)
+     } ph_defs_paste1(static_assertion_failed_,__COUNTER__)
 # else
    /* this can generate conflicting type names if
     * the same assert message is used from the same line of two
     * different files */
 #  define ph_static_assert(expr, msg) \
      typedef struct { \
-       int ph_static_assert_paste1(static_assertion_failed_,msg) : \
+       int ph_defs_paste1(static_assertion_failed_,msg) : \
        !!(expr); \
-     } ph_static_assert_paste1(ph_static_assert_paste1(\
+     } ph_defs_paste1(ph_defs_paste1(\
             static_assertion_failed_,msg),__LINE__)
 # endif
 
@@ -350,9 +440,9 @@ void ph_debug_assert(bool condition, const char *message);
 // gcc will generate spurious asserts.  So we're stuck with this
 // implementation, which is pretty decent at the end of the day
 # define ph_assert_static_inner(expr, msg, id) do { \
-    extern void ph_static_assert_paste1(failed_assert_,id)(void)\
+    extern void ph_defs_paste1(failed_assert_,id)(void)\
       __attribute__((error(#expr " :: " msg))); \
-    ph_static_assert_paste1(failed_assert_,id)(); \
+    ph_defs_paste1(failed_assert_,id)(); \
 } while (0)
 # define ph_assert(expr, msg) do { \
   if (__builtin_constant_p(expr) && !(expr)) { \

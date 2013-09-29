@@ -179,6 +179,14 @@ static void *spin_and_count(void *ptr)
   ph_counter_block_t *block;
   uint32_t i;
 
+  // Since we're not already a phenom thread, we need to
+  // make sure that we get initialized.  We only really
+  // need to invoke ph_thread_self_slow() here, but that
+  // feels a bit weird, so we go with the more honest
+  // call to ph_library_init() to make it clear that we're
+  // being initialized.
+  ph_library_init();
+
   while (ck_pr_load_uint(&data->barrier) == 0);
 
   block = ph_counter_block_open(data->scope);

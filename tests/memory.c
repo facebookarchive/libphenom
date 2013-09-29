@@ -57,6 +57,7 @@ int main(int argc, char** argv)
   ph_unused_parameter(argc);
   ph_unused_parameter(argv);
 
+  ph_library_init();
   plan_tests(46);
 
   ph_memtype_def_t defs[] = {

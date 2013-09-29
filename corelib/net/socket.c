@@ -53,7 +53,6 @@ static ph_memtype_def_t defs[] = {
 static struct {
   ph_memtype_t connect_job, sock, resolve_and_connect;
 } mt;
-static pthread_once_t done_sock_init = PTHREAD_ONCE_INIT;
 static int ssl_sock_idx;
 
 ph_socket_t ph_socket_for_addr(const ph_sockaddr_t *addr, int type, int flags)
@@ -247,6 +246,7 @@ static void do_sock_init(void)
   connect_job_template.memtype = mt.connect_job;
   ssl_sock_idx = SSL_get_ex_new_index(0, NULL, NULL, NULL, NULL);
 }
+PH_LIBRARY_INIT(do_sock_init, 0)
 
 void ph_socket_connect(ph_socket_t s, const ph_sockaddr_t *addr,
   struct timeval *timeout, ph_socket_connect_func func, void *arg)
@@ -255,8 +255,6 @@ void ph_socket_connect(ph_socket_t s, const ph_sockaddr_t *addr,
   int res;
   struct timeval default_timeout = { 60, 0 };
   struct timeval done = { 0, 0 };
-
-  pthread_once(&done_sock_init, do_sock_init);
 
   job = (struct connect_job*)ph_job_alloc(&connect_job_template);
   if (!job) {
@@ -392,8 +390,6 @@ ph_sock_t *ph_sock_new_from_socket(ph_socket_t s, const ph_sockaddr_t *sockname,
 {
   ph_sock_t *sock;
   int64_t max_buf;
-
-  pthread_once(&done_sock_init, do_sock_init);
 
   sock = (ph_sock_t*)ph_job_alloc(&sock_job_template);
   if (!sock) {
@@ -581,8 +577,6 @@ void ph_sock_resolve_and_connect(const char *name, uint16_t port,
       func(NULL, PH_SOCK_CONNECT_GAI_ERR, EAI_NONAME, NULL, &tv, arg);
       return;
   }
-
-  pthread_once(&done_sock_init, do_sock_init);
 
   rac = ph_mem_alloc(mt.resolve_and_connect);
   if (!rac) {

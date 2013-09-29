@@ -31,7 +31,6 @@ static ph_memtype_def_t defs[] = {
 static struct {
   ph_memtype_t listener;
 } mt;
-static pthread_once_t done_init = PTHREAD_ONCE_INIT;
 static void accept_dispatch(ph_job_t *j, ph_iomask_t why, void *data);
 static void listener_dtor(ph_job_t *job);
 
@@ -46,6 +45,7 @@ static void do_init(void)
   ph_memtype_register_block(sizeof(defs)/sizeof(defs[0]), defs, &mt.listener);
   listener_template.memtype = mt.listener;
 }
+PH_LIBRARY_INIT(do_init, 0)
 
 static void listener_dtor(ph_job_t *job)
 {
@@ -114,8 +114,6 @@ ph_listener_t *ph_listener_new(const char *name,
     ph_listener_accept_func acceptor)
 {
   ph_listener_t *lstn;
-
-  pthread_once(&done_init, do_init);
 
   lstn = (ph_listener_t*)ph_job_alloc(&listener_template);
   if (!lstn) {

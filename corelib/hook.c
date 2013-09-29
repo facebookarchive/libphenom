@@ -29,7 +29,6 @@ struct ph_hook_item_free {
 };
 
 static ph_ht_t hook_hash;
-static pthread_once_t once = PTHREAD_ONCE_INIT;
 static ck_rwlock_t rwlock = CK_RWLOCK_INITIALIZER;
 static ph_memtype_def_t defs[] = {
   { "hook", "hook", sizeof(ph_hook_point_t), PH_MEM_FLAGS_ZERO },
@@ -66,14 +65,13 @@ static void do_hook_init(void)
 {
   ph_memtype_register_block(sizeof(defs)/sizeof(defs[0]), defs, &mt.hookpoint);
   ph_ht_init(&hook_hash, 32, &ph_ht_string_key_def, &hookpoint_def);
-  atexit(do_hook_fini);
 }
+
+PH_LIBRARY_INIT_PRI(do_hook_init, do_hook_fini, 6)
 
 ph_hook_point_t *ph_hook_point_get(ph_string_t *name, bool create)
 {
   ph_hook_point_t *hp = 0;
-
-  pthread_once(&once, do_hook_init);
 
   ck_rwlock_read_lock(&rwlock);
   {
@@ -110,7 +108,6 @@ ph_hook_point_t *ph_hook_point_get_cstr(const char *name, bool create)
   ph_hook_point_t *hp;
 
   if (create) {
-    pthread_once(&once, do_hook_init);
     str = ph_string_make_cstr(mt.string, name);
   } else {
     uint32_t len = strlen(name);

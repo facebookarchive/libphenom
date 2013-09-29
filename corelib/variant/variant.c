@@ -18,7 +18,6 @@
 #include "phenom/log.h"
 #include "phenom/sysutil.h"
 
-static pthread_once_t var_once = PTHREAD_ONCE_INIT;
 static struct {
   ph_memtype_t var, arr;
 } mt;
@@ -36,6 +35,7 @@ static void init_variant(void)
 {
   ph_memtype_register_block(sizeof(defs)/sizeof(defs[0]), defs, &mt.var);
 }
+PH_LIBRARY_INIT(init_variant, 0)
 
 ph_variant_t *ph_var_bool(bool val)
 {
@@ -55,8 +55,6 @@ ph_variant_t *ph_var_double(double dval)
 {
   ph_variant_t *var;
 
-  pthread_once(&var_once, init_variant);
-
   var = ph_mem_alloc(mt.var);
   if (!var) {
     return NULL;
@@ -72,8 +70,6 @@ ph_variant_t *ph_var_double(double dval)
 ph_variant_t *ph_var_int(int64_t ival)
 {
   ph_variant_t *var;
-
-  pthread_once(&var_once, init_variant);
 
   var = ph_mem_alloc(mt.var);
   if (!var) {
@@ -94,8 +90,6 @@ ph_variant_t *ph_var_string_claim(ph_string_t *str)
   if (str == NULL) {
     return ph_var_null();
   }
-
-  pthread_once(&var_once, init_variant);
 
   var = ph_mem_alloc(mt.var);
   if (!var) {
@@ -172,8 +166,6 @@ void ph_var_delref(ph_variant_t *var)
 ph_variant_t *ph_var_array(uint32_t nelems)
 {
   ph_variant_t *var;
-
-  pthread_once(&var_once, init_variant);
 
   var = ph_mem_alloc(mt.var);
   if (!var) {
@@ -296,8 +288,6 @@ ph_variant_t *ph_var_object(uint32_t nelems)
 {
   ph_variant_t *var;
   ph_result_t res;
-
-  pthread_once(&var_once, init_variant);
 
   var = ph_mem_alloc(mt.var);
   if (!var) {

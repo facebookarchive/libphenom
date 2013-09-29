@@ -23,19 +23,13 @@ static ph_memtype_t mt_string = PH_MEMTYPE_INVALID;
 static ph_memtype_def_t string_def = {
   "string", "string", sizeof(ph_string_t), 0
 };
-static pthread_once_t done_string_init = PTHREAD_ONCE_INIT;
 
 static void do_string_init(void)
 {
   mt_string = ph_memtype_register(&string_def);
 }
 
-static inline void init_string(void)
-{
-  if (ph_unlikely(mt_string == PH_MEMTYPE_INVALID)) {
-    pthread_once(&done_string_init, do_string_init);
-  }
-}
+PH_LIBRARY_INIT(do_string_init, 0)
 
 void ph_string_init_slice(ph_string_t *str,
     ph_string_t *slice, uint32_t start, uint32_t len)
@@ -86,8 +80,6 @@ ph_string_t *ph_string_make_claim(ph_memtype_t mt,
     char *buf, uint32_t len, uint32_t size)
 {
   ph_string_t *str;
-
-  init_string();
 
   str = ph_mem_alloc(mt_string);
   if (!str) {

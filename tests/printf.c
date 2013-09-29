@@ -42,6 +42,7 @@ int main(int argc, char **argv)
   ph_unused_parameter(argc);
   ph_unused_parameter(argv);
 
+  ph_library_init();
   plan_tests(16);
 
   len = ph_snprintf(buf, 10, "12345678901");

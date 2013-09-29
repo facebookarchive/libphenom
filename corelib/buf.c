@@ -61,12 +61,12 @@ static struct {
   ph_memtype_t obj, f8k, f16k, f32k, f64k, vsize, queue, queue_ent;
 } mt;
 
-static pthread_once_t once_init = PTHREAD_ONCE_INIT;
-
 static void buffer_init(void)
 {
   ph_memtype_register_block(sizeof(defs)/sizeof(defs[0]), defs, &mt.obj);
 }
+
+PH_LIBRARY_INIT(buffer_init, 0)
 
 PH_TYPE_FORMATTER_FUNC(buf)
 {
@@ -152,7 +152,6 @@ ph_buf_t *ph_buf_new(uint64_t size)
   ph_buf_t *buf;
   uint64_t selected;
 
-  pthread_once(&once_init, buffer_init);
   buf = ph_mem_alloc(mt.obj);
 
   if (!buf) {
@@ -348,7 +347,6 @@ ph_bufq_t *ph_bufq_new(uint64_t max_size)
 {
   ph_bufq_t *q;
 
-  pthread_once(&once_init, buffer_init);
   q = ph_mem_alloc(mt.queue);
   if (!q) {
     return NULL;

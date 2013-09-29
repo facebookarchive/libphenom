@@ -286,8 +286,6 @@ void ph_job_pool_apply_deferred_items(ph_thread_t *me);
  */
 ph_result_t ph_nbio_init(uint32_t sched_cores);
 
-ph_result_t ph_job_pool_init(void);
-
 void _ph_job_set_pool_immediate(ph_job_t *job, ph_thread_t *me);
 void _ph_job_pool_start_threads(void);
 

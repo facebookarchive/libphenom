@@ -67,7 +67,25 @@ char *ph_dtoa(double _d, int mode, int ndigits,
     int *decpt, int *sign, char **rve);
 double ph_strtod(const char *s00, const char **se);
 
-/** Initialize the library */
+/** Initialize the library
+ *
+ * Must be called prior to calling into any other phenom
+ * library functions.
+ *
+ * When invoked for the first time, invokes the `init` routines
+ * that have been registered using the PH_LIBRARY_INIT() and
+ * PH_LIBRARY_INIT_PRI() macros.  The init routines are invoked
+ * in order of ascending priority.
+ *
+ * Arranges for the `fini` routines to be called in order of descending
+ * priority when the process terminates, using atexit().
+ *
+ * ph_library_init() is safe to be called concurrently from multiple
+ * threads, and safe to invoke multiple times from the same thread.
+ *
+ * You may use ph_library_init() to bootstrap the thread-local variables
+ * needed for libphenom to operate.  See ph_thread_self().
+ */
 ph_result_t ph_library_init(void);
 
 struct timeval ph_time_now(void);

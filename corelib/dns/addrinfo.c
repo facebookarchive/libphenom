@@ -25,7 +25,6 @@ static ph_memtype_def_t defs[] = {
   { "dns", "string", 0, 0 },
 };
 
-static pthread_once_t done_dns_init = PTHREAD_ONCE_INIT;
 static ph_thread_pool_t *dns_pool = NULL;
 
 static void do_free_addrinfo(ph_job_t *job)
@@ -74,6 +73,8 @@ static void do_dns_init(void)
   dns_pool = ph_thread_pool_define("dns", 256, 2);
 }
 
+PH_LIBRARY_INIT(do_dns_init, 0)
+
 ph_result_t ph_dns_getaddrinfo(const char *node, const char *service,
     const struct addrinfo *hints, ph_dns_addrinfo_func func, void *arg)
 {
@@ -83,7 +84,6 @@ ph_result_t ph_dns_getaddrinfo(const char *node, const char *service,
     return PH_ERR;
   }
 
-  pthread_once(&done_dns_init, do_dns_init);
   info = (ph_dns_addrinfo_t*)ph_job_alloc(&addrinfo_job_def);
   if (!info) {
     return PH_NOMEM;
