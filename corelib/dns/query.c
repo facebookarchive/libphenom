@@ -50,6 +50,12 @@ static ph_memtype_def_t defs[] = {
 };
 
 static ph_dns_channel_t *default_channel = NULL;
+static void process_ares(ph_job_t *job, ph_iomask_t why, void *data);
+static struct ph_job_def ares_job_template = {
+  process_ares,
+  PH_MEMTYPE_INVALID,
+  NULL
+};
 
 static inline void apply_mask(ph_dns_channel_t *chan, ph_job_t *job,
     ph_iomask_t mask)
@@ -125,7 +131,7 @@ static void sock_state_cb(void *data, ares_socket_t socket_fd,
     ph_job_set_nbio(job, 0, NULL);
     // We're done with this guy, remove it
     ph_ht_del(&chan->sock_map, &socket_fd);
-    ph_mem_free(mt.job, job);
+    ph_job_free(job);
   }
 }
 
@@ -133,7 +139,7 @@ static void sock_state_cb(void *data, ares_socket_t socket_fd,
 static int sock_create_cb(ares_socket_t socket_fd, int type, void *data)
 {
   ph_dns_channel_t *chan = data;
-  ph_job_t *job = ph_mem_alloc(mt.job);
+  ph_job_t *job = ph_job_alloc(&ares_job_template);
 
   ph_unused_parameter(type);
 
@@ -141,8 +147,6 @@ static int sock_create_cb(ares_socket_t socket_fd, int type, void *data)
     return -1;
   }
 
-  ph_job_init(job);
-  job->callback = process_ares;
   job->data = chan;
   job->fd = socket_fd;
 
@@ -220,6 +224,8 @@ static void do_ares_init(void)
   if (!default_channel) {
     ph_panic("failed to create default DNS channel");
   }
+
+  ares_job_template.memtype = mt.job;
 }
 
 PH_LIBRARY_INIT(do_ares_init, do_ares_fini)

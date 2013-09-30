@@ -17,6 +17,7 @@
 #include "phenom/memory.h"
 #include "phenom/counter.h"
 #include "phenom/log.h"
+#include "phenom/thread.h"
 #include <ck_pr.h>
 
 struct mem_type {
@@ -64,6 +65,11 @@ static const char *vsize_counter_names[] = {
 static void memory_destroy(void)
 {
   int i;
+
+  // One last try to collect anything lingering in SMR.
+  // Any defers that take place after this point will most likely never
+  // be actioned.
+  ph_thread_epoch_barrier();
 
   ph_counter_scope_delref(memory_scope);
 
