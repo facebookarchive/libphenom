@@ -140,6 +140,8 @@ function is_plausible_decl($text, &$title) {
   $stripped = strip_comments($text);
   if (preg_match(',^typedef\s+\S+\s+\(\*(ph_[a-zA-Z0-9_]+)\),', $stripped, $matches)) {
     $title = $matches[1];
+  } else if (preg_match(',^(struct\s+\S+),', $stripped, $matches)) {
+    $title = $matches[1];
   } else if (preg_match(',((ph|PH)_[a-zA-Z0-9_]+)\(,', $stripped, $matches)) {
     $title = $matches[1];
   } else if (preg_match(',(struct\s+\S+),', $stripped, $matches)) {
