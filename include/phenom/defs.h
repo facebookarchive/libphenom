@@ -125,9 +125,22 @@
 # endif
 # endif
 
+# ifdef __GNUC__
+#  define PH_GCC_VERSION (__GNUC__ * 10000 \
+    + __GNUC_MINOR__ * 100 \
+    + __GNUC_PATCHLEVEL__)
+# else
+#  define PH_GCC_VERSION 0
+#endif
+
 // Helpers for pasting __LINE__ for symbol generation
 #define ph_defs_paste2(pre, post)  pre ## post
 #define ph_defs_paste1(pre, post)  ph_defs_paste2(pre, post)
+#if PH_GCC_VERSION >= 40300
+# define ph_defs_gen_symbol(pre)    ph_defs_paste1(pre, __COUNTER__)
+#else
+# define ph_defs_gen_symbol(pre)    ph_defs_paste1(pre, __LINE__)
+#endif
 
 #if 0 /* fake prototype for documentation purposes */
 /** Records an initialization and finalization routine with a specific priority
@@ -210,7 +223,7 @@ struct ph_library_init_entry {
 void ph_library_init_register(struct ph_library_init_entry *ent);
 #define PH_LIBRARY_INIT_PRI(initfn, finifn, pri) \
   static __attribute__((constructor)) \
-  void ph_defs_paste1(ph__lib__init__,__LINE__)(void) { \
+  void ph_defs_gen_symbol(ph__lib__init__)(void) { \
     static struct ph_library_init_entry ent = { \
       __FILE__, __LINE__, pri, initfn, finifn, 0 \
     }; \
@@ -264,14 +277,6 @@ void ph_library_init_register(struct ph_library_init_entry *ent);
 # else
 #  define ph_ignore_result(x) x
 # endif
-
-# ifdef __GNUC__
-#  define PH_GCC_VERSION (__GNUC__ * 10000 \
-    + __GNUC_MINOR__ * 100 \
-    + __GNUC_PATCHLEVEL__)
-# else
-#  define PH_GCC_VERSION 0
-#endif
 
 # ifdef __GNUC__
 #  define ph_likely(x)    __builtin_expect(!!(x), 1)
@@ -354,23 +359,15 @@ void ph_static_assert(bool constexpr, identifier_message);
 
 # if PH_GCC_VERSION >= 40600
 #  define ph_static_assert(expr, msg)   _Static_assert(expr, #msg)
-# elif PH_GCC_VERSION >= 40300
-   /* has the __COUNTER__ construct */
-#  define ph_static_assert(expr, msg) \
-     typedef struct { \
-       int ph_defs_paste1(static_assertion_failed_,msg) : \
-       !!(expr); \
-     } ph_defs_paste1(static_assertion_failed_,__COUNTER__)
 # else
    /* this can generate conflicting type names if
     * the same assert message is used from the same line of two
-    * different files */
+    * different files on some compilers */
 #  define ph_static_assert(expr, msg) \
      typedef struct { \
        int ph_defs_paste1(static_assertion_failed_,msg) : \
        !!(expr); \
-     } ph_defs_paste1(ph_defs_paste1(\
-            static_assertion_failed_,msg),__LINE__)
+     } ph_defs_gen_symbol(static_assertion_failed_)
 # endif
 
 /** Log a PH_LOG_PANIC level message, then abort()

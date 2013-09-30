@@ -464,6 +464,24 @@ ph_string_t *ph_string_make_cstr(ph_memtype_t mt, const char *str)
   return ph_string_make_copy(mt, str, strlen(str), 0);
 }
 
+// Helper for PH_STRING_DECLARE_CSTR_AVOID_COPY
+bool _ph_string_nul_terminated(ph_string_t *str) {
+  if (str->len >= str->alloc) {
+    return false;
+  }
+  if (str->buf[str->len] == '\0') {
+    return true;
+  }
+  if (str->slice) {
+    return false;
+  }
+  if (str->len < str->alloc) {
+    str->buf[str->len] = '\0';
+    return true;
+  }
+  return false;
+}
+
 /* vim:ts=2:sw=2:et:
  */
 

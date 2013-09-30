@@ -392,6 +392,95 @@ ph_string_t *ph_string_make_printf(ph_memtype_t mt, uint32_t size,
 #endif
   ;
 
+#if 0 // Dummy for docs
+/** Copy a NUL-terminated C-string from a ph_string to a stack buffer
+ *
+ * Since ph_string_t does not maintain C-string NUL termination,
+ * and many library functions require a C-string representation,
+ * there will be times where you need to get one.
+ *
+ * This macro declares a local variable named `localvarname` using
+ * the C99 variable sized array feature to create a stack buffer,
+ * and copies the string data to the stack buffer and null terminates
+ * the buffer.
+ *
+ * Usage:
+ *
+ * ```
+ * void open_a_file(ph_string_t *name) {
+ *   PH_STRING_DECLARE_AND_COPY_CSTR(filename, name);
+ *   int fd = open(filename, O_RDONLY);
+ * }
+ * ```
+ */
+void PH_STRING_DECLARE_AND_COPY_CSTR(localvarname, ph_string_t *str);
+
+/** Obtain a NUL-terminated C-string pointer from a ph_string
+ *
+ * This macro declares a local `const char *` variable named
+ * `localvarname` and initializes it to reference a C-string representation
+ * of the provided `str` parameter.
+ *
+ * If `str` happens to be NUL terminated, or can be safely NUL terminated,
+ * `localvarname` is set to point to the buffer in `str` and no copying is
+ * performed.
+ *
+ * If `str` cannot be NUL terminated, uses the C99 variable sized array
+ * feature to create storage on the stack, copies the string data to
+ * the stack, NUL-terminates it and sets `localvarname` to reference it.
+ *
+ * `localvarname` is a const variable because it may reference the internal
+ * string buffer.  `localvarname` should be considered to be invalidated
+ * by any changes made to the `str`.
+ *
+ * Usage:
+ *
+ * ```
+ * void open_a_file(ph_string_t *name) {
+ *   PH_STRING_DECLARE_CSTR_AVOID_COPY(filename, name);
+ *   int fd = open(filename, O_RDONLY);
+ * }
+ * ```
+ *
+ * This is invalid usage because the string is modified:
+ *
+ * ```COUNTEREXAMPLE
+ * void do_something(ph_string_t *name) {
+ *   PH_STRING_DECLARE_CSTR_AVOID_COPY(namecstr, name);
+ *   ph_string_append_cstr(name, "woot");
+ *   // WRONG! because the append above means that namecstr was invalidated
+ *   // and is no longer safe to use
+ *   ph_fd_printf(STDOUT_FILENO, "namecstr is %s", namecstr);
+ * }
+ * ```
+ */
+void PH_STRING_DECLARE_CSTR_AVOID_COPY(localvarname, ph_string_t *str);
+#endif
+
+#define PH_STRING_DECLARE_AND_COPY_CSTR(name, str) \
+  char name[ph_string_len(str)+1]; \
+  memcpy(name, (str)->buf, ph_string_len(str)); \
+  name[ph_string_len(str)] = '\0'
+
+// Check for, or arrange to, NUL terminate a string ready for grabbing
+// a c-string representation
+bool _ph_string_nul_terminated(ph_string_t *str);
+
+#define PH_STRING_DECLARE_CSTR_AVOID_COPY_INNER(name, namebuf, str) \
+  bool ph_defs_paste1(namebuf,_terminated) = _ph_string_nul_terminated(str); \
+  char namebuf[ph_defs_paste1(namebuf,_terminated) ? 1 : str->len + 1]; \
+  const char *name = namebuf; \
+  if (ph_defs_paste1(namebuf,_terminated)) { \
+    name = str->buf; \
+  } else { \
+    memcpy(namebuf, str->buf, str->len); \
+    namebuf[str->len] = '\0'; \
+  }
+
+#define PH_STRING_DECLARE_CSTR_AVOID_COPY(name, str) \
+  PH_STRING_DECLARE_CSTR_AVOID_COPY_INNER(name, \
+      ph_defs_gen_symbol(name##_avoid_copy_), (str))
+
 #ifdef __cplusplus
 }
 #endif

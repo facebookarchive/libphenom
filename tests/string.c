@@ -34,6 +34,27 @@ static void stack_tests(void)
 
   is(ph_string_append_cstr(&stack2, "12345678901234567890"), PH_OK);
   is(20, ph_string_len(&stack2));
+
+  PH_STRING_DECLARE_AND_COPY_CSTR(cstr, &stack2);
+  is_string(cstr, "12345678901234567890");
+
+  PH_STRING_DECLARE_CSTR_AVOID_COPY(nocopy1, &stack2);
+  is_string(nocopy1, "12345678901234567890");
+  ok(nocopy1 != stack1.buf, "copy, because we can't terminate");
+
+  ph_string_t *slice = ph_string_make_slice(&stack2, 0, 5);
+  ok(ph_string_equal_cstr(slice, "12345"), "slice is right");
+  PH_STRING_DECLARE_CSTR_AVOID_COPY(nocopy2, slice);
+  is_string(nocopy2, "12345");
+  ok(nocopy2 != stack2.buf, "copied");
+  ok(ph_string_equal_cstr(&stack2, "12345678901234567890"), "didn't break stack2");
+
+  PH_STRING_DECLARE_STACK(stack3, 32);
+  ph_string_append_cstr(&stack3, "woot");
+  PH_STRING_DECLARE_CSTR_AVOID_COPY(nocopy3, &stack3);
+  is_string(nocopy3, "woot");
+  ok(nocopy3 == stack3.buf, "didn't copy");
+
   ph_string_delref(&stack2);
 }
 
@@ -171,7 +192,7 @@ int main(int argc, char **argv)
   ph_unused_parameter(argv);
 
   ph_library_init();
-  plan_tests(102);
+  plan_tests(111);
 
   mt_misc = ph_memtype_register(&mt_def);
 
