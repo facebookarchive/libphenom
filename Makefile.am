@@ -115,6 +115,7 @@ clean-docs:
 docs: docs/declmap.js
 
 update-www: docs
+	PRETTY_VIA_PYTHON=1 @PHP@ mkdoc.php
 	test -d ../phenom-pages
 	cp docs/* ../phenom-pages/
 

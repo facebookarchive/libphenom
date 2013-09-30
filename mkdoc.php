@@ -48,10 +48,36 @@ foreach ($docs as $doc) {
   }
 }
 
+function pretty_json($data)
+{
+  if (defined('JSON_PRETTY_PRINT')) {
+    return json_encode($data, JSON_PRETTY_PRINT);
+  }
+
+  $json = json_encode($data);
+
+  if (getenv("PRETTY_VIA_PYTHON")) {
+    $input = tmpfile();
+    fwrite($input, $json);
+    rewind($input);
+    $proc = proc_open('python -mjson.tool',
+      array(
+        0 => $input,
+        1 => array('pipe', 'w'),
+        2 => array('file', '/dev/null', 'w')
+      ),
+      $pipes
+    );
+    $json = stream_get_contents($pipes[1]);
+  }
+
+  return $json;
+}
+
 // Save the document information
 file_put_contents("docs/declmap.js",
-  'var declmap = '.json_encode($decl_map) . ";\n" .
-  'var docs = '.json_encode($docs) . ";\n"
+  'var declmap = '.pretty_json($decl_map) . ";\n" .
+  'var docs = '.pretty_json($docs) . ";\n"
 );
 
 exit(0);
