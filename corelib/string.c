@@ -221,7 +221,13 @@ bool ph_string_equal(const ph_string_t *a, const ph_string_t *b)
 
 bool ph_string_equal_cstr(ph_string_t *a, const char *b)
 {
-  uint32_t len = strlen(b);
+  uint32_t len;
+
+  if (b == NULL) {
+    return false;
+  }
+
+  len = strlen(b);
 
   if (len != a->len) {
     return false;
