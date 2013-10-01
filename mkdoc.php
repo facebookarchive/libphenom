@@ -138,7 +138,7 @@ function process_include($incname, &$docs) {
     'title' => $target, //$page_title,
     'content' => implode('', $md),
     'decl_titles' => $decl_titles,
-    'raw_content' => $incfile,
+    'raw_content' => htmlspecialchars($incfile, ENT_QUOTES, 'utf-8'),
   );
 }
 
