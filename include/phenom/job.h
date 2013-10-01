@@ -60,9 +60,19 @@ typedef void (*ph_job_func_t)(
     void *data
 );
 
+/** Job definition
+ *
+ * Use this to define a template for a job and then use ph_job_alloc() to allocate
+ * and safely dispose of the job via ph_job_free().  The template also allows you
+ * to pre-initialize the callback for the job.
+ */
 struct ph_job_def {
+  // The callback to run when the job is dispatched.
+  // Will be copied to job->callback during ph_job_alloc()
   ph_job_func_t callback;
+  // The memtype to use to allocate the job
   ph_memtype_t memtype;
+  // Function to be called prior to freeing the job
   void (*dtor)(ph_job_t *job);
 };
 

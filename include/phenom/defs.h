@@ -142,6 +142,11 @@
 # define ph_defs_gen_symbol(pre)    ph_defs_paste1(pre, __LINE__)
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 #if 0 /* fake prototype for documentation purposes */
 /** Records an initialization and finalization routine with a specific priority
  *
@@ -285,10 +290,6 @@ void ph_library_init_register(struct ph_library_init_entry *ent);
 #  define ph_likely(x)    (x)
 #  define ph_unlikely(x)  (x)
 # endif
-
-#ifdef __cplusplus
-extern "C" {
-#endif
 
 /** Generic result type
  *
