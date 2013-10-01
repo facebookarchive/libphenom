@@ -106,6 +106,7 @@ struct ph_thread_pool {
   char pad1[CK_MD_CACHELINE - sizeof(ck_spinlock_t)];
 
   struct ph_thread_pool_wait producer CK_CC_CACHELINE;
+  int stop;
 
   char *name;
   ph_counter_scope_t *counters;
@@ -266,28 +267,45 @@ static void job_pool_init(void)
 
 PH_LIBRARY_INIT_PRI(job_pool_init, 0, 4)
 
+void ph_thread_pool_signal_stop(ph_thread_pool_t *pool)
+{
+  ck_pr_store_int(&pool->stop, 1);
+  if (should_wake_pool(&pool->consumer)) {
+    wake_pool(&pool->consumer);
+  }
+}
+
+void ph_thread_pool_wait_stop(ph_thread_pool_t *pool)
+{
+  uint32_t i;
+  void *res;
+
+  ph_thread_pool_signal_stop(pool);
+
+  while (ck_pr_load_32(&pool->num_workers)) {
+    if (should_wake_pool(&pool->consumer)) {
+      wake_pool(&pool->consumer);
+    }
+    sched_yield();
+  }
+
+  for (i = 0; i < pool->max_workers; i++) {
+    ph_thread_join(pool->threads[i], &res);
+  }
+}
+
 // Wait for all pools to be torn down
 void ph_job_pool_shutdown(void)
 {
   ph_thread_pool_t *pool, *tmp;
   uint32_t i;
-  void *res;
 
   CK_LIST_FOREACH_SAFE(pool, &pools, plink, tmp) {
     pthread_mutex_lock(&pool_write_lock);
     CK_LIST_REMOVE(pool, plink);
     pthread_mutex_unlock(&pool_write_lock);
 
-    while (ck_pr_load_32(&pool->num_workers)) {
-      if (should_wake_pool(&pool->consumer)) {
-        wake_pool(&pool->consumer);
-      }
-      sched_yield();
-    }
-
-    for (i = 0; i < pool->max_workers; i++) {
-      ph_thread_join(pool->threads[i], &res);
-    }
+    ph_thread_pool_wait_stop(pool);
 
     for (i = 0; i < MAX_RINGS + 1; i++) {
       if (pool->rings[i]) {
@@ -405,6 +423,9 @@ static void *worker_thread(void *arg)
   while (ph_likely(ck_pr_load_int(&_ph_run_loop))) {
     job = pop_job(pool, cblock, my_bucket);
     if (!job) {
+      if (ph_unlikely(ck_pr_load_int(&pool->stop))) {
+        break;
+      }
       continue;
     }
 
@@ -426,10 +447,13 @@ static void *worker_thread(void *arg)
   ck_pr_dec_32(&pool->num_workers);
   ph_counter_block_delref(cblock);
 
+  if (should_wake_pool(&pool->consumer)) {
+    wake_pool(&pool->consumer);
+  }
   return NULL;
 }
 
-static bool start_workers(ph_thread_pool_t *pool)
+bool ph_thread_pool_start_workers(ph_thread_pool_t *pool)
 {
   uint32_t i;
 
@@ -438,6 +462,10 @@ static bool start_workers(ph_thread_pool_t *pool)
     pthread_mutex_unlock(&pool_write_lock);
     return false;
   }
+
+  // If we're being used to restart the pool, make sure we're
+  // not set to stop...
+  ck_pr_store_int(&pool->stop, 0);
 
   for (i = 0; i < pool->max_workers; i++) {
     pool->threads[i] = ph_thread_spawn(worker_thread, pool);
@@ -453,7 +481,7 @@ void _ph_job_pool_start_threads(void)
 
   CK_LIST_FOREACH(pool, &pools, plink) {
     if (ck_pr_load_32(&pool->num_workers) < pool->max_workers) {
-      start_workers(pool);
+      ph_thread_pool_start_workers(pool);
     }
   }
 }

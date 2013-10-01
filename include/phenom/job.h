@@ -215,6 +215,50 @@ ph_thread_pool_t *ph_thread_pool_define(
  */
 ph_thread_pool_t *ph_thread_pool_by_name(const char *name);
 
+/** Signal that a thread pool should stop its workers
+ *
+ * In some workloads, we want to spawn a pool of threads to process
+ * a bunch of jobs.  The number of jobs has a finite upper bound and
+ * once they are all complete we no longer need to retain the pool.
+ *
+ * You may use ph_thread_pool_signal_stop() to instruct the pool
+ * to shutdown and stop processing further items.  If you need
+ * to synchronize with the shutdown, you may use ph_thread_pool_wait_stop().
+ *
+ * If all workers stop before consuming any pending jobs, then those
+ * pending jobs will remain pending until the pool is re-enabled via
+ * ph_thread_pool_start_workers().
+ */
+void ph_thread_pool_signal_stop(ph_thread_pool_t *pool);
+
+/** Signal and wait for a thread pool to stop its workers
+ *
+ * Calls ph_thread_pool_signal_stop() and then joins with all of the
+ * worker threads, returning only when the pool has no more remaining
+ * workers.
+ *
+ * This function blocks until there are no more workers.
+ *
+ * It is undefined what will happen if you call ph_thread_pool_start_workers()
+ * before ph_thread_pool_wait_stop() completes.
+ */
+void ph_thread_pool_wait_stop(ph_thread_pool_t *pool);
+
+/** Cause a thread pool to spin up its workers
+ *
+ * You almost never need to call this function.  libPhenom will start all
+ * defined thread pools as part of the initialization it performs in
+ * ph_sched_run().
+ *
+ * The only time that you might possibly need to call this function is if
+ * you have called ph_thread_pool_wait_stop() and later want to restart
+ * the pool and spin up its workers.
+ *
+ * It is undefined what will happen if you call ph_thread_pool_start_workers()
+ * before ph_thread_pool_wait_stop() completes.
+ */
+bool ph_thread_pool_start_workers(ph_thread_pool_t *pool);
+
 /**
  * These are accumulated using ph_counter under the covers.
  * This means that the numbers are a snapshot across a number
