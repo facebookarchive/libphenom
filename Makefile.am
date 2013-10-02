@@ -77,6 +77,8 @@ libtap_a_SOURCES = thirdparty/tap/tap.c
 
 TEST_CPPFLAGS = -Ithirdparty/tap -Ithirdparty/ck/include -Iinclude -DPHENOM_IMPL
 TEST_LDADD = libphenom.a libtap.a
+# don't drive me mad when I'm tab completing
+TEST_SUITE_LOG = tests/suite.log
 TESTS = tests/counter.t tests/memory.t tests/timer.t tests/printf.t \
 				tests/iobasic.t tests/stream.t tests/tpool.t \
 				tests/string.t \

@@ -2,14 +2,10 @@ Makefile.in
 aclocal.m4
 autom4te.cache/
 configure
-depcomp
 confdefs.h
-install-sh
-missing
 config.log
-config.guess
-config.sub
 .deps/
+.acaux/
 Makefile.in
 Makefile
 *.o
@@ -21,7 +17,7 @@ include/phenom/config.h
 include/phenom_build_config.h.in~
 include/phenom_build_config.h.in
 include/phenom_build_config.h
-compile
+tests/suite.log
 tests/*.t
 tests/*.t.*
 tests/bench/*.t
@@ -37,7 +33,5 @@ tests/bench/*.png
 core
 docs/declmap.js
 libphenom.pc
-test-driver
-test-suite.log
 examples/echo
 examples/sclient

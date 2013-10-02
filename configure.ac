@@ -1,4 +1,6 @@
 AC_INIT([phenom], [0.1], [], [phenom])
+AC_CONFIG_AUX_DIR([.acaux])
+AC_CONFIG_SRCDIR([LICENSE])
 AC_CANONICAL_TARGET
 
 case "$target_os-$target_cpu" in
