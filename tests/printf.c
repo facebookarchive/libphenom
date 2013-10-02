@@ -78,7 +78,7 @@ int main(int argc, char **argv)
 
 #define EXPECTED "prefix: PREFIX inside 42 1 suffix: SUFFIX"
   ok(!strcmp(buf, EXPECTED), "got %s", buf);
-  ok(len == (int)strlen(buf), "got len=%d buflen=%d expected=%d",
+  ok(len == (int)strlen(buf), "got len=%d buflen=%zd expected=%zd",
       len, strlen(buf), strlen(EXPECTED));
   ok(len == (int)strlen(EXPECTED), "got len=%d", len);
 

@@ -125,6 +125,34 @@ bool ph_stm_flush(ph_stream_t *stm);
  */
 bool ph_stm_seek(ph_stream_t *stm, int64_t delta, int whence, uint64_t *newpos);
 
+/** Seek back to the start of a stream
+ */
+static inline bool ph_stm_rewind(ph_stream_t *stm) {
+  return ph_stm_seek(stm, 0, SEEK_SET, NULL);
+}
+
+/** Read data from src and write to dest
+ *
+ * Reads up to the specified number of bytes from `src` and writes
+ * them to `dest`.  If `num_bytes` is the special value
+ * `PH_STREAM_READ_ALL` then all remaining data from `src` will
+ * be read.
+ *
+ * Returns `true` on success, which is considered to be that no IO
+ * errors except EOF when reading from `src` were encountered, or
+ * `false` otherwise.
+ *
+ * Sets `*nread` to the number of bytes read from `src`, unless
+ * `nread` is NULL.
+ *
+ * Sets `*nwrote` to the number of bytes successfully written to `dest`,
+ * unless `nwrote` is NULL.
+ */
+bool ph_stm_copy(ph_stream_t *src, ph_stream_t *dest,
+    uint64_t num_bytes, uint64_t *nread, uint64_t *nwrote);
+
+#define PH_STREAM_READ_ALL UINT64_MAX
+
 /** Close the stream and release resources
  *
  * Requests that the stream be closed.  On success, the stream handle

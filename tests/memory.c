@@ -32,7 +32,8 @@ static void dump_mem_stats(void)
           base + (sizeof(stats) / sizeof(stats[0])), stats);
 
     for (i = 0; i < n; i++) {
-      diag("%s %s bytes=%lu oom=%lu allocs=%lu frees=%lu reallocs=%lu",
+      diag("%s %s bytes=%"PRIu64" oom=%"PRIu64" allocs=%"PRIu64
+          " frees=%"PRIu64" reallocs=%"PRIu64"",
           stats[i].def->facility, stats[i].def->name,
           stats[i].bytes, stats[i].oom, stats[i].allocs,
           stats[i].frees, stats[i].reallocs);

@@ -428,6 +428,7 @@ _cleanup(void)
 	if((have_plan && !no_plan) && e_tests < test_count) {
 		diag("Looks like you planned %d %s but ran %d extra.",
 		     e_tests, e_tests == 1 ? "test" : "tests", test_count - e_tests);
+		ok(0, "plan_tests() doesn't match number of test results");
 		UNLOCK;
 		return;
 	}
@@ -435,6 +436,7 @@ _cleanup(void)
 	if((have_plan || !no_plan) && e_tests > test_count) {
 		diag("Looks like you planned %d %s but only ran %d.",
 		     e_tests, e_tests == 1 ? "test" : "tests", test_count);
+		ok(0, "plan_tests() doesn't match number of test results");
 		UNLOCK;
 		return;
 	}

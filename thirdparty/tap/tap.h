@@ -74,17 +74,33 @@
 
 #define skip_end() } while(0);
 
-unsigned int _gen_result(int, const char *, const char *, unsigned int, const char *, ...);
+unsigned int _gen_result(int, const char *, const char *, unsigned int, const char *, ...)
+#ifdef __GNUC__
+  __attribute__((format(printf, 5, 6)))
+#endif
+  ;
 
 int plan_no_plan(void);
 int plan_skip_all(char *);
 int plan_tests(unsigned int);
 
-unsigned int diag(const char *, ...);
+unsigned int diag(const char *, ...)
+#ifdef __GNUC__
+  __attribute__((format(printf, 1, 2)))
+#endif
+  ;
 
-int skip(unsigned int, char *, ...);
+int skip(unsigned int, char *, ...)
+#ifdef __GNUC__
+  __attribute__((format(printf, 2, 3)))
+#endif
+  ;
 
-void todo_start(char *, ...);
+void todo_start(char *, ...)
+#ifdef __GNUC__
+  __attribute__((format(printf, 1, 2)))
+#endif
+  ;
 void todo_end(void);
 
 int exit_status(void);

@@ -59,6 +59,7 @@ libphenom_a_SOURCES = \
 	corelib/variant/path.c \
 	corelib/hash/murmur.c \
 	corelib/hash/table.c \
+	corelib/streams/copy.c \
 	corelib/streams/make.c \
 	corelib/streams/read.c \
 	corelib/streams/write.c \

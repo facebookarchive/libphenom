@@ -17,6 +17,7 @@
 #include "phenom/sysutil.h"
 #include "phenom/stream.h"
 #include "tap.h"
+#include "sys/stat.h"
 
 int main(int argc, char **argv)
 {
@@ -31,7 +32,7 @@ int main(int argc, char **argv)
   ph_unused_parameter(argv);
 
   ph_library_init();
-  plan_tests(18);
+  plan_tests(25);
 
   strcpy(namebuf, "/tmp/phenomXXXXXX");
   fd = ph_mkostemp(namebuf, 0);
@@ -70,7 +71,24 @@ int main(int argc, char **argv)
   ok(amount == 14, "len was %" PRIu64, amount);
   ok(!memcmp("testing 1 two!", buf, 14), "got formatted");
 
+  ok(ph_stm_rewind(stm), "rewound");
+  ph_ignore_result(ftruncate(fd, 0));
+
+  ph_stream_t *src = ph_stm_file_open("libphenom.a", O_RDONLY, 0);
+  ok(src, "opened libphenom.a");
+
+  struct stat st;
+  stat("libphenom.a", &st);
+
+  uint64_t nwrote, nread;
+  ok(ph_stm_copy(src, stm, PH_STREAM_READ_ALL, &nread, &nwrote), "copy data");
+  is_int(nread, nwrote);
+  is_int(nread, (uint64_t)st.st_size);
+  is(nwrote, (uint64_t)st.st_size);
+
   ok(ph_stm_close(stm), "closed");
+  ok(ph_stm_close(src), "closed");
+
 
   return exit_status();
 }

@@ -93,7 +93,7 @@ int main(int argc, char **argv)
   if (ph_ht_ordered_iter_first(&ht, &oiter, &kptr.ptr, &vptr.ptr)) {
     ok(ph_string_equal_cstr(*kptr.str, "one"), "key is one");
     ok(ph_string_equal_cstr(*vptr.str, "ONE"), "val is ONE");
-    diag("vptr = %p *vptr=%p", vptr.ptr, *vptr.str);
+    diag("vptr = %p *vptr=%p", vptr.ptr, (void*)*vptr.str);
   }
   if (ph_ht_ordered_iter_next(&ht, &oiter, &kptr.ptr, &vptr.ptr)) {
     ok(ph_string_equal_cstr(*kptr.str, "two"), "key is two");
