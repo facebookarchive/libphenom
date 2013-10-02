@@ -84,6 +84,9 @@ void ph_stm_destroy(ph_stream_t *stm)
 
 bool ph_stm_close(ph_stream_t *stm)
 {
+  if (!ph_stm_flush(stm)) {
+    return false;
+  }
   if (!stm->funcs->close(stm)) {
     errno = ph_stm_errno(stm);
     return false;

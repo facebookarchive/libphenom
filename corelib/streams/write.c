@@ -112,6 +112,7 @@ bool ph_stm_flush(ph_stream_t *stm)
     if (!stm->wpos) {
       // Error during flush
       ph_stm_unlock(stm);
+      errno = ph_stm_errno(stm);
       return false;
     }
   }
