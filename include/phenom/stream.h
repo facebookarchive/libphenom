@@ -20,6 +20,7 @@
 #include "phenom/defs.h"
 #include "phenom/string.h"
 #include "phenom/job.h"
+#include <unistd.h> // For SEEK_SET
 
 /**
  * # Streams
