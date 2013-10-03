@@ -80,6 +80,26 @@ struct ph_stream {
 bool ph_stm_read(ph_stream_t *stm, void *buf,
     uint64_t count, uint64_t *nread);
 
+/** Requests pre-fetching of data into the read buffer
+ *
+ * Signals an intent to read `count` bytes of data. If the read buffer
+ * already contains >= `count` bytes of data, returns true immediately.
+ *
+ * If there is no available buffer space (or the stream is unbuffered),
+ * returns true immediately.
+ *
+ * Otherwise, will attempt to fill the available buffer space.
+ * Returns false if there was an error performing the underlying read, sets
+ * errno accordingly and makes the error code available via ph_stm_errno().
+ *
+ * On a successful read, returns true.
+ *
+ * Note that `count` is only used as a hint as to whether we need to issue
+ * a read call; it doesn't influence how much data we read.  If the buffer
+ * size is smaller than `count`, we can only fill the available buffer size.
+ */
+bool ph_stm_readahead(ph_stream_t *stm, uint64_t count);
+
 /** Writes data from the provided memory buffer
  *
  * Returns false on error. errno is set accordingly, and ph_stm_errno() can
@@ -92,6 +112,15 @@ bool ph_stm_read(ph_stream_t *stm, void *buf,
 bool ph_stm_write(ph_stream_t *stm, const void *buf,
     uint64_t count, uint64_t *nwrote);
 
+/** Writes data via scatter-gather interface
+ *
+ * Returns false on error. errno is set accordingly, and ph_stm_errno() can
+ * also be used to access that value.
+ *
+ * On success, returns true and stores the number of bytes that were written,
+ * which may be less than requested due to constraints on buffer space or
+ * signal interruption, into nwrote.
+ */
 bool ph_stm_writev(ph_stream_t *stm, const struct iovec *iov,
     int iovcnt, uint64_t *nwrote);
 

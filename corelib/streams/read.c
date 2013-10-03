@@ -26,6 +26,62 @@ SOFTWARE.
 #include "phenom/stream.h"
 #include "phenom/log.h"
 
+bool ph_stm_readahead(ph_stream_t *stm, uint64_t count)
+{
+  if (!ph_stm_flush(stm)) {
+    return false;
+  }
+
+  if (!stm->bufsize) {
+    // Sure, there's no buffer, so we didn't encounter a problem
+    // filling it
+    return true;
+  }
+
+  ph_stm_lock(stm);
+
+  if ((uint64_t)(stm->rend - stm->rpos) >= count) {
+    // Don't need to read anything
+    ph_stm_unlock(stm);
+    return true;
+  }
+
+  // How much room is in the buffer
+  uint64_t bufavail;
+
+  if (stm->rend) {
+    unsigned char *bufend = stm->buf + stm->bufsize;
+    bufavail = bufend - stm->rend;
+  } else {
+    stm->rpos = stm->buf;
+    stm->rend = stm->buf;
+    bufavail = stm->bufsize;
+  }
+
+  if (!bufavail) {
+    // Full
+    ph_stm_unlock(stm);
+    return true;
+  }
+
+  // Fill up the remaining buffer space
+  struct iovec vec = {
+    .iov_base = stm->rend,
+    .iov_len = bufavail
+  };
+
+  uint64_t nread;
+  if (!stm->funcs->readv(stm, &vec, 1, &nread)) {
+    ph_stm_unlock(stm);
+    errno = ph_stm_errno(stm);
+    return false;
+  }
+  stm->rend += nread;
+
+  ph_stm_unlock(stm);
+  return true;
+}
+
 bool ph_stm_read(ph_stream_t *stm, void *buf, uint64_t count, uint64_t *nread)
 {
   int64_t res = 0;
