@@ -373,6 +373,11 @@ ph_result_t ph_job_set_timer_in(
   return ph_job_set_nbio(job, PH_IOMASK_TIME, &abst);
 }
 
+ph_result_t ph_job_clear_timer(ph_job_t *job)
+{
+  return ph_job_set_nbio(job, 0, NULL);
+}
+
 ph_result_t ph_job_set_timer_in_ms(
     ph_job_t *job,
     uint32_t interval)
