@@ -40,7 +40,7 @@
 struct ph_counter_scope {
   ph_refcnt_t refcnt;
   uint32_t scope_id;
-  unsigned long hash;
+  unsigned long hash; // NOLINT(runtime/int)
 
   uint8_t num_slots, next_slot;
   /* points to just after slot_names */
@@ -76,7 +76,7 @@ static void *hs_malloc(size_t size)
 {
   ck_epoch_entry_t *e;
 
-  e = malloc(sizeof (*e) + size);
+  e = malloc(sizeof(*e) + size);
 
   return e + 1;
 }
@@ -152,8 +152,8 @@ static bool scope_map_compare(const void *a, const void *b)
   return !!!memcmp(sa->full_scope_name, sb->full_scope_name, lena);
 }
 
-static unsigned long scope_map_hash(const void *key,
-    unsigned long seed)
+static unsigned long scope_map_hash(const void *key, // NOLINT(runtime/int)
+    unsigned long seed) // NOLINT(runtime/int)
 {
   const ph_counter_scope_t *sk = key;
   uint64_t h[2];
@@ -226,8 +226,8 @@ static bool scope_id_compare(const void *a, const void *b)
   return A == B;
 }
 
-static unsigned long scope_id_hash(const void *key,
-    unsigned long seed)
+static unsigned long scope_id_hash(const void *key, // NOLINT(runtime/int)
+    unsigned long seed) // NOLINT(runtime/int)
 {
   ph_unused_parameter(seed);
 
@@ -277,7 +277,7 @@ ph_counter_scope_t *ph_counter_scope_define(
   scope->refcnt = 1;
   scope->num_slots = max_counters;
   scope->scope_name = (char*)&scope->slot_names[max_counters];
-  strcpy(scope->scope_name, path);
+  strcpy(scope->scope_name, path); // NOLINT(runtime/printf)
 
 
   if (full_name_len == 0) {
@@ -285,7 +285,7 @@ ph_counter_scope_t *ph_counter_scope_define(
   } else {
     // name lives right after scope->scope_name
     scope->full_scope_name = scope->scope_name + strlen(path) + 1;
-    snprintf(scope->full_scope_name,
+    snprintf(scope->full_scope_name, // NOLINT(runtime/printf)
         full_name_len + 1, "%s.%s", parent->full_scope_name, path);
   }
 

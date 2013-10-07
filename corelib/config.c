@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 #include "phenom/configuration.h"
-#include "ck_rwlock.h"
+#include <ck_rwlock.h>
 #include "phenom/stream.h"
 #include "phenom/json.h"
 #include "phenom/log.h"

@@ -217,7 +217,8 @@ ph_buf_t *ph_bufq_peek_bytes(ph_bufq_t *q, uint64_t len);
  *
  * The delimiter is included in the returned buffer.
  */
-ph_buf_t *ph_bufq_consume_record(ph_bufq_t *q, const char *delim, uint32_t delim_len);
+ph_buf_t *ph_bufq_consume_record(ph_bufq_t *q, const char *delim,
+    uint32_t delim_len);
 
 /** Attempts to peek at a record from a buffer queue
  *
@@ -230,7 +231,8 @@ ph_buf_t *ph_bufq_consume_record(ph_bufq_t *q, const char *delim, uint32_t delim
  *
  * The delimiter is included in the returned buffer.
  */
-ph_buf_t *ph_bufq_peek_record(ph_bufq_t *q, const char *delim, uint32_t delim_len);
+ph_buf_t *ph_bufq_peek_record(ph_bufq_t *q, const char *delim,
+    uint32_t delim_len);
 
 /** Attempts to consume data data from a queue and write to a stream
  *

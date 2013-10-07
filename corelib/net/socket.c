@@ -241,7 +241,8 @@ static struct ph_job_def sock_job_template = {
 
 static void do_sock_init(void)
 {
-  ph_memtype_register_block(sizeof(defs)/sizeof(defs[0]), defs, &mt.connect_job);
+  ph_memtype_register_block(sizeof(defs)/sizeof(defs[0]), defs,
+      &mt.connect_job);
   sock_job_template.memtype = mt.sock;
   connect_job_template.memtype = mt.connect_job;
   ssl_sock_idx = SSL_get_ex_new_index(0, NULL, NULL, NULL, NULL);
@@ -500,9 +501,11 @@ static void connected_sock(ph_socket_t s, const ph_sockaddr_t *addr,
   calc_elapsed(rac);
 
   if (sock) {
-    rac->func(sock, PH_SOCK_CONNECT_SUCCESS, 0, addr, &rac->elapsed, rac->arg);
+    rac->func(sock, PH_SOCK_CONNECT_SUCCESS, 0, addr,
+        &rac->elapsed, rac->arg);
   } else {
-    rac->func(NULL, PH_SOCK_CONNECT_ERRNO, status, addr, &rac->elapsed, rac->arg);
+    rac->func(NULL, PH_SOCK_CONNECT_ERRNO, status, addr,
+        &rac->elapsed, rac->arg);
   }
 
   free_rac(rac);
@@ -515,7 +518,8 @@ static void attempt_connect(struct resolve_and_connect *rac)
 
   if (rac->s == -1) {
     calc_elapsed(rac);
-    rac->func(NULL, PH_SOCK_CONNECT_ERRNO, errno, &rac->addr, &rac->elapsed, rac->arg);
+    rac->func(NULL, PH_SOCK_CONNECT_ERRNO, errno, &rac->addr,
+        &rac->elapsed, rac->arg);
     free_rac(rac);
     return;
   }
@@ -542,7 +546,8 @@ static void did_sys_resolve(ph_dns_addrinfo_t *info)
   ph_dns_addrinfo_free(info);
 }
 
-static void resolve_ares(void *arg, int status, int timeouts, struct hostent *hostent)
+static void resolve_ares(void *arg, int status, int timeouts,
+    struct hostent *hostent)
 {
   struct resolve_and_connect *rac = arg;
 
@@ -605,7 +610,8 @@ void ph_sock_resolve_and_connect(const char *name, uint16_t port,
   switch (resolver) {
     case PH_SOCK_CONNECT_RESOLVE_SYSTEM:
       ph_snprintf(portstr, sizeof(portstr), "%d", port);
-      if (ph_dns_getaddrinfo(name, portstr, NULL, did_sys_resolve, rac) == PH_OK) {
+      if (ph_dns_getaddrinfo(name, portstr, NULL,
+            did_sys_resolve, rac) == PH_OK) {
         return;
       }
       calc_elapsed(rac);
@@ -623,7 +629,8 @@ ph_buf_t *ph_sock_read_bytes_exact(ph_sock_t *sock, uint64_t len)
   return ph_bufq_consume_bytes(sock->rbuf, len);
 }
 
-ph_buf_t *ph_sock_read_record(ph_sock_t *sock, const char *delim, uint32_t delim_len)
+ph_buf_t *ph_sock_read_record(ph_sock_t *sock, const char *delim,
+    uint32_t delim_len)
 {
   return ph_bufq_consume_record(sock->rbuf, delim, delim_len);
 }

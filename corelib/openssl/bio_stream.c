@@ -80,7 +80,8 @@ static int bio_stm_read(BIO *h, char *buf, int size)
   return -1;
 }
 
-static long bio_stm_ctrl(BIO *h, int cmd, long arg1, void *arg2)
+static long bio_stm_ctrl(BIO *h, int cmd, // NOLINT(runtime/int)
+    long arg1, void *arg2)                // NOLINT(runtime/int)
 {
   ph_stream_t *stm = h->ptr;
 

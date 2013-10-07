@@ -19,7 +19,7 @@
 #include "phenom/sysutil.h"
 #include "phenom/hook.h"
 #include "phenom/hashtable.h"
-#include "ck_rwlock.h"
+#include <ck_rwlock.h>
 
 struct ph_hook_item_free {
   ck_epoch_entry_t entry;

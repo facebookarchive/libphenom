@@ -37,7 +37,7 @@ ph_variant_t *ph_var_jsonpath_get(ph_variant_t *var, const char *path)
   // Avoid malloc in the common case.  If your queries are longer
   // than 128 characters you might be doing something weird
   if (pathlen < sizeof(local_buf)-1) {
-    strcpy(local_buf, path);
+    strcpy(local_buf, path); // NOLINT(runtime/printf)
     buf = local_buf;
   } else {
     buf = strdup(path);

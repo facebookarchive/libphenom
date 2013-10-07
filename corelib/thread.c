@@ -17,7 +17,7 @@
 #include "phenom/job.h"
 #include "phenom/sysutil.h"
 #include "phenom/log.h"
-#include "ck_backoff.h"
+#include <ck_backoff.h>
 #ifdef __sun__
 # include <sys/lwp.h>
 #endif
@@ -56,8 +56,7 @@ static void detect_cores(void)
     // evenly to all cores in the system.
     fd = open(
         "/sys/devices/system/cpu/cpu0/topology/thread_siblings_list",
-        O_RDONLY
-    );
+        O_RDONLY);
     if (fd >= 0) {
       int x = read(fd, buf, sizeof(buf));
       int i;

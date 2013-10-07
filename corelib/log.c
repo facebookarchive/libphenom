@@ -77,8 +77,7 @@ void ph_logv(uint8_t level, const char *fmt, va_list ap)
       (int64_t)now.tv_sec, (int)(now.tv_usec / 1000),
       log_labels[level], me ? me->name : "", me ? me->tid : 0,
       fmt, ph_vaptr(copy),
-      fmt[len-1] == '\n' ? "" : "\n"
-  );
+      fmt[len-1] == '\n' ? "" : "\n");
   va_end(copy);
 
   if (ph_unlikely(hook == NULL)) {

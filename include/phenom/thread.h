@@ -20,11 +20,10 @@
 #include "phenom/defs.h"
 #include "phenom/queue.h"
 #include "phenom/memory.h"
-#include "phenom/queue.h"
-#include "ck_stack.h"
-#include "ck_queue.h"
-#include "ck_epoch.h"
-#include "ck_hs.h"
+#include <ck_stack.h>
+#include <ck_queue.h>
+#include <ck_epoch.h>
+#include <ck_hs.h>
 
 #ifdef __cplusplus
 extern "C" {

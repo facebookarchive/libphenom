@@ -98,7 +98,8 @@ static inline void ph_hook_invoke_inner(ph_hook_point_t *hook,
  * Each argument MUST be a pointer to the value in question
  */
 #define PH_HOOK_MAX_VARGS 16
-static inline void ph_hook_invokev(ph_hook_point_t *hook, uint8_t nargs, va_list ap)
+static inline void ph_hook_invokev(ph_hook_point_t *hook,
+    uint8_t nargs, va_list ap)
 {
   uint8_t n;
 /* please rethink your API if you need more than this */

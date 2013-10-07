@@ -280,7 +280,7 @@ static struct ph_dns_query_response *make_a_resp(unsigned char *abuf, int alen)
   }
   // this is where we'll stash the name
   name = ((char*)resp) + size;
-  strcpy(name, host->h_name);
+  strcpy(name, host->h_name); // NOLINT(runtime/printf)
 
   resp->num_answers = ancount;
   resp->name = name;
@@ -299,7 +299,8 @@ static struct ph_dns_query_response *make_a_resp(unsigned char *abuf, int alen)
   return resp;
 }
 
-static struct ph_dns_query_response *make_aaaa_resp(unsigned char *abuf, int alen)
+static struct ph_dns_query_response *make_aaaa_resp(unsigned char *abuf,
+    int alen)
 {
   int ancount = DNS_HEADER_ANCOUNT(abuf);
   struct ph_dns_query_response *resp;
@@ -331,7 +332,7 @@ static struct ph_dns_query_response *make_aaaa_resp(unsigned char *abuf, int ale
   }
   // this is where we'll stash the name
   name = ((char*)resp) + size;
-  strcpy(name, host->h_name);
+  strcpy(name, host->h_name); // NOLINT(runtime/printf)
 
   resp->num_answers = ancount;
   resp->name = name;
@@ -341,7 +342,8 @@ static struct ph_dns_query_response *make_aaaa_resp(unsigned char *abuf, int ale
     resp->answer[i].ttl = ttls[i].ttl;
     resp->answer[i].addr.family = AF_INET6;
     resp->answer[i].addr.sa.v6.sin6_family = AF_INET6;
-    memcpy(&resp->answer[i].addr.sa.v6.sin6_addr, &ttls[i].ip6addr, sizeof(ttls[i].ip6addr));
+    memcpy(&resp->answer[i].addr.sa.v6.sin6_addr, &ttls[i].ip6addr,
+        sizeof(ttls[i].ip6addr));
   }
 
   free(ttls);
@@ -361,7 +363,8 @@ static int compare_mx_ent(const void *aptr, const void *bptr)
   return a->priority - b->priority;
 }
 
-static struct ph_dns_query_response *make_srv_resp(unsigned char *abuf, int alen)
+static struct ph_dns_query_response *make_srv_resp(unsigned char *abuf,
+    int alen)
 {
   struct ph_dns_query_response *resp;
   uint32_t size;

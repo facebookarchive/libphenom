@@ -18,8 +18,8 @@
 #include "phenom/thread.h"
 #include "phenom/job.h"
 #include "phenom/stream.h"
-#include "ck_stack.h"
-#include "ck_spinlock.h"
+#include <ck_stack.h>
+#include <ck_spinlock.h>
 
 static int initialized = 0;
 static ck_stack_t init_func_stack = CK_STACK_INITIALIZER;

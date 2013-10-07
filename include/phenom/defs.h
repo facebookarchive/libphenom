@@ -116,11 +116,11 @@
 # endif
 
 # if defined(__APPLE__)
- /* for thread affinity */
+  /* for thread affinity */
 # include <mach/thread_policy.h>
 # include <mach/mach_init.h>
 # include <mach/thread_act.h>
- /* clock */
+  /* clock */
 # include <mach/mach_time.h>
 # endif
 # endif
@@ -278,7 +278,7 @@ void ph_library_init_register(struct ph_library_init_entry *ent);
 // the result of functions marked with warn_unused_result
 # if defined(__USE_FORTIFY_LEVEL) && __USE_FORTIFY_LEVEL > 0
 #  define ph_ignore_result(x) \
-  do { __typeof__(x) _res = x; (void)_res; } while(0)
+  do { __typeof__(x) _res = x; (void)_res; } while (0)
 # else
 #  define ph_ignore_result(x) x
 # endif
@@ -319,7 +319,8 @@ typedef uint32_t ph_result_t;
 # ifdef __GNUC__
 #  define ph_offsetof(type, field) __builtin_offsetof(type, field)
 # else
-#  define ph_offsetof(type, field) ((size_t)(&((type *)0)->field))
+#  define ph_offsetof(type, field) \
+      ((size_t)(&((type *)0)->field)) // NOLINT(runtime/casting)
 # endif
 #define ph_container_of(ptr_, type_, member_)  \
     ((type_ *)(void*)((char *)ptr_ - ph_offsetof(type_, member_)))
@@ -366,7 +367,7 @@ void ph_static_assert(bool constexpr, identifier_message);
     * different files on some compilers */
 #  define ph_static_assert(expr, msg) \
      typedef struct { \
-       int ph_defs_paste1(static_assertion_failed_,msg) : \
+       int ph_defs_paste1(static_assertion_failed_, msg) : \
        !!(expr); \
      } ph_defs_gen_symbol(static_assertion_failed_)
 # endif
@@ -438,9 +439,9 @@ void ph_debug_assert(bool condition, const char *message);
 // gcc will generate spurious asserts.  So we're stuck with this
 // implementation, which is pretty decent at the end of the day
 # define ph_assert_static_inner(expr, msg, id) do { \
-    extern void ph_defs_paste1(failed_assert_,id)(void)\
+    extern void ph_defs_paste1(failed_assert_, id)(void)\
       __attribute__((error(#expr " :: " msg))); \
-    ph_defs_paste1(failed_assert_,id)(); \
+    ph_defs_paste1(failed_assert_, id)(); \
 } while (0)
 # define ph_assert(expr, msg) do { \
   if (__builtin_constant_p(expr) && !(expr)) { \
@@ -449,13 +450,14 @@ void ph_debug_assert(bool condition, const char *message);
   if (ph_unlikely(expr)) { \
     ph_panic("assertion " #expr " failed: " msg); \
   } \
-} while(0)
+} while (0)
 #else
 # define ph_assert(expr, msg) do { \
   if (ph_unlikely(!(expr))) { \
-    ph_panic("assertion " #expr " failed: " msg " at %s:%d", __FILE__, __LINE__); \
+    ph_panic("assertion " #expr " failed: " msg " at %s:%d", \
+        __FILE__, __LINE__); \
   } \
-} while(0)
+} while (0)
 
 #endif
 

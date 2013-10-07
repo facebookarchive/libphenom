@@ -1,4 +1,6 @@
 #!/usr/bin/python
+# Copyright (c) 2013-present Facebook, Inc.
+# Modified for libphenom styling
 #
 # Copyright (c) 2009 Google Inc. All rights reserved.
 #
@@ -149,9 +151,9 @@ Syntax: cpplint.py [--verbose=#] [--output=vs7] [--filter=-x,+y,...]
         Assuing that src/.git exists, the header guard CPP variables for
         src/chrome/browser/ui/browser.h are:
 
-        No flag => CHROME_BROWSER_UI_BROWSER_H_
-        --root=chrome => BROWSER_UI_BROWSER_H_
-        --root=chrome/browser => UI_BROWSER_H_
+        No flag => CHROME_BROWSER_UI_BROWSER_H
+        --root=chrome => BROWSER_UI_BROWSER_H
+        --root=chrome/browser => UI_BROWSER_H
 """
 
 # We categorize each error message we print.  Here are the categories.
@@ -617,13 +619,6 @@ class _CppLintState(object):
       if category not in self.errors_by_category:
         self.errors_by_category[category] = 0
       self.errors_by_category[category] += 1
-
-  def PrintErrorCounts(self):
-    """Print a summary of errors by category, and the total."""
-    for category, count in self.errors_by_category.iteritems():
-      sys.stderr.write('Category \'%s\' errors found: %d\n' %
-                       (category, count))
-    sys.stderr.write('Total errors found: %d\n' % self.error_count)
 
 _cpplint_state = _CppLintState()
 
@@ -1129,7 +1124,7 @@ def GetHeaderGuardCPPVariable(filename):
   file_path_from_root = fileinfo.RepositoryName()
   if _root:
     file_path_from_root = re.sub('^' + _root + os.sep, '', file_path_from_root)
-  return re.sub(r'[-./\s]', '_', file_path_from_root).upper() + '_'
+  return re.sub(r'[-./\s]', '_', file_path_from_root).upper()
 
 
 def CheckForHeaderGuard(filename, lines, error):
@@ -1195,16 +1190,6 @@ def CheckForHeaderGuard(filename, lines, error):
           '#ifndef and #define don\'t match, suggested CPP variable is: %s' %
           cppvar)
     return
-
-  if endif != ('#endif  // %s' % cppvar):
-    error_level = 0
-    if endif != ('#endif  // %s' % (cppvar + '_')):
-      error_level = 5
-
-    ParseNolintSuppressions(filename, lines[endif_linenum], endif_linenum,
-                            error)
-    error(filename, endif_linenum, 'build/header_guard', error_level,
-          '#endif line should be "#endif  // %s"' % cppvar)
 
 
 def CheckForUnicodeReplacementCharacters(filename, lines, error):
@@ -2303,7 +2288,7 @@ def CheckSpacing(filename, clean_lines, linenum, nesting_state, error):
             line[commentpos-1] not in string.whitespace) or
            (commentpos >= 2 and
             line[commentpos-2] not in string.whitespace))):
-        error(filename, linenum, 'whitespace/comments', 2,
+        error(filename, linenum, 'whitespace/comments', 0,
               'At least two spaces is best between code and comments')
       # There should always be a space between the // and the comment
       commentend = commentpos + 2
@@ -2469,7 +2454,7 @@ def CheckSpacing(filename, clean_lines, linenum, nesting_state, error):
     error(filename, linenum, 'whitespace/semicolon', 5,
           'Semicolon defining empty statement. Use {} instead.')
   elif Search(r'^\s*;\s*$', line):
-    error(filename, linenum, 'whitespace/semicolon', 5,
+    error(filename, linenum, 'whitespace/semicolon', 0,
           'Line contains only semicolon. If this should be an empty statement, '
           'use {} instead.')
   elif (Search(r'\s+;\s*$', line) and
@@ -2576,7 +2561,7 @@ def CheckBraces(filename, clean_lines, linenum, error):
 
   line = clean_lines.elided[linenum]        # get rid of comments and strings
 
-  if Match(r'\s*{\s*$', line):
+  if Match(r'\s+{\s*$', line):
     # We allow an open brace to start a line in the case where someone
     # is using braces in a block to explicitly create a new scope,
     # which is commonly used to control the lifetime of
@@ -2586,6 +2571,7 @@ def CheckBraces(filename, clean_lines, linenum, error):
     # line starts a preprocessor block.
     prevline = GetPreviousNonBlankLine(clean_lines, linenum)[0]
     if (not Search(r'[;:}{]\s*$', prevline) and
+        not Match(r'static\s+', prevline) and
         not Match(r'\s*#', prevline)):
       error(filename, linenum, 'whitespace/braces', 4,
             '{ should almost always be at the end of the previous line')
@@ -2840,13 +2826,11 @@ def CheckStyle(filename, clean_lines, linenum, file_extension, nesting_state,
           'Weird number of spaces at line-start.  '
           'Are you using a 2-space indent?')
   # Labels should always be indented at least one space.
-  elif not initial_spaces and line[:2] != '//' and Search(r'[^:]:\s*$',
-                                                          line):
+  elif initial_spaces and line[:2] != '//' and \
+      not Search(r'(case|default)', line) and \
+      Search(r'[^:]:\s*$', line):
     error(filename, linenum, 'whitespace/labels', 4,
-          'Labels should always be indented at least one space.  '
-          'If this is a member-initializer list in a constructor or '
-          'the base class list in a class definition, the colon should '
-          'be on the following line.')
+          'Labels should always be at the start of the line')
 
 
   # Check if the line is a header guard.
@@ -3199,7 +3183,7 @@ def CheckLanguage(filename, clean_lines, linenum, file_extension, include_state,
     if not Search(
         r'(for|swap|Swap|operator[<>][<>])\s*\(\s*'
         r'(?:(?:typename\s*)?[\w:]|<.*>)+\s*&',
-        fnline):
+        fnline) and not filename.endswith('.c'):
       error(filename, linenum, 'runtime/references', 2,
             'Is this a non-const reference? '
             'If so, make const or use a pointer.')
@@ -3307,22 +3291,26 @@ def CheckLanguage(filename, clean_lines, linenum, file_extension, include_state,
       error(filename, linenum, 'runtime/int', 4,
             'Use int16/int64/etc, rather than the C type %s' % match.group(1))
 
+  if Search(r'\bsnprintf\b', line):
+    error(filename, linenum, 'runtime/printf', 5,
+          'Do not use snprintf.  Use ph_snprintf instead.')
+
   # When snprintf is used, the second argument shouldn't be a literal.
-  match = Search(r'snprintf\s*\(([^,]*),\s*([0-9]*)\s*,', line)
+  match = Search(r'ph_snprintf\s*\(([^,]*),\s*([0-9]*)\s*,', line)
   if match and match.group(2) != '0':
     # If 2nd arg is zero, snprintf is used to calculate size.
     error(filename, linenum, 'runtime/printf', 3,
           'If you can, use sizeof(%s) instead of %s as the 2nd arg '
-          'to snprintf.' % (match.group(1), match.group(2)))
+          'to ph_snprintf.' % (match.group(1), match.group(2)))
 
   # Check if some verboten C functions are being used.
   if Search(r'\bsprintf\b', line):
     error(filename, linenum, 'runtime/printf', 5,
-          'Never use sprintf.  Use snprintf instead.')
+          'Never use sprintf.  Use ph_snprintf instead.')
   match = Search(r'\b(strcpy|strcat)\b', line)
   if match:
     error(filename, linenum, 'runtime/printf', 4,
-          'Almost always, snprintf is better than %s' % match.group(1))
+          'Almost always, ph_snprintf is better than %s' % match.group(1))
 
   if Search(r'\bsscanf\b', line):
     error(filename, linenum, 'runtime/printf', 1,
@@ -3464,6 +3452,10 @@ def CheckCStyleCast(filename, linenum, line, raw_line, cast_type, pattern,
     True if an error was emitted.
     False otherwise.
   """
+  # Don't apply to C
+  if not filename.endswith('.cc'):
+    return False
+
   match = Search(pattern, line)
   if not match:
     return False
@@ -3672,6 +3664,9 @@ def CheckForIncludeWhatYouUse(filename, clean_lines, include_state, error,
     io: The IO factory to use to read the header file. Provided for unittest
         injection.
   """
+  if not filename.endswith('.cc'):
+    return
+
   required = {}  # A map of header name to linenumber and the template entity.
                  # Example of required: { '<functional>': (1219, 'less<>') }
 
@@ -3892,8 +3887,16 @@ def ProcessFile(filename, vlevel, extra_check_functions=[]):
       lines = codecs.open(filename, 'r', 'utf8', 'replace').read().split('\n')
 
     carriage_return_found = False
+    global_nolint_found = False
+    is_generated = False
     # Remove trailing '\r'.
     for linenum in range(len(lines)):
+      if Search(r'@nolint', lines[linenum]):
+        global_nolint_found = True
+        break
+      if Search(r'Generated from .* by', lines[linenum]):
+        is_generated = True
+        break
       if lines[linenum].endswith('\r'):
         lines[linenum] = lines[linenum].rstrip('\r')
         carriage_return_found = True
@@ -3903,13 +3906,20 @@ def ProcessFile(filename, vlevel, extra_check_functions=[]):
         "Skipping input '%s': Can't open for reading\n" % filename)
     return
 
+  if is_generated:
+    #sys.stderr.write('Ignoring %s; generated file\n' % filename)
+    return
+  if global_nolint_found:
+    #sys.stderr.write('Ignoring %s; @nolint found\n' % filename)
+    return
+
   # Note, if no dot is found, this will give the entire filename as the ext.
   file_extension = filename[filename.rfind('.') + 1:]
 
   # When reading from stdin, the extension is unknown, so no cpplint tests
   # should rely on the extension.
   if (filename != '-' and file_extension != 'cc' and file_extension != 'h'
-      and file_extension != 'cpp'):
+      and file_extension != 'cpp' and file_extension != 'c'):
     sys.stderr.write('Ignoring %s; not a .cc or .h file\n' % filename)
   else:
     ProcessFileData(filename, file_extension, lines, Error,
@@ -3921,7 +3931,7 @@ def ProcessFile(filename, vlevel, extra_check_functions=[]):
             'One or more unexpected \\r (^M) found;'
             'better to use only a \\n')
 
-  sys.stderr.write('Done processing %s\n' % filename)
+  #sys.stderr.write('Done processing %s\n' % filename)
 
 
 def PrintUsage(message):
@@ -4015,7 +4025,6 @@ def main():
   _cpplint_state.ResetErrorCounts()
   for filename in filenames:
     ProcessFile(filename, _cpplint_state.verbose_level)
-  _cpplint_state.PrintErrorCounts()
 
   sys.exit(_cpplint_state.error_count > 0)
 

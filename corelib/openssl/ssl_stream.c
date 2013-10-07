@@ -38,7 +38,7 @@ static bool do_ssl_read_or_write(ph_stream_t *stm, bool is_reading,
 {
   int i;
   int res, err;
-  unsigned long serr;
+  unsigned long serr; // NOLINT(runtime/int)
   const char *file;
   int line;
   SSL *s = stm->cookie;
@@ -75,7 +75,7 @@ static bool do_ssl_read_or_write(ph_stream_t *stm, bool is_reading,
 
       default:
         stm->last_err = EIO;
-        // TODO: maybe capture and track the error stack?
+        // TODO(wez): maybe capture and track the error stack?
         // We must consume it here regardless
         while ((serr = ERR_get_error_line(&file, &line)) != 0) {
           char ebuf[120];

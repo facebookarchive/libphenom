@@ -467,10 +467,10 @@ void PH_STRING_DECLARE_CSTR_AVOID_COPY(localvarname, ph_string_t *str);
 bool _ph_string_nul_terminated(ph_string_t *str);
 
 #define PH_STRING_DECLARE_CSTR_AVOID_COPY_INNER(name, namebuf, str) \
-  bool ph_defs_paste1(namebuf,_terminated) = _ph_string_nul_terminated(str); \
-  char namebuf[ph_defs_paste1(namebuf,_terminated) ? 1 : str->len + 1]; \
+  bool ph_defs_paste1(namebuf, _terminated) = _ph_string_nul_terminated(str); \
+  char namebuf[ph_defs_paste1(namebuf, _terminated) ? 1 : str->len + 1]; \
   const char *name = namebuf; \
-  if (ph_defs_paste1(namebuf,_terminated)) { \
+  if (ph_defs_paste1(namebuf, _terminated)) { \
     name = str->buf; \
   } else { \
     memcpy(namebuf, str->buf, str->len); \

@@ -10,6 +10,7 @@ phutil_register_library_map(array(
   '__library_version__' => 2,
   'class' =>
   array(
+    'PhenomCLinter' => 'lib/PhenomCLinter.php',
     'PhenomCallgrindFile' => 'lib/cov/PhenomCallgrindFile.php',
     'PhenomDwarfLineInfo' => 'lib/cov/PhenomDwarfLineInfo.php',
     'PhenomLicenseLinter' => 'lib/PhenomLicenseLinter.php',
@@ -21,6 +22,7 @@ phutil_register_library_map(array(
   ),
   'xmap' =>
   array(
+    'PhenomCLinter' => 'ArcanistLinter',
     'PhenomLicenseLinter' => 'ArcanistLicenseLinter',
     'PhenomLintEngine' => 'ArcanistLintEngine',
     'PhenomUnitEngine' => 'ArcanistBaseUnitTestEngine',

@@ -72,9 +72,9 @@ static void next_token(scanner_t *s)
     if (*t == '\n') {
       s->line++;
       s->column = 1;
-    }
-    else
+    } else {
       s->column++;
+    }
 
     t++;
   }
@@ -318,8 +318,7 @@ static int unpack_object(scanner_t *s, ph_variant_t *root, va_list *ap)
     if (!root) {
       /* skipping */
       value = NULL;
-    }
-    else {
+    } else {
       value = ph_var_object_get_cstr(root, key);
       if (!value && !opt) {
         set_error(s, "<validation>", "Object item not found: %s", key);
@@ -392,12 +391,10 @@ static int unpack_array(scanner_t *s, ph_variant_t *root, va_list *ap)
     if (!root) {
       /* skipping */
       value = NULL;
-    }
-    else {
+    } else {
       value = ph_var_array_get(root, i);
       if (!value) {
-        set_error(s, "<validation>", "Array index %lu out of range",
-            (unsigned long)i);
+        set_error(s, "<validation>", "Array index %"PRIu32" out of range", i);
         return -1;
       }
     }
@@ -414,7 +411,7 @@ static int unpack_array(scanner_t *s, ph_variant_t *root, va_list *ap)
 
   if (root && strict == 1 && i != ph_var_array_size(root)) {
     uint32_t diff = ph_var_array_size(root) - i;
-    set_error(s, "<validation>", "%" PRIu32 " array item(s) left unpacked", diff);
+    set_error(s, "<validation>", "%"PRIu32" array item(s) left unpacked", diff);
     return -1;
   }
 
@@ -423,8 +420,7 @@ static int unpack_array(scanner_t *s, ph_variant_t *root, va_list *ap)
 
 static int unpack(scanner_t *s, ph_variant_t *root, va_list *ap)
 {
-  switch (s->token)
-  {
+  switch (s->token) {
     case '{':
       return unpack_object(s, root, ap);
 

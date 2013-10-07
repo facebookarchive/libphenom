@@ -54,8 +54,7 @@ static void cmd_memory(ph_sock_t *sock)
 
   ph_stm_printf(sock->stream,
       "%28s %9s %9s %9s %9s %9s\r\n",
-      "WHAT", "BYTES", "OOM", "ALLOCS", "FREES", "REALLOC"
-  );
+      "WHAT", "BYTES", "OOM", "ALLOCS", "FREES", "REALLOC");
 
   while (1) {
     int n, i;

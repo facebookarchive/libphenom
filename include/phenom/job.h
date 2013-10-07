@@ -355,7 +355,6 @@ static inline bool ph_job_have_deferred_items(ph_thread_t *me)
 }
 
 #ifdef PHENOM_IMPL
-#include "phenom/timerwheel.h"
 #include "phenom/counter.h"
 #ifdef HAVE_KQUEUE
 struct ph_nbio_kq_set {

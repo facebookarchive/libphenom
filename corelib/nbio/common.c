@@ -18,12 +18,11 @@
 #include "phenom/timerwheel.h"
 #include "phenom/sysutil.h"
 #include "phenom/memory.h"
-#include "phenom/log.h"
 #include "phenom/counter.h"
 #include "phenom/configuration.h"
-#include "ck_epoch.h"
+#include <ck_epoch.h>
 #ifdef USE_GIMLI
-#include "libgimli.h"
+#include <libgimli.h>
 #endif
 
 

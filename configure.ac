@@ -76,6 +76,7 @@ AC_SEARCH_LIBS([inet_pton], [nsl])
 
 PC_LIBS="$LIBS"
 
+AC_PATH_PROG(PYTHON, python, true)
 AC_PATH_PROG(PKG_CONFIG, pkg-config, false)
 
 if ! $PKG_CONFIG --exists --print-errors libcares openssl ; then

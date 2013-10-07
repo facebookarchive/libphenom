@@ -245,7 +245,8 @@ ph_buf_t *ph_buf_slice(ph_buf_t *buf, uint64_t start, uint64_t len)
   return slice;
 }
 
-bool ph_buf_copy_mem(ph_buf_t *dest, const void *mem, uint64_t len, uint64_t dest_start)
+bool ph_buf_copy_mem(ph_buf_t *dest, const void *mem, uint64_t len,
+    uint64_t dest_start)
 {
   if (dest_start + len > dest->size) {
     return false;
@@ -594,8 +595,9 @@ static uint64_t find_record(ph_bufq_t *q, const char *delim, uint32_t delim_len)
         // size.  If our delimiter len is 3, and the delimiter straddles three
         // entries, we won't ever find it.
         // We don't construct such a sequence today, but if we were to allow a
-        // "zero copy" interface where buffers could be directly chained in, this
-        // is something that might come up.  Whoever adds that can solve that.
+        // "zero copy" interface where buffers could be directly chained in,
+        // this is something that might come up.
+        // Whoever adds that can solve that.
         return 0;
       }
 
@@ -613,7 +615,8 @@ static uint64_t find_record(ph_bufq_t *q, const char *delim, uint32_t delim_len)
   return 0;
 }
 
-ph_buf_t *ph_bufq_consume_record(ph_bufq_t *q, const char *delim, uint32_t delim_len)
+ph_buf_t *ph_bufq_consume_record(ph_bufq_t *q, const char *delim,
+    uint32_t delim_len)
 {
   uint64_t len;
 
@@ -625,7 +628,8 @@ ph_buf_t *ph_bufq_consume_record(ph_bufq_t *q, const char *delim, uint32_t delim
   return ph_bufq_consume_bytes(q, len);
 }
 
-ph_buf_t *ph_bufq_peek_record(ph_bufq_t *q, const char *delim, uint32_t delim_len)
+ph_buf_t *ph_bufq_peek_record(ph_bufq_t *q, const char *delim,
+    uint32_t delim_len)
 {
   uint64_t len;
 

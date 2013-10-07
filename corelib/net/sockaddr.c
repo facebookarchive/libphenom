@@ -26,7 +26,8 @@ PH_TYPE_FORMATTER_FUNC(sockaddr)
 
   if (!sa) {
 #define null_sockaddr_string "sockaddr:null"
-    funcs->print(print_arg, null_sockaddr_string, sizeof(null_sockaddr_string)-1);
+    funcs->print(print_arg, null_sockaddr_string,
+        sizeof(null_sockaddr_string) - 1);
     return sizeof(null_sockaddr_string)-1;
   }
 
@@ -216,12 +217,14 @@ ph_result_t ph_sockaddr_set_from_hostent(
   switch (sa->family) {
     case AF_INET6:
       sa->sa.v6.sin6_family = sa->family;
-      memcpy(&sa->sa.v6.sin6_addr, ent->h_addr_list[0], sizeof(sa->sa.v6.sin6_addr));
+      memcpy(&sa->sa.v6.sin6_addr, ent->h_addr_list[0],
+          sizeof(sa->sa.v6.sin6_addr));
       return PH_OK;
 
     case AF_INET:
       sa->sa.v4.sin_family = sa->family;
-      memcpy(&sa->sa.v4.sin_addr, ent->h_addr_list[0], sizeof(sa->sa.v4.sin_addr));
+      memcpy(&sa->sa.v4.sin_addr, ent->h_addr_list[0],
+          sizeof(sa->sa.v4.sin_addr));
       return PH_OK;
 
     default:

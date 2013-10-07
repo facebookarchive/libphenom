@@ -49,7 +49,8 @@ static int bio_bufq_read(BIO *h, char *buf, int size)
   return -1;
 }
 
-static long bio_bufq_ctrl(BIO *h, int cmd, long arg1, void *arg2)
+static long bio_bufq_ctrl(BIO *h, int cmd, // NOLINT(runtime/int)
+    long arg1, void *arg2)                 // NOLINT(runtime/int)
 {
   ph_unused_parameter(h);
   ph_unused_parameter(cmd);

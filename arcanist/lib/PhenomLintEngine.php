@@ -40,6 +40,9 @@ class PhenomLintEngine extends ArcanistLintEngine {
     $nolint_linter = new ArcanistNoLintLinter();
     $linters[] = $nolint_linter;
 
+    $c_linter = new PhenomCLinter();
+    $linters[] = $c_linter;
+
     $text_linter = new ArcanistTextLinter();
     $text_linter->setCustomSeverityMap(array(
       ArcanistTextLinter::LINT_LINE_WRAP
@@ -62,6 +65,10 @@ class PhenomLintEngine extends ArcanistLintEngine {
 
         $spelling_linter->addPath($path);
         $spelling_linter->addData($path, $this->loadData($path));
+      }
+      if (preg_match('/\.(c|h)$/', $path)) {
+        $c_linter->addPath($path);
+        $c_linter->addData($path, $this->loadData($path));
       }
     }
 

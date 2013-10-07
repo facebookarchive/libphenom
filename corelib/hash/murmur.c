@@ -1,4 +1,4 @@
-/*
+/* NOLINT(legal/copyright)
  * Murmur Hash is in the public domain. This version from Peter Scott,
  * translated from the original version from Austin Appleby.
  */
@@ -9,7 +9,6 @@
 static CK_CC_INLINE uint64_t
 rotl64(uint64_t x, int8_t r)
 {
-
   return (x << r) | (x >> (64 - r));
 }
 
@@ -18,7 +17,6 @@ rotl64(uint64_t x, int8_t r)
 static CK_CC_INLINE uint64_t
 fmix64(uint64_t k)
 {
-
   k ^= k >> 33;
   k *= 0xff51afd7ed558ccdLLU;
   k ^= k >> 33;
@@ -28,8 +26,8 @@ fmix64(uint64_t k)
   return k;
 }
 
-void
-ph_hash_bytes_murmur(const void *key, const int len, const uint32_t seed, void *out)
+void ph_hash_bytes_murmur(const void *key, const int len,
+    const uint32_t seed, void *out)
 {
   const uint8_t * data = (const uint8_t*)key;
   const int nblocks = len / 16;
@@ -53,13 +51,13 @@ ph_hash_bytes_murmur(const void *key, const int len, const uint32_t seed, void *
     k1 = blocks[i*2+0];
     k2 = blocks[i*2+1];
 
-    k1 *= c1; k1  = rotl64(k1,31); k1 *= c2; h1 ^= k1;
+    k1 *= c1; k1  = rotl64(k1, 31); k1 *= c2; h1 ^= k1;
 
-    h1 = rotl64(h1,27); h1 += h2; h1 = h1*5+0x52dce729;
+    h1 = rotl64(h1, 27); h1 += h2; h1 = h1*5+0x52dce729;
 
-    k2 *= c2; k2  = rotl64(k2,33); k2 *= c1; h2 ^= k2;
+    k2 *= c2; k2  = rotl64(k2, 33); k2 *= c1; h2 ^= k2;
 
-    h2 = rotl64(h2,31); h2 += h1; h2 = h2*5+0x38495ab5;
+    h2 = rotl64(h2, 31); h2 += h1; h2 = h2*5+0x38495ab5;
   }
 
   /* tail */
@@ -71,7 +69,7 @@ ph_hash_bytes_murmur(const void *key, const int len, const uint32_t seed, void *
     case 11: k2 ^= (uint64_t)(tail[10]) << 16;
     case 10: k2 ^= (uint64_t)(tail[ 9]) << 8;
     case  9: k2 ^= (uint64_t)(tail[ 8]) << 0;
-             k2 *= c2; k2  = rotl64(k2,33); k2 *= c1; h2 ^= k2;
+             k2 *= c2; k2  = rotl64(k2, 33); k2 *= c1; h2 ^= k2;
 
     case  8: k1 ^= (uint64_t)(tail[ 7]) << 56;
     case  7: k1 ^= (uint64_t)(tail[ 6]) << 48;
@@ -81,7 +79,7 @@ ph_hash_bytes_murmur(const void *key, const int len, const uint32_t seed, void *
     case  3: k1 ^= (uint64_t)(tail[ 2]) << 16;
     case  2: k1 ^= (uint64_t)(tail[ 1]) << 8;
     case  1: k1 ^= (uint64_t)(tail[ 0]) << 0;
-             k1 *= c1; k1  = rotl64(k1,31); k1 *= c2; h1 ^= k1;
+             k1 *= c1; k1  = rotl64(k1, 31); k1 *= c2; h1 ^= k1;
   };
 
   /* finalization */

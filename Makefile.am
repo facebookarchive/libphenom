@@ -97,9 +97,12 @@ EXAMPLES = examples/echo examples/sclient
 build-tests: $(TESTS)
 .PHONY: build-tests docs clean-docs
 
-all-local: docs
+all-local: docs check-lint
 clean-local: clean-docs
 install-exec-local: install-phenom-hdrs
+
+check-lint:
+	PYTHON=@PYTHON@ ./thirdparty/clint.sh
 
 install-phenom-hdrs:
 	$(mkdir_p) "$(DESTDIR)$(includedir)/phenom"

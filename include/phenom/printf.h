@@ -67,11 +67,11 @@ static void ph_vprintf_named_formatter_register_##tname(void) { \
 PH_LIBRARY_INIT(ph_vprintf_named_formatter_register_##tname, 0)
 
 #define PH_TYPE_FORMATTER_FUNC(tname) \
-size_t ph_vprintf_named_formatter_func_##tname(void*,void*,void*,\
+size_t ph_vprintf_named_formatter_func_##tname(void*, void*, void*, \
     const struct ph_vprintf_funcs*); \
 PH_TYPE_FORMATTER_REGISTER(tname) \
 size_t ph_vprintf_named_formatter_func_##tname(\
-    CK_CC_UNUSED void *formatter_arg, void *object, void *print_arg,\
+    CK_CC_UNUSED void *formatter_arg, void *object, void *print_arg, \
     const struct ph_vprintf_funcs *funcs)
 
 /** Portable string formatting.

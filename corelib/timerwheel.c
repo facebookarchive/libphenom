@@ -224,7 +224,6 @@ uint32_t ph_timerwheel_tick(
             cascade_timer(wheel, wheel->buckets[2].lists,
               (nowtick >> (2*PHENOM_WHEEL_BITS))
               & PHENOM_WHEEL_MASK)) {
-
           cascade_timer(wheel, wheel->buckets[3].lists,
             (nowtick >> (3*PHENOM_WHEEL_BITS))
             & PHENOM_WHEEL_MASK);

@@ -18,14 +18,13 @@
 #include "phenom/timerwheel.h"
 #include "phenom/sysutil.h"
 #include "phenom/memory.h"
-#include "phenom/log.h"
 #include "phenom/counter.h"
 #include "phenom/configuration.h"
-#include "ck_spinlock.h"
-#include "ck_ring.h"
-#include "ck_stack.h"
-#include "ck_backoff.h"
-#include "ck_queue.h"
+#include <ck_spinlock.h>
+#include <ck_ring.h>
+#include <ck_stack.h>
+#include <ck_backoff.h>
+#include <ck_queue.h>
 
 #ifdef __linux__
 #include <linux/futex.h>

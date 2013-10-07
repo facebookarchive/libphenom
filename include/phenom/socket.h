@@ -275,7 +275,8 @@ ph_buf_t *ph_sock_read_bytes_exact(ph_sock_t *sock, uint64_t len);
  * Search for the delimiter in the buffer; if found, returns a buffer containing
  * the record and its delimiter text.
  */
-ph_buf_t *ph_sock_read_record(ph_sock_t *sock, const char *delim, uint32_t delim_len);
+ph_buf_t *ph_sock_read_record(ph_sock_t *sock, const char *delim,
+    uint32_t delim_len);
 
 /** Read a CRLF delimited line
  *
@@ -332,7 +333,8 @@ typedef void (*ph_sock_connect_func)(
  * a default value will be used.
  */
 void ph_sock_resolve_and_connect(const char *name, uint16_t port,
-    struct timeval *timeout, int resolver, ph_sock_connect_func func, void *arg);
+    struct timeval *timeout, int resolver, ph_sock_connect_func func,
+    void *arg);
 
 #define PH_SOCK_SHUT_RD   0
 #define PH_SOCK_SHUT_WR   1
