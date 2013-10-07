@@ -176,6 +176,8 @@ _ERROR_CATEGORIES = [
   'build/printf_format',
   'build/storage_class',
   'legal/copyright',
+  'portability/stdio',
+  'portability/select',
   'readability/alt_tokens',
   'readability/braces',
   'readability/casting',
@@ -1310,6 +1312,19 @@ def CheckPosixThreading(filename, clean_lines, linenum, error):
             '...) instead of ' + single_thread_function +
             '...) for improved thread safety.')
 
+def CheckNonPortableIO(filename, clean_lines, linenum, error):
+  line = clean_lines.elided[linenum]
+  if Search(r'\b(FILE|fopen|freopen|popen)\b', line):
+    error(filename, linenum, 'portability/stdio', 5,
+        "Don't use stdio to open streams: Solaris systems " +
+        "can't handle descriptors that don't fit in 8-bits. " +
+        "use ph_stream_t and family instead")
+  if Search(r'\b(select|pselect|fd_set|FD_(SET|ZERO|ISSET|CLR))\b', line):
+    error(filename, linenum, 'portability/select', 5,
+        "Don't use select(), it is notoriously difficult to use with " +
+        "very large numbers of file descriptors, and leads to memory " +
+        "corruption and crashes.  Prefer nbio jobs, or if you must use " +
+        "low level syscalls, use poll()")
 
 # Matches invalid increment: *count++, which moves pointer instead of
 # incrementing a value.
@@ -2583,6 +2598,13 @@ def CheckBraces(filename, clean_lines, linenum, error):
       error(filename, linenum, 'whitespace/newline', 4,
             'An else should appear on the same line as the preceding }')
 
+  # Don't use a redundant "return;" at the bottom of a void function
+  if line == '}':
+    prevline = GetPreviousNonBlankLine(clean_lines, linenum)[0]
+    if Match(r'\s*return\s*;', prevline):
+      error(filename, linenum, 'readability/braces', 4,
+          "redundant return statement at the end of a void function")
+
   # If braces come on one side of an else, they should be on both.
   # However, we have to worry about "else if" that spans multiple lines!
   if Search(r'}\s*else[^{]*$', line) or Match(r'[^}]*else\s*{', line):
@@ -3801,6 +3823,7 @@ def ProcessLine(filename, file_extension, clean_lines, line,
   CheckForNonStandardConstructs(filename, clean_lines, line,
                                 nesting_state, error)
   CheckPosixThreading(filename, clean_lines, line, error)
+  CheckNonPortableIO(filename, clean_lines, line, error)
   CheckInvalidIncrement(filename, clean_lines, line, error)
   CheckMakePairUsesDeduction(filename, clean_lines, line, error)
   for check_fn in extra_check_functions:
