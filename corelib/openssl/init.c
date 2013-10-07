@@ -101,7 +101,7 @@ void ph_library_init_openssl(void)
   OpenSSL_add_all_algorithms();
   SSL_library_init();
 
-  crypto_locks = calloc(CRYPTO_num_locks(), sizeof(void*));
+  crypto_locks = calloc(CRYPTO_num_locks(), sizeof(*crypto_locks));
   for (i = 0; i < CRYPTO_num_locks(); i++) {
     crypto_locks[i] = crypto_dynlock_new(__FILE__, __LINE__);
   }

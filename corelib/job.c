@@ -236,7 +236,7 @@ ph_thread_pool_t *ph_thread_pool_define(
   pool->name = strdup(name);
   pool->max_workers = num_threads;
   pool->max_queue_len = max_queue_len;
-  pool->threads = calloc(num_threads, sizeof(void*));
+  pool->threads = calloc(num_threads, sizeof(*pool->threads));
   pool->counters = ph_counter_scope_define(pool_counter_scope,
       pool->name, 16);
   ph_counter_scope_register_counter_block(

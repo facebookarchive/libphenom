@@ -28,6 +28,7 @@ tests/bench/*.png
 *.a
 *.rpm
 *.dSYM
+*.plist
 .DS_Store
 .nfs*
 core

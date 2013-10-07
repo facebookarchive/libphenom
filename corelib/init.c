@@ -112,7 +112,7 @@ ph_result_t ph_library_init(void)
   }
 
   // Sort according to priority
-  init_funcs = malloc(num_init_ents * sizeof(void*));
+  init_funcs = malloc(num_init_ents * sizeof(*init_funcs));
   CK_STACK_FOREACH(&init_func_stack, st) {
     init_funcs[i++] = ent_from_stack(st);
   }

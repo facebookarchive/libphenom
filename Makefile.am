@@ -175,3 +175,22 @@ LIBEVENT=-levent
 endif
 tests_bench_iopipes_t_CPPFLAGS = $(TEST_CPPFLAGS)
 tests_bench_iopipes_t_LDADD = $(TEST_LDADD) $(LIBEVENT)
+
+if HAVE_CLANG
+# See http://blog.alexrp.com/2013/09/26/clangs-static-analyzer-and-automake/
+analyze_srcs = $(filter-out $(ck_SOURCES), $(filter %.c, $(libphenom_a_SOURCES)))
+analyze_plists = $(analyze_srcs:%.c=%.plist)
+MOSTLYCLEANFILES = $(analyze_plists)
+
+$(analyze_plists): %.plist: %.c
+	@echo "  CCSA  " $<
+	@$(COMPILE) --analyze $(libphenom_a_CPPFLAGS) $< -o $@
+
+clang-analyze: $(analyze_plists)
+clang-clean:
+	-rm -f $(analyze_plists)
+else
+clang-analyze:
+clang-clean:
+endif
+.PHONY: clang-analyze clang-clean

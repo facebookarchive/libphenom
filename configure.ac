@@ -76,6 +76,16 @@ AC_SEARCH_LIBS([inet_pton], [nsl])
 
 PC_LIBS="$LIBS"
 
+case "$CC" in
+  *clang*)
+    HAVE_CLANG=yes
+    ;;
+  *)
+    HAVE_CLANG=no
+    ;;
+esac
+AM_CONDITIONAL(HAVE_CLANG, test "x$HAVE_CLANG" = xyes)
+
 AC_PATH_PROG(PYTHON, python, true)
 AC_PATH_PROG(PKG_CONFIG, pkg-config, false)
 

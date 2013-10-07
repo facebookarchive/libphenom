@@ -398,7 +398,9 @@ ph_result_t ph_bufq_append(ph_bufq_t *q, const void *buf, uint64_t len,
 
   if (!append) {
     // Roll back!
-    last->wpos -= avail;
+    if (last && avail) {
+      last->wpos -= avail;
+    }
     return PH_NOMEM;
   }
 
