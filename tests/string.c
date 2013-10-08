@@ -56,6 +56,9 @@ static void stack_tests(void)
   ok(nocopy3 == stack3.buf, "didn't copy");
 
   ph_string_delref(&stack2);
+
+  PH_STRING_DECLARE_STATIC(static1, "lemon cake");
+  ok(ph_string_equal_cstr(&static1, "lemon cake"), "static ok");
 }
 
 
@@ -192,7 +195,7 @@ int main(int argc, char **argv)
   ph_unused_parameter(argv);
 
   ph_library_init();
-  plan_tests(111);
+  plan_tests(112);
 
   mt_misc = ph_memtype_register(&mt_def);
 

@@ -76,6 +76,25 @@
  * *MUST* call `ph_string_delref` before the stack unwinds so that we
  * can avoid a memory leak.
  *
+ * # Static constant strings
+ *
+ * Sometimes you'll want to define a string to represent a constant c-string
+ * value in your code, for instance, as a fall back for a hash table key.
+ * You may use `PH_STRING_DECLARE_STATIC` as a shortcut for this case; it
+ * can only be used with a string literal parameter:
+ *
+ * ```
+ * void myfunc(void) {
+ *   PH_STRING_DECLARE_STATIC(mystr, "Hello world");
+ * }
+ * ```
+ *
+ * ```COUNTEREXAMPLE
+ * void myfunc(const char *str) {
+ *   PH_STRING_DECLARE_STATIC(mystr, str); // BAD: will get the wrong size
+ * }
+ * ```
+ *
  * # Embedding in structs
  *
  * It is sometimes desirable to embed an instance inside another structure.
@@ -148,6 +167,9 @@ struct ph_string {
   ph_string_t name = { 1, PH_STRING_STATIC, 0, size, \
     _str_buf_static_##name, 0, true }
 
+#define PH_STRING_DECLARE_STATIC(name, cstr) \
+  ph_string_t name = { 1, PH_STRING_STATIC, sizeof(cstr)-1, \
+    sizeof(cstr), (char*)cstr, 0, true }
 
 /** Initialize a string from a static or unmanaged buffer
  *
