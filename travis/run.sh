@@ -2,6 +2,6 @@
 set -x
 ./autogen.sh
 ./configure --enable-address-sanitizer
-make
-make clang-analyze
+make -j
+make -j clang-analyze
 make check
