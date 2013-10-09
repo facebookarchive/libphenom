@@ -2,6 +2,7 @@ AC_INIT([phenom], [0.1], [], [phenom])
 AC_CONFIG_AUX_DIR([.acaux])
 AC_CONFIG_SRCDIR([LICENSE])
 AC_CANONICAL_TARGET
+AC_LANG(C)
 
 case "$target_os-$target_cpu" in
   solaris*i386)
@@ -63,6 +64,28 @@ AC_ARG_ENABLE(stack-protector, [
                             way that rpmbuild does on some systems.
 ],[
    stack_protect=$enableval
+])
+
+AC_DEFUN([HAVE_COMPILER_FLAG],[
+  AC_MSG_CHECKING([if compiler supports $2])
+  save_cflags="$CFLAGS"
+  CFLAGS="$CFLAGS $2"
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[]],[[]])],[
+    AC_MSG_RESULT(yes)
+    $1=yes
+  ],[
+    AC_MSG_RESULT(no)
+    $1=no
+  ])
+  CFLAGS="$save_cflags"
+])
+
+ASAN=no
+AC_ARG_ENABLE(address-sanitizer, [
+  --enable-address-sanitizer  Enable ASAN compilation. See
+    https://code.google.com/p/address-sanitizer/wiki/AddressSanitizer
+],[
+   HAVE_COMPILER_FLAG(ASAN, -fsanitize=address)
 ])
 
 dnl flags we'll export to the pkg-config file
@@ -331,9 +354,13 @@ fi
 AC_SUBST(PC_CFLAGS)
 AC_SUBST(PC_LIBS)
 
-if test -n "$GCC" -a "$stack_protect" == "yes" ; then
-  CFLAGS="$CFLAGS -Wp,-D_FORTIFY_SOURCE=2 -fexceptions \
-    -fstack-protector --param=ssp-buffer-size=4"
+if test "$ASAN" == "yes" ; then
+  CFLAGS="$CFLAGS -fsanitize=address -fno-common"
+else
+  if test -n "$GCC" -a "$stack_protect" == "yes" ; then
+    CFLAGS="$CFLAGS -Wp,-D_FORTIFY_SOURCE=2 -fexceptions \
+      -fstack-protector --param=ssp-buffer-size=4"
+  fi
 fi
 
 dnl CK needs optimization enabled otherwise it breaks.
