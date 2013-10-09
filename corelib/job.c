@@ -393,6 +393,16 @@ static void init_ring(ph_thread_pool_t *pool, int bucket)
   ck_pr_fence_store();
 }
 
+void ph_job_dispatch_now(ph_job_t *job)
+{
+  ph_thread_t *me = ph_thread_self();
+
+  me->refresh_time = true;
+  ph_thread_epoch_begin();
+  job->callback(job, PH_IOMASK_NONE, job->data);
+  ph_thread_epoch_end();
+}
+
 static void *worker_thread(void *arg)
 {
   ph_thread_pool_t *pool = arg;

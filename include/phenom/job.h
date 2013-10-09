@@ -163,6 +163,10 @@ ph_iomask_t ph_job_get_kmask(ph_job_t *job);
  */
 ph_result_t ph_job_clear_timer(ph_job_t *job);
 
+/** Dispatch a job immediately in the current context
+ */
+void ph_job_dispatch_now(ph_job_t *job);
+
 /** Configure a job to run at a specific time */
 ph_result_t ph_job_set_timer_at(
     ph_job_t *job,
