@@ -81,7 +81,8 @@
  * Sometimes you'll want to define a string to represent a constant c-string
  * value in your code, for instance, as a fall back for a hash table key.
  * You may use `PH_STRING_DECLARE_STATIC` as a shortcut for this case; it
- * can only be used with a string literal parameter:
+ * can only be used with a string literal parameter; this is to avoid calling
+ * strlen at runtime:
  *
  * ```
  * void myfunc(void) {
@@ -92,6 +93,15 @@
  * ```COUNTEREXAMPLE
  * void myfunc(const char *str) {
  *   PH_STRING_DECLARE_STATIC(mystr, str); // BAD: will get the wrong size
+ * }
+ * ```
+ *
+ * If you want/need to use it with a variable (not a string literal), then you
+ * can and should use `PH_STRING_DECLARE_STATIC_CSTR` instead:
+ *
+ * ```
+ * void myfunc(const char *str) {
+ *   PH_STRING_DECLARE_STATIC_CSTR(mystr, str);
  * }
  * ```
  *
@@ -170,6 +180,13 @@ struct ph_string {
 #define PH_STRING_DECLARE_STATIC(name, cstr) \
   ph_string_t name = { 1, PH_STRING_STATIC, sizeof(cstr)-1, \
     sizeof(cstr), (char*)cstr, 0, true }
+
+#define PH_STRING_DECLARE_STATIC_CSTR_INNER(name, cstr, len) \
+  uint32_t len = strlen(cstr); \
+  ph_string_t name = { 1, PH_STRING_STATIC, len, \
+    len + 1, (char*)cstr, 0, true }
+#define PH_STRING_DECLARE_STATIC_CSTR(name, cstr) \
+  PH_STRING_DECLARE_STATIC_CSTR_INNER(name, cstr, ph_defs_gen_symbol(len))
 
 /** Initialize a string from a static or unmanaged buffer
  *

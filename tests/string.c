@@ -59,6 +59,10 @@ static void stack_tests(void)
 
   PH_STRING_DECLARE_STATIC(static1, "lemon cake");
   ok(ph_string_equal_cstr(&static1, "lemon cake"), "static ok");
+
+  const char *lemon_cake = "lemon cake";
+  PH_STRING_DECLARE_STATIC_CSTR(static2, lemon_cake);
+  ok(ph_string_equal_cstr(&static2, "lemon cake"), "static ok");
 }
 
 
@@ -195,7 +199,7 @@ int main(int argc, char **argv)
   ph_unused_parameter(argv);
 
   ph_library_init();
-  plan_tests(112);
+  plan_tests(113);
 
   mt_misc = ph_memtype_register(&mt_def);
 
