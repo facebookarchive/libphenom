@@ -197,7 +197,7 @@ bool ph_counter_scope_register_counter_block(
  * Note that you may add a negative counter value to decrement it.
  *
  * * `scope` - the scope of the counter
- * * `slot` - the counter slot offset
+ * * `offset` - the counter slot offset
  * * `value` - the value to add to the current counter value.
  */
 void ph_counter_scope_add(
@@ -255,7 +255,7 @@ static inline void ph_counter_block_record_write(
  * Note that you may add a negative counter value to decrement it.
  *
  * * `block` - the block containing the counters
- * * `slot` - the counter slot offset
+ * * `offset` - the counter slot offset
  * * `value` - the value to add to the current counter value.
  */
 static inline void ph_counter_block_add(
@@ -320,7 +320,7 @@ static inline void ph_counter_block_bulk_add(
  * If the offset is invalid, returns 0.
  *
  * * `scope` - the containing scope
- * * `slot` - the counter slot offset
+ * * `offset` - the counter slot offset
  */
 int64_t ph_counter_scope_get(
     ph_counter_scope_t *scope,
