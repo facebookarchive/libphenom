@@ -2603,7 +2603,7 @@ def CheckBraces(filename, clean_lines, linenum, error):
     prevline = GetPreviousNonBlankLine(clean_lines, linenum)[0]
     if Match(r'\s*return\s*;', prevline):
       error(filename, linenum, 'readability/braces', 4,
-          "redundant return statement at the end of a void function")
+          "Remove this redundant return statement")
 
   # If braces come on one side of an else, they should be on both.
   # However, we have to worry about "else if" that spans multiple lines!
@@ -2840,7 +2840,7 @@ def CheckStyle(filename, clean_lines, linenum, file_extension, nesting_state,
     initial_spaces += 1
   if line and line[-1].isspace():
     error(filename, linenum, 'whitespace/end_of_line', 4,
-          'Line ends in whitespace.  Consider deleting these extra spaces.')
+          'Line ends in whitespace.  Delete these extra spaces.')
   # There are certain situations we allow one space, notably for labels
   elif ((initial_spaces == 1 or initial_spaces == 3) and
         not Match(r'\s*\w+\s*:\s*$', cleansed_line)):
