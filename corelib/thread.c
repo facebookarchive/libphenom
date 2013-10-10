@@ -166,6 +166,11 @@ static ph_thread_t *ph_thread_init_myself(bool booting)
   me->lwpid = _lwp_self();
 #endif
 
+#if defined(__linux__) || defined(__MACH__)
+  // see if we can discover our thread name from the system
+  pthread_getname_np(me->thr, me->name, sizeof(me->name));
+#endif
+
   // If we were recycled from a non-phenom thread, and are initializing
   // a non-phenom thread, it is possible that there are still deferred
   // items to reap in this record, so get them now.

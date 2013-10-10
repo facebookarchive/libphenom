@@ -20,6 +20,12 @@
 #include "phenom/sysutil.h"
 #include "phenom/printf.h"
 #include "phenom/hook.h"
+#ifdef __linux__
+#include <sys/syscall.h>
+#endif
+#ifdef __sun__
+# include <sys/lwp.h>
+#endif
 
 static pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
 static uint8_t log_level = PH_LOG_ERR;
@@ -50,6 +56,41 @@ uint8_t ph_log_level_get(void)
   return log_level;
 }
 
+static void get_tname(ph_thread_t *me, char *buf, uint32_t size)
+{
+  pthread_t self;
+  uint64_t tid;
+
+  if (me) {
+    ph_snprintf(buf, size, "%s/%d", me->name, me->tid);
+    return;
+  }
+
+  self = pthread_self();
+
+#if defined(__linux__)
+  tid = syscall(SYS_gettid);
+#elif defined(__MACH__)
+  pthread_threadid_np(self, &tid);
+#elif defined(__sun__)
+  tid = _lwp_self();
+#else
+  tid = (uint64_t)(intptr_t)self;
+#endif
+
+#if defined(__linux__) || defined(__MACH__)
+  if (pthread_getname_np(self, buf, size) == 0) {
+    int len = strlen(buf);
+    if (len > 0) {
+      ph_snprintf(buf + len, size - len, "/%" PRIu64, tid);
+      return;
+    }
+  }
+#endif
+
+  ph_snprintf(buf, size, "lwp/%" PRIu64, tid);
+}
+
 void ph_logv(uint8_t level, const char *fmt, va_list ap)
 {
   struct timeval now = ph_time_now();
@@ -60,6 +101,7 @@ void ph_logv(uint8_t level, const char *fmt, va_list ap)
   PH_STRING_DECLARE_STACK(mystr, 1024);
   void *args[] = { &level, &mystr };
   static ph_hook_point_t *hook = NULL;
+  char tname[32];
 
   if (level > log_level) {
     return;
@@ -71,11 +113,12 @@ void ph_logv(uint8_t level, const char *fmt, va_list ap)
   }
 
   me = ph_thread_self();
+  get_tname(me, tname, sizeof(tname));
   va_copy(copy, ap);
   ph_string_printf(&mystr,
-      "%" PRIi64 ".%03d %s: %s/%d `Pv%s%p%s",
+      "%" PRIi64 ".%03d %s: %s `Pv%s%p%s",
       (int64_t)now.tv_sec, (int)(now.tv_usec / 1000),
-      log_labels[level], me ? me->name : "", me ? me->tid : 0,
+      log_labels[level], tname,
       fmt, ph_vaptr(copy),
       fmt[len-1] == '\n' ? "" : "\n");
   va_end(copy);
