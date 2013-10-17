@@ -447,8 +447,9 @@ void ph_debug_assert(bool condition, const char *message);
   if (__builtin_constant_p(expr) && !(expr)) { \
     ph_assert_static_inner(expr, msg, __COUNTER__); \
   } \
-  if (ph_unlikely(expr)) { \
-    ph_panic("assertion " #expr " failed: " msg); \
+  if (ph_unlikely(!(expr))) { \
+    ph_panic("assertion " #expr " failed: " msg " at %s:%d", \
+        __FILE__, __LINE__); \
   } \
 } while (0)
 #else

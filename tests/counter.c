@@ -238,6 +238,8 @@ int main(int argc, char** argv)
 
   ph_library_init();
   plan_tests(39);
+
+  ph_assert(true, "always true");
   basicCounterFunctionality();
   concurrentCounters();
 
