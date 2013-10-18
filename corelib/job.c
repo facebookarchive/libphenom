@@ -86,6 +86,11 @@ struct ph_thread_pool_wait {
 #endif
 };
 
+// Holds max wait time for futex or condition waits
+// This value is updated from configuration when we start the
+// threads
+static struct timespec wait_timespec = { 5, 0 };
+
 // Bounded by sizeof(used_rings). The last ring is the
 // contended ring, so this must be 1 less than the number
 // of available bits.  sizeof(used_rings) is in-turn
@@ -162,15 +167,25 @@ static void wait_init(struct ph_thread_pool_wait *waiter)
 #endif
 }
 
+#define SECONDS_TO_NS 1000000000LL
 static void wait_pool(struct ph_thread_pool_wait *waiter)
 {
   ck_pr_inc_32(&waiter->num_waiting);
 #ifdef USE_FUTEX
   syscall(SYS_futex, &waiter->futcounter, FUTEX_WAIT,
-      ck_pr_load_int(&waiter->futcounter), NULL, NULL, 0);
+      ck_pr_load_int(&waiter->futcounter), &wait_timespec, NULL, 0);
 #elif defined(USE_COND)
+  struct timeval now;
+  struct timespec ts;
   pthread_mutex_lock(&waiter->m);
-  pthread_cond_wait(&waiter->c, &waiter->m);
+  gettimeofday(&now, NULL);
+  ts.tv_sec = now.tv_sec + wait_timespec.tv_sec;
+  ts.tv_nsec = (now.tv_usec * 1000) + wait_timespec.tv_nsec;
+  if (ts.tv_nsec > SECONDS_TO_NS) {
+    ts.tv_sec++;
+    ts.tv_nsec -= SECONDS_TO_NS;
+  }
+  pthread_cond_timedwait(&waiter->c, &waiter->m, &ts);
   pthread_mutex_unlock(&waiter->m);
 #endif
   ck_pr_dec_32(&waiter->num_waiting);
@@ -435,6 +450,7 @@ static void *worker_thread(void *arg)
       if (ph_unlikely(ck_pr_load_int(&pool->stop))) {
         break;
       }
+      ph_thread_epoch_poll();
       continue;
     }
 
@@ -442,6 +458,7 @@ static void *worker_thread(void *arg)
     ph_thread_epoch_begin();
     job->callback(job, PH_IOMASK_NONE, job->data);
     ph_thread_epoch_end();
+    ph_thread_epoch_poll();
 
     ph_counter_block_add(cblock, SLOT_DISP, 1);
 
@@ -455,6 +472,7 @@ static void *worker_thread(void *arg)
 
   ck_pr_dec_32(&pool->num_workers);
   ph_counter_block_delref(cblock);
+  ph_thread_epoch_poll();
 
   if (should_wake_pool(&pool->consumer)) {
     wake_pool(&pool->consumer);
@@ -487,6 +505,12 @@ bool ph_thread_pool_start_workers(ph_thread_pool_t *pool)
 void _ph_job_pool_start_threads(void)
 {
   ph_thread_pool_t *pool;
+
+  int max_sleep = ph_config_query_int("$.nbio.max_sleep", 5000);
+
+  wait_timespec.tv_sec = max_sleep / 1000;
+  wait_timespec.tv_nsec =
+    (max_sleep - (wait_timespec.tv_sec * 1000)) * 1000000;
 
   CK_LIST_FOREACH(pool, &pools, plink) {
     if (ck_pr_load_32(&pool->num_workers) < pool->max_workers) {

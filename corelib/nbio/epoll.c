@@ -111,17 +111,21 @@ void ph_nbio_emitter_run(struct ph_nbio_emitter *emitter, ph_thread_t *thread)
 {
   struct epoll_event *event;
   int n, i;
-  int max_chunk;
+  int max_chunk, max_sleep;
 
   max_chunk = ph_config_query_int("$.nbio.max_per_wakeup", 1024);
+  max_sleep = ph_config_query_int("$.nbio.max_sleep", 5000);
   event = malloc(max_chunk * sizeof(struct epoll_event));
 
   while (ck_pr_load_int(&_ph_run_loop)) {
-    n = epoll_wait(emitter->io_fd, event, max_chunk, -1);
+    n = epoll_wait(emitter->io_fd, event, max_chunk, max_sleep);
     thread->refresh_time = true;
 
-    if (n < 0 && errno != EINTR) {
-      ph_log(PH_LOG_ERR, "epoll_wait: `Pe%d", errno);
+    if (n < 0) {
+      if (errno != EINTR) {
+        ph_log(PH_LOG_ERR, "epoll_wait: `Pe%d", errno);
+      }
+      ph_thread_epoch_poll();
     }
     for (i = 0; i < n; i++) {
       ph_iomask_t mask = 0;

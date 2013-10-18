@@ -343,9 +343,16 @@ void ph_job_pool_apply_deferred_items(ph_thread_t *me);
  * in milliseconds.  If you enabled Gimli support, libphenom will
  * update the heartbeat after performing the barrier.  This ensures
  * that all worker threads are healthy and making progress.
- * The default value for this `5000` milliseconds; it should be
+ * The default value for this is `5000` milliseconds; it should be
  * more frequent than your Gimli watchdog interval.  You may disable
  * barrier and heartbeat by setting this option to `0`.
+ *
+ * `$.nbio.max_sleep` specifies the maximum duration that an nbio
+ * or worker thread will be idle.  The default value for this is
+ * `5000` milliseconds.  This is important when it comes to handling
+ * deferred memory reclamation; after the max sleep expires, and if
+ * no events are due, the worker will call ph_thread_epoch_poll()
+ * to speculatively reclaim memory.
  */
 ph_result_t ph_nbio_init(uint32_t sched_cores);
 

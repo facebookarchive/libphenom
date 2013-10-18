@@ -58,7 +58,6 @@ uint8_t ph_log_level_get(void)
 
 static void get_tname(ph_thread_t *me, char *buf, uint32_t size)
 {
-  pthread_t self;
   uint64_t tid;
 
   if (me) {
@@ -66,12 +65,10 @@ static void get_tname(ph_thread_t *me, char *buf, uint32_t size)
     return;
   }
 
-  self = pthread_self();
-
 #if defined(__linux__)
   tid = syscall(SYS_gettid);
 #elif defined(__MACH__)
-  pthread_threadid_np(self, &tid);
+  pthread_threadid_np(pthread_self(), &tid);
 #elif defined(__sun__)
   tid = _lwp_self();
 #else
@@ -79,7 +76,7 @@ static void get_tname(ph_thread_t *me, char *buf, uint32_t size)
 #endif
 
 #if defined(__linux__) || defined(__MACH__)
-  if (pthread_getname_np(self, buf, size) == 0) {
+  if (pthread_getname_np(pthread_self(), buf, size) == 0) {
     int len = strlen(buf);
     if (len > 0) {
       ph_snprintf(buf + len, size - len, "/%" PRIu64, tid);

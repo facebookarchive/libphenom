@@ -143,19 +143,24 @@ static inline void dispatch_kevent(struct ph_nbio_emitter *emitter,
 void ph_nbio_emitter_run(struct ph_nbio_emitter *emitter, ph_thread_t *thread)
 {
   int n, i;
-  int max_chunk;
+  int max_chunk, max_sleep;
+  struct timespec ts;
 
   max_chunk = ph_config_query_int("$.nbio.max_per_wakeup", 1024);
+  max_sleep = ph_config_query_int("$.nbio.max_sleep", 5000);
+  ts.tv_sec = max_sleep / 1000;
+  ts.tv_nsec = (max_sleep - (ts.tv_sec * 1000)) * 1000000;
 
   while (ck_pr_load_int(&_ph_run_loop)) {
     n = kevent(emitter->io_fd, emitter->kqset.events, emitter->kqset.used,
-          emitter->kqset.events, MIN(emitter->kqset.size, max_chunk), NULL);
+          emitter->kqset.events, MIN(emitter->kqset.size, max_chunk), &ts);
 
     if (n < 0 && errno != EINTR) {
       ph_panic("kevent: `Pe%d", errno);
     }
 
     if (n <= 0) {
+      ph_thread_epoch_poll();
       continue;
     }
 
