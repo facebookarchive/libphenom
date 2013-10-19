@@ -372,6 +372,10 @@ static inline ph_job_t *pop_job(ph_thread_pool_t *pool,
     if (!ck_pr_load_int(&_ph_run_loop)) {
       return NULL;
     }
+
+    // poll to clean up anything we might have been sitting on while waiting for
+    // more jobs or the epoch to advance
+    ph_thread_epoch_poll();
   }
 }
 
