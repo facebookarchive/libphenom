@@ -60,7 +60,7 @@ static struct ph_job_def ares_job_template = {
 static inline void apply_mask(ph_dns_channel_t *chan, ph_job_t *job,
     ph_iomask_t mask)
 {
-  struct timeval maxtv = {5, 0}, tv, *tvp;
+  struct timeval maxtv = {60, 0}, tv, *tvp;
   tvp = ares_timeout(chan->chan, &maxtv, &tv);
   ph_job_set_nbio_timeout_in(job, mask, *tvp);
 }
