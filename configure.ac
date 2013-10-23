@@ -268,6 +268,7 @@ localeconv \
 pipe2 \
 port_create \
 processor_bind \
+pthread_getname_np \
 pthread_set_name_np \
 pthread_setname_np \
 pthread_setaffinity_np \

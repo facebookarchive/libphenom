@@ -166,7 +166,7 @@ static ph_thread_t *ph_thread_init_myself(bool booting)
   me->lwpid = _lwp_self();
 #endif
 
-#if defined(__linux__) || defined(__MACH__)
+#ifdef HAVE_PTHREAD_GETNAME_NP
   // see if we can discover our thread name from the system
   pthread_getname_np(me->thr, me->name, sizeof(me->name));
 #endif
