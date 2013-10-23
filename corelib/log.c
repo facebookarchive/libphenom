@@ -75,7 +75,7 @@ static void get_tname(ph_thread_t *me, char *buf, uint32_t size)
   tid = (uint64_t)(intptr_t)self;
 #endif
 
-#if defined(__linux__) || defined(__MACH__)
+#ifdef HAVE_PTHREAD_GETNAME_NP
   if (pthread_getname_np(pthread_self(), buf, size) == 0) {
     int len = strlen(buf);
     if (len > 0) {
