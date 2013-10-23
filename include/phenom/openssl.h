@@ -23,6 +23,9 @@
 // Avoid fatal compilation error due to an #if TARGET_OS_MAC line in
 // a kerberos related include
 #pragma GCC diagnostic ignored "-Wundef"
+#ifdef __APPLE__
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#endif
 #include <openssl/err.h>
 #include <openssl/engine.h>
 #include <openssl/ssl.h>
