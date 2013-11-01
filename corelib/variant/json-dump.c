@@ -379,7 +379,7 @@ ph_result_t ph_json_dump_string(ph_variant_t *var, ph_string_t *str,
   if (!stm) {
     return PH_NOMEM;
   }
-
+  ph_stm_seek(stm, 0, SEEK_END, NULL);
   res = ph_json_dump_stream(var, stm, flags);
 
   ph_stm_close(stm);

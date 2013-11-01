@@ -135,7 +135,7 @@ static bool str_seek(ph_stream_t *stm, int64_t delta,
       return false;
   }
 
-  if (off < 0 || off >= ss->str->len) {
+  if (off < 0 || off > ss->str->len) {
     stm->last_err = EINVAL;
     return false;
   }

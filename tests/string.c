@@ -192,6 +192,14 @@ static void string_stream_tests(void)
   is(r, sizeof(buf));
   is(memcmp(buf, "pend!", 5), 0);
 
+  ok(ph_stm_seek(stm, str->len, SEEK_SET, NULL), "seek SET to length");
+  ok(ph_stm_seek(stm, 0, SEEK_END, &r), "seek to end");
+  ok(!ph_stm_read(stm, buf, sizeof(buf), &r), "can't read off end");
+
+  ph_stm_printf(stm, "add me");
+  ok(ph_string_equal_cstr(str, "hello kitty and append!add me"), "appended ok");
+  ok(!ph_stm_read(stm, buf, sizeof(buf), &r), "can't read off end");
+
   ph_stm_close(stm);
   ph_string_delref(str);
 }
@@ -204,7 +212,7 @@ int main(int argc, char **argv)
   ph_unused_parameter(argv);
 
   ph_library_init();
-  plan_tests(117);
+  plan_tests(122);
 
   mt_misc = ph_memtype_register(&mt_def);
 
