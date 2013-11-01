@@ -173,13 +173,14 @@ ph_result_t ph_string_append_buf(ph_string_t *str,
         return PH_NOMEM;
       }
 
-      str->buf = nbuf;
-      str->alloc = nsize;
-
-      // Promote from static growable to heap allocated growable
       if (str->mt < 0) {
+        // Promote from static growable to heap allocated growable
+        memcpy(nbuf, str->buf, str->len);
         str->mt = -str->mt;
       }
+
+      str->buf = nbuf;
+      str->alloc = nsize;
     }
   }
 
