@@ -145,7 +145,7 @@ void ph_counter_scope_delref(ph_counter_scope_t *scope);
 
 /** Registers a counter name in a counter scope.
  *
- * Returns a counter slot offset or `PHENOM_COUNTER_INVALID`
+ * Returns a counter slot offset or `PH_COUNTER_INVALID`
  *
  * * `scope` - the scope in which the counter should be registered
  * * `name` - the name of the counter
@@ -153,7 +153,7 @@ void ph_counter_scope_delref(ph_counter_scope_t *scope);
  * It is an error to register a counter with the same name as a child
  * scope.
  *
- * If the counter cannot be registered, returns `PHENOM_COUNTER_INVALID`.
+ * If the counter cannot be registered, returns `PH_COUNTER_INVALID`.
  */
 uint8_t ph_counter_scope_register_counter(
     ph_counter_scope_t *scope,
