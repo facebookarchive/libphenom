@@ -144,7 +144,7 @@ static int sock_create_cb(ares_socket_t socket_fd, int type, void *data)
   ph_unused_parameter(type);
 
   if (!job) {
-    return -1;
+    return ARES_ENOMEM;
   }
 
   job->data = chan;
@@ -152,10 +152,10 @@ static int sock_create_cb(ares_socket_t socket_fd, int type, void *data)
 
   if (ph_ht_set(&chan->sock_map, &socket_fd, &job) != PH_OK) {
     ph_mem_free(mt.job, job);
-    return -1;
+    return ARES_ENOMEM;
   }
 
-  return 0;
+  return ARES_SUCCESS;
 }
 
 static ph_dns_channel_t *create_chan(void)
