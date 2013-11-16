@@ -102,8 +102,11 @@ all-local: docs check-lint
 clean-local: clean-docs
 install-exec-local: install-phenom-hdrs
 
+PYTHON=@PYTHON@
+export PYTHON
+
 check-lint:
-	PYTHON=@PYTHON@ ./thirdparty/clint.sh
+	./thirdparty/clint.sh
 
 install-phenom-hdrs:
 	$(mkdir_p) "$(DESTDIR)$(includedir)/phenom"
