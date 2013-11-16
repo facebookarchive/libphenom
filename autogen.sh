@@ -8,5 +8,14 @@ if test -d "autom4te.cache" ; then
 fi
 aclocal
 autoheader
+case `uname` in
+  Darwin)
+    LIBTOOLIZE=${LIBTOOLIZE:-glibtoolize}
+    ;;
+  *)
+    LIBTOOLIZE=${LIBTOOLIZE:-libtoolize}
+    ;;
+esac
+$LIBTOOLIZE --no-warn -i -f
 automake --add-missing --foreign
 autoconf

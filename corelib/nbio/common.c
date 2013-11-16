@@ -21,8 +21,10 @@
 #include "phenom/counter.h"
 #include "phenom/configuration.h"
 #include <ck_epoch.h>
+
 #ifdef USE_GIMLI
 #include <libgimli.h>
+GIMLI_DECLARE_TRACER_MODULE("gimli_libphenom");
 #endif
 
 

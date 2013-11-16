@@ -26,6 +26,7 @@
 #ifdef __sun__
 # include <sys/lwp.h>
 #endif
+#include "corelib/log.h"
 
 static pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
 static uint8_t log_level = PH_LOG_ERR;
@@ -39,6 +40,9 @@ static const char *log_labels[] = {
   "info",
   "debug"
 };
+
+static struct log_entry ph_log_buf[PH_LOG_CIRC_ENTRIES];
+static uint32_t log_buf_pos = 0;
 
 static bool disable_stderr = false;
 
@@ -88,6 +92,24 @@ static void get_tname(ph_thread_t *me, char *buf, uint32_t size)
   ph_snprintf(buf, size, "lwp/%" PRIu64, tid);
 }
 
+// Make a best effort at avoiding collisions in the circular buffer;
+// it is theoretically possible for high logging traffic to rotate
+// all the way through the buffer and collide on the same offset.
+// This data structure is KISS: no pointers involved, so the fallout
+// from such a collision is basically zero: the log data may look
+// corrupt in the debugger
+static void log_to_buffer(struct timeval *now, ph_string_t *str)
+{
+  uint32_t p = ck_pr_faa_32(&log_buf_pos, 1) % PH_LOG_CIRC_ENTRIES;
+  uint32_t len = MIN(sizeof(ph_log_buf[0].msg), str->len);
+
+  ph_log_buf[p].when = *now;
+  memcpy(ph_log_buf[p].msg, str->buf, len);
+  if (len < sizeof(ph_log_buf[p].msg)) {
+    ph_log_buf[p].msg[len] = 0;
+  }
+}
+
 void ph_logv(uint8_t level, const char *fmt, va_list ap)
 {
   struct timeval now = ph_time_now();
@@ -124,6 +146,8 @@ void ph_logv(uint8_t level, const char *fmt, va_list ap)
     hook = ph_hook_point_get_cstr(PH_LOG_HOOK_NAME, true);
   }
   ph_hook_invoke_inner(hook, sizeof(args)/sizeof(args[0]), args);
+
+  log_to_buffer(&now, &mystr);
 
   if (disable_stderr) {
     return;

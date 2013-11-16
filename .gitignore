@@ -9,7 +9,12 @@ config.log
 Makefile.in
 Makefile
 *.o
+*.lo
+*.so
+*.la
+.libs
 config.status
+libtool
 *.swp
 compile
 stamp-h1

@@ -28,11 +28,11 @@ dnl thus we do not force this requirement on our clients
 CFLAGS="$CFLAGS -D_LARGEFILE_SOURCE -D_LARGEFILE64_SOURCE -D_FILE_OFFSET_BITS=64"
 
 AM_INIT_AUTOMAKE([dist-bzip2 subdir-objects])
+LT_INIT
 
 AC_PROG_CC
 AC_C_BIGENDIAN
 AC_C_INLINE
-AC_PROG_RANLIB
 
 AM_PROG_CC_C_O
 AM_PROG_AS
@@ -152,14 +152,12 @@ AC_ARG_WITH(gimli, [
    gimli=$withval
 ])
 if test "x$gimli" != "xno" ; then
-  AC_DEFINE([USE_GIMLI], 1, [Use gimli])
-
   prefixes="$gimli /usr/local /usr"
   mylibdir="lib"
   rpath="-R"
   case $target_os-$target_cpu in
     linux-*64)
-      mylibdir=lib64
+      mylibdir="lib64 lib"
       rpath="-Wl,-rpath="
       ;;
     linux*)
@@ -170,27 +168,37 @@ if test "x$gimli" != "xno" ; then
   save_libs="$LIBS"
   save_cppflags="$CPPFLAGS"
   gimli_dir=""
+  AC_MSG_CHECKING([for gimli])
   for dir in $prefixes ; do
-    LDFLAGS="$save_flags $rpath$dir/$mylibdir -L$dir/$mylibdir"
-    LIBS="$save_libs -lgimli"
-    CPPFLAGS="$save_cppflags -I$dir/include"
-    AC_TRY_LINK([
-#include <libgimli.h>
-],[gimli_heartbeat_attach();],
-      [gimli_dir=$dir]
-    )
-    if test -n "$gimli_dir" ; then
-      AC_CHECK_HEADERS(libgimli.h)
-      save_flags="$save_flags $rpath$dir/$mylibdir -L$dir/$mylibdir"
-      save_libs="$save_libs -lgimli"
-      save_cppflags="$save_cppflags -I$dir/include"
-      break
-    fi
+    for ldir in $mylibdir ; do
+      LDFLAGS="$save_flags $rpath$dir/$ldir -L$dir/$ldir"
+      LIBS="$save_libs -lgimli"
+      CPPFLAGS="$save_cppflags -I$dir/include"
+      AC_TRY_LINK([
+        #include <libgimli.h>
+      ],[gimli_heartbeat_attach();],
+        [gimli_dir=$dir]
+      )
+      if test -n "$gimli_dir" ; then
+        AC_CHECK_HEADERS(libgimli.h)
+        save_flags="$save_flags $rpath$dir/$ldir -L$dir/$ldir"
+        save_libs="$save_libs -lgimli"
+        save_cppflags="$save_cppflags -I$dir/include"
+        AC_MSG_RESULT([yes])
+        USE_GIMLI=yes
+        AC_DEFINE([USE_GIMLI], 1, [Use gimli])
+        break
+      fi
+    done
   done
   LDFLAGS="$save_flags"
   LIBS="$save_libs"
   CPPFLAGS="$save_cppflags"
+  if test "xUSE_GIMLI" != xyes ; then
+    AC_MSG_RESULT([no])
+  fi
 fi
+AM_CONDITIONAL(GIMLI, test "x$USE_GIMLI" = xyes)
 
 dnl for comparitive benchmarking
 AC_ARG_ENABLE(libevent-comparison, [

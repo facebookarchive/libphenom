@@ -22,6 +22,7 @@
 #include <ck_hs.h>
 #include <ck_stack.h>
 #include <ck_spinlock.h>
+#include "corelib/counter.h"
 
 /* Counters are stored using a low-contention scheme that allows
  * counter updates to proceed uncontested for any given thread.
@@ -37,21 +38,6 @@
  * time may be negative even though the total is positive.
  */
 
-struct ph_counter_scope {
-  ph_refcnt_t refcnt;
-  uint32_t scope_id;
-  unsigned long hash; // NOLINT(runtime/int)
-
-  uint8_t num_slots, next_slot;
-  /* points to just after slot_names */
-  char *scope_name;
-  char *full_scope_name;
-
-  /* variable size array; the remainder of this struct
-   * holds num_slots elements */
-  char *slot_names[1];
-};
-
 /* This defines a function called ph_counter_head_from_stack_entry
  * that maps a ck_stack_entry_t to a ph_counter_head */
 CK_STACK_CONTAINER(ph_thread_t,
@@ -61,7 +47,7 @@ CK_STACK_CONTAINER(ph_thread_t,
  * The CK hash set is single producer, multi-consumer,
  * meaning that we only need to serialize write operations
  * on the hash table; reads can proceed safely without a lock. */
-static ck_hs_t scope_map;
+static ck_hs_t ph_counter_scope_map;
 static ck_spinlock_t scope_map_lock = CK_SPINLOCK_INITIALIZER;
 
 /** atomic scope identifier */
@@ -125,7 +111,7 @@ static void counter_destroy(void)
   ph_counter_scope_t *scope;
 
   ck_hs_iterator_init(&iter);
-  while (ck_hs_next(&scope_map, &iter, (void**)(void*)&scope)) {
+  while (ck_hs_next(&ph_counter_scope_map, &iter, (void**)(void*)&scope)) {
     int i;
     for (i = 0; i < scope->next_slot; i++) {
       free(scope->slot_names[i]);
@@ -133,7 +119,7 @@ static void counter_destroy(void)
     free(scope);
   }
 
-  ck_hs_destroy(&scope_map);
+  ck_hs_destroy(&ph_counter_scope_map);
 }
 
 static bool scope_map_compare(const void *a, const void *b)
@@ -174,7 +160,7 @@ ph_static_assert(sizeof(struct ph_counter_scope_iterator)
 
 static void counter_init(void)
 {
-  if (!ck_hs_init(&scope_map, CK_HS_MODE_SPMC | CK_HS_MODE_OBJECT,
+  if (!ck_hs_init(&ph_counter_scope_map, CK_HS_MODE_SPMC | CK_HS_MODE_OBJECT,
       scope_map_hash, scope_map_compare, &hs_allocator, 65536, lrand48())) {
     // If this fails, we're screwed
     abort();
@@ -292,10 +278,10 @@ ph_counter_scope_t *ph_counter_scope_define(
   // Record in the map
 
   // compute hash
-  hash = CK_HS_HASH(&scope_map, scope_map_hash, scope);
+  hash = CK_HS_HASH(&ph_counter_scope_map, scope_map_hash, scope);
   ck_spinlock_lock(&scope_map_lock);
   {
-    if (ck_hs_get(&scope_map, hash, scope) != NULL) {
+    if (ck_hs_get(&ph_counter_scope_map, hash, scope) != NULL) {
       int i;
 
       ck_spinlock_unlock(&scope_map_lock);
@@ -308,7 +294,7 @@ ph_counter_scope_t *ph_counter_scope_define(
       return NULL;
     }
 
-    if (ck_hs_put(&scope_map, hash, scope)) {
+    if (ck_hs_put(&ph_counter_scope_map, hash, scope)) {
       // map owns a new ref
       ph_refcnt_add(&scope->refcnt);
     } else {
@@ -342,8 +328,8 @@ ph_counter_scope_t *ph_counter_scope_resolve(
   }
 
   search.full_scope_name = full_name;
-  hash = CK_HS_HASH(&scope_map, scope_map_hash, &search);
-  scope = ck_hs_get(&scope_map, hash, &search);
+  hash = CK_HS_HASH(&ph_counter_scope_map, scope_map_hash, &search);
+  scope = ck_hs_get(&ph_counter_scope_map, hash, &search);
   if (scope != NULL) {
     // Note: if we ever allow removing scopes from the map,
     // we will need to find a way to make adding this ref
@@ -374,8 +360,8 @@ void ph_counter_scope_delref(ph_counter_scope_t *scope)
   {
     uint64_t hash;
 
-    hash = CK_HS_HASH(&scope_map, scope_map_hash, scope);
-    ck_hs_remove(&scope_map, hash, scope);
+    hash = CK_HS_HASH(&ph_counter_scope_map, scope_map_hash, scope);
+    ck_hs_remove(&ph_counter_scope_map, hash, scope);
     free(scope);
   }
   ck_spinlock_unlock(&scope_map_lock);
@@ -605,7 +591,7 @@ ph_counter_scope_t *ph_counter_scope_iterator_next(
   ph_counter_scope_t *scope;
   void *i;
 
-  if (!ck_hs_next(&scope_map, (ck_hs_iterator_t*)iter, &i)) {
+  if (!ck_hs_next(&ph_counter_scope_map, (ck_hs_iterator_t*)iter, &i)) {
     return NULL;
   }
 
