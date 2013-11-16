@@ -87,6 +87,7 @@ TESTS = tests/counter.t tests/memory.t tests/timer.t tests/printf.t \
 				tests/sockaddr.t \
 				tests/dns.t \
 				tests/variant.t \
+				tests/buf.t \
 				tests/bench/iopipes.t
 noinst_PROGRAMS = $(TESTS) $(EXAMPLES)
 
@@ -154,6 +155,9 @@ tests_hashtable_t_LDADD = $(TEST_LDADD)
 
 tests_sockaddr_t_CPPFLAGS = $(TEST_CPPFLAGS)
 tests_sockaddr_t_LDADD = $(TEST_LDADD)
+
+tests_buf_t_CPPFLAGS = $(TEST_CPPFLAGS)
+tests_buf_t_LDADD = $(TEST_LDADD)
 
 tests_dns_t_CPPFLAGS = $(TEST_CPPFLAGS)
 tests_dns_t_LDADD = $(TEST_LDADD)

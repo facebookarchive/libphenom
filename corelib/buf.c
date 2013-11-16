@@ -587,7 +587,6 @@ static uint64_t find_record(ph_bufq_t *q, const char *delim, uint32_t delim_len)
       uint32_t dlen = delim_len - slen;
 
       bstart = ph_buf_mem(next->buf) + next->rpos;
-      len = next->wpos - next->rpos;
 
       if (len < slen) {
         // Not found, nor findable.
