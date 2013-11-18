@@ -74,11 +74,11 @@ int main(int argc, char **argv)
   ok(ph_stm_rewind(stm), "rewound");
   ph_ignore_result(ftruncate(fd, 0));
 
-  ph_stream_t *src = ph_stm_file_open("libphenom.a", O_RDONLY, 0);
-  ok(src, "opened libphenom.a");
+  ph_stream_t *src = ph_stm_file_open("aclocal.m4", O_RDONLY, 0);
+  ok(src, "opened aclocal.m4");
 
   struct stat st;
-  stat("libphenom.a", &st);
+  stat("aclocal.m4", &st);
 
   ok(src->rpos == NULL, "nothing in the read buffer");
   ok(ph_stm_readahead(src, PH_STM_BUFSIZE), "readahead ok");
@@ -98,7 +98,7 @@ int main(int argc, char **argv)
 
   ph_stm_flush(stm);
   char cmd[1024];
-  ph_snprintf(cmd, sizeof(cmd), "cmp -l libphenom.a %s", namebuf);
+  ph_snprintf(cmd, sizeof(cmd), "cmp -l aclocal.m4 %s", namebuf);
   int res = system(cmd);
   ok(res == 0, "cmp on file data shows no differences: res=%d", res);
 
