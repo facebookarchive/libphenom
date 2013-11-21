@@ -189,28 +189,28 @@ static void show_counters_in_range(int first_scope, int last_scope)
   memset(space, ' ', sizeof(space));
 
   ascope = counter_scopes[first_scope];
-  ph_fdprintf(STDOUT_FILENO, "%.*s  ", longest_name, space);
+  printf("%.*s  ", longest_name, space);
 
   for (nslot = 0; nslot < ascope->scope->next_slot; nslot++) {
-    ph_fdprintf(STDOUT_FILENO, "%*s  ",
+    printf("%*s  ",
       colwidths[nslot],
       ascope->scope->slot_names[nslot]);
   }
-  ph_fdprintf(STDOUT_FILENO, "\n");
+  printf("\n");
 
   // And now the data
   for (nscope = first_scope; nscope <= last_scope; nscope++) {
     ascope = counter_scopes[nscope];
 
-    ph_fdprintf(STDOUT_FILENO, "%*s  ", longest_name,
+    printf("%*s  ", longest_name,
         ascope->scope->full_scope_name);
 
     for (nslot = 0; nslot < ascope->scope->next_slot; nslot++) {
       ph_snprintf(buf, sizeof(buf), "%" PRIi64, ascope->values[nslot]);
-      ph_fdprintf(STDOUT_FILENO, "%*s  ", colwidths[nslot], buf);
+      printf("%*s  ", colwidths[nslot], buf);
     }
 
-    ph_fdprintf(STDOUT_FILENO, "\n");
+    printf("\n");
   }
 }
 
@@ -222,7 +222,7 @@ static void show_counters(gimli_proc_t proc, void *unused)
   collect_counter_scopes(proc);
   collect_counter_values(proc);
 
-  ph_fdprintf(STDOUT_FILENO, "COUNTERS\n");
+  printf("COUNTERS\n");
 
   for (first = 0; first < num_scopes; first = last + 1) {
     // Find the last in the sequence with the same namehash
@@ -239,7 +239,7 @@ static void show_counters(gimli_proc_t proc, void *unused)
 
     if (counter_scopes[first]->scope->next_slot) {
       show_counters_in_range(first, last);
-      ph_fdprintf(STDOUT_FILENO, "\n");
+      printf("\n");
     }
   }
 }

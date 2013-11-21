@@ -27,6 +27,7 @@ static gimli_iter_status_t pretty_sockaddr(gimli_proc_t proc,
   ph_unused_parameter(depth);
   ph_unused_parameter(arg);
 
+  fflush(stdout);
   ph_fdprintf(STDOUT_FILENO, "ph_sockaddr_t %p %s = `P{sockaddr:%p}\n",
       (void*)(intptr_t)addr, varname, arg);
   return GIMLI_ITER_STOP;

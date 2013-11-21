@@ -47,7 +47,7 @@ static void show_logs(gimli_proc_t proc, void *unused)
   qsort(log_buf, PH_LOG_CIRC_ENTRIES, sizeof(struct log_entry),
       compare_log_entry);
 
-  ph_fdprintf(STDOUT_FILENO, "RECENT LOGS\n");
+  printf("RECENT LOGS\n");
   for (i = 0; i < PH_LOG_CIRC_ENTRIES; i++) {
     int len;
     char *end;
@@ -66,7 +66,7 @@ static void show_logs(gimli_proc_t proc, void *unused)
       len--;
     }
 
-    ph_fdprintf(STDOUT_FILENO, "%.*s\n", len, log_buf[i].msg);
+    printf("%.*s\n", len, log_buf[i].msg);
   }
 }
 

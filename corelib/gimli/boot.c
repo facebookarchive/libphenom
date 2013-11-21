@@ -94,7 +94,7 @@ static int begin_thread_trace(const struct gimli_ana_api *api,
     if (threads[i].lwpid == tid) {
       // omit a newline so this shows up on the same line as the
       // regular "Thread X (LWP Y)" stuff
-      ph_fdprintf(STDOUT_FILENO, "[%s] ", threads[i].name);
+      printf("[%s] ", threads[i].name);
       break;
     }
   }
@@ -156,11 +156,11 @@ static gimli_iter_status_t do_print_type(gimli_proc_t proc,
   int i;
 
   for (i = 0; i <= depth; i++) {
-    ph_fdprintf(STDOUT_FILENO, "    ");
+    printf("    ");
   }
 
   if (gimli_read_mem(proc, addr, space, p->size) != p->size) {
-    ph_fdprintf(STDOUT_FILENO, "%s %s = <invalid address %p>\n",
+    printf("%s %s = <invalid address %p>\n",
         p->tname, varname, (void*)(intptr_t)addr);
     return GIMLI_ITER_ERR;
   }
