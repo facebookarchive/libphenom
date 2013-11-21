@@ -407,6 +407,8 @@ void ph_nbio_emitter_dispatch_immediate(struct ph_nbio_emitter *emitter,
 
 extern int _ph_run_loop;
 
+struct ph_nbio_emitter *ph_nbio_emitter_for_job(ph_job_t *job);
+
 #endif
 
 

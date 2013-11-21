@@ -54,6 +54,14 @@ static inline struct ph_nbio_emitter *emitter_for_job(ph_job_t *job)
   return emitter_for_affinity(job->emitter_affinity);
 }
 
+struct ph_nbio_emitter *ph_nbio_emitter_for_job(ph_job_t *job) {
+  if (!emitters) {
+    // We can be called during TLS teardown
+    return NULL;
+  }
+  return emitter_for_job(job);
+}
+
 static void process_deferred(ph_thread_t *me, void *impl);
 
 void ph_nbio_emitter_dispatch_immediate(

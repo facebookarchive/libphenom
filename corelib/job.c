@@ -610,6 +610,12 @@ CK_EPOCH_CONTAINER(ph_job_t, epoch_entry, epoch_entry_to_job)
 static void deferred_job_free(ck_epoch_entry_t *e)
 {
   ph_job_t *job = epoch_entry_to_job(e);
+  struct ph_nbio_emitter *target_emitter = ph_nbio_emitter_for_job(job);
+
+  // emitter can be NULL during TLS teardown
+  if (target_emitter) {
+    ph_timerwheel_remove(&target_emitter->wheel, &job->timer);
+  }
 
   if (job->def->dtor) {
     job->def->dtor(job);
@@ -620,6 +626,11 @@ static void deferred_job_free(ck_epoch_entry_t *e)
 
 void ph_job_free(ph_job_t *job)
 {
+  struct ph_nbio_emitter *target_emitter = ph_nbio_emitter_for_job(job);
+
+  if (timerisset(&job->timer.due)) {
+    ph_timerwheel_disable(&target_emitter->wheel, &job->timer);
+  }
   ph_thread_epoch_defer(&job->epoch_entry, deferred_job_free);
 }
 
