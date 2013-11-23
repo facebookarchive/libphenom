@@ -20,15 +20,15 @@ a little bit of TLC:
 
 libPhenom depends on:
 
+ * `pkg-config` to find dependencies.
  * [c-ares](http://c-ares.haxx.se) for DNS resolution.
-   It expects to find it via `pkg-config`; you need to provide this in
-   order for phenom to build successfully.
  * [Concurrency Kit](http://concurrencykit.org/) for its excellent
    concurrency primitives and key data structures.  We include CK
    with phenom.
  * **OpenSSL** is required; this should be provided by your OS.
-   We expect that `pkg-config` can find it.
- * **autoconf** and **automake** are required to build libPhenom
+   You will need to install `openssl-devel` or `libssl-dev` or a similarly
+   named package.
+ * **autoconf**, **automake** and **libtool** are required to build libPhenom
 
 libPhenom works best if built with GCC version 4.3 or later, but should
 be able to build with any C99 compiler.

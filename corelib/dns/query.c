@@ -17,6 +17,9 @@
 #include "phenom/dns.h"
 #include "phenom/hashtable.h"
 #include "phenom/log.h"
+
+#ifdef HAVE_ARES
+
 #include <ares.h>
 #include <ares_dns.h>
 #include <arpa/nameser.h>
@@ -403,6 +406,7 @@ static struct ph_dns_query_response *make_srv_resp(unsigned char *abuf,
   return resp;
 }
 
+#ifdef HAVE_ARES_PARSE_MX_REPLY
 static struct ph_dns_query_response *make_mx_resp(unsigned char *abuf, int alen)
 {
   struct ph_dns_query_response *resp;
@@ -439,6 +443,7 @@ static struct ph_dns_query_response *make_mx_resp(unsigned char *abuf, int alen)
 
   return resp;
 }
+#endif
 
 static void result_cb(void *arg, int status, int timeouts,
   unsigned char *abuf, int alen)
@@ -451,12 +456,14 @@ static void result_cb(void *arg, int status, int timeouts,
       q->func.raw(q->arg, status, timeouts, abuf, alen);
       break;
 
+#ifdef HAVE_ARES_PARSE_MX_REPLY
     case PH_DNS_QUERY_MX:
       if (status == ARES_SUCCESS) {
         resp = make_mx_resp(abuf, alen);
       }
       q->func.func(q->arg, status, timeouts, abuf, alen, resp);
       break;
+#endif
 
     case PH_DNS_QUERY_A:
       if (status == ARES_SUCCESS) {
@@ -555,9 +562,11 @@ void ph_dns_channel_query(
     case PH_DNS_QUERY_SRV:
       type = ns_t_srv;
       break;
+#ifdef HAVE_ARES_PARSE_MX_REPLY
     case PH_DNS_QUERY_MX:
       type = ns_t_mx;
       break;
+#endif
     default:
       ph_panic("invalid query type %d", query_type);
   }
@@ -580,7 +589,7 @@ void ph_dns_channel_gethostbyname(
   pthread_mutex_unlock(&chan->chanlock);
 }
 
-
+#endif // HAVE_ARES
 
 /* vim:ts=2:sw=2:et:
  */

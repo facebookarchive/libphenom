@@ -112,22 +112,35 @@ AM_CONDITIONAL(HAVE_CLANG, test "x$HAVE_CLANG" = xyes)
 AC_PATH_PROG(PYTHON, python, true)
 AC_PATH_PROG(PKG_CONFIG, pkg-config, false)
 
-if ! $PKG_CONFIG --exists --print-errors libcares openssl ; then
-  AC_MSG_ERROR([c-ares is required])
+if ! $PKG_CONFIG --exists --print-errors openssl ; then
+  AC_MSG_ERROR([openssl is required])
 fi
 
-ares_rpath=""
-case "$target_os" in
-  solaris*|darwin*)
-    ;;
-  *)
-    dnl GNU LD specific; Solaris wants s/L/R/ but moving fast for now
-    ares_rpath=`$PKG_CONFIG --libs-only-L libcares | sed -e 's/L/Wl,-rpath=/'`
-    ;;
-esac
-LIBS="$LIBS `$PKG_CONFIG --libs libcares` $ares_rpath"
-CFLAGS="$CFLAGS `$PKG_CONFIG --cflags libcares`"
-AC_CHECK_FUNCS(ares_init)
+ares="yes"
+AC_ARG_WITH(cares, [
+  --with-cares   Enable libc-ares DNS resolver support.
+                 Uses pkg-config to determine compilation flags.
+],[
+  ares=$withval
+])
+if test "x$ares" != "xno" ; then
+  if ! $PKG_CONFIG --exists --print-errors libcares ; then
+    AC_MSG_ERROR([libcares requested but not found])
+  fi
+  ares_rpath=""
+  case "$target_os" in
+    solaris*|darwin*)
+      ;;
+    *)
+      dnl GNU LD specific; Solaris wants s/L/R/ but moving fast for now
+      ares_rpath=`$PKG_CONFIG --libs-only-L libcares | sed -e 's/L/Wl,-rpath=/'`
+      ;;
+  esac
+  LIBS="$LIBS `$PKG_CONFIG --libs libcares` $ares_rpath"
+  CFLAGS="$CFLAGS `$PKG_CONFIG --cflags libcares`"
+  AC_CHECK_FUNCS(ares_parse_mx_reply)
+  AC_DEFINE(HAVE_ARES, 1, [whether we were built with c-ares support])
+fi
 
 CFLAGS="$CFLAGS `$PKG_CONFIG --cflags openssl`"
 LIBS="$LIBS `$PKG_CONFIG --libs openssl`"

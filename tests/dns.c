@@ -18,8 +18,11 @@
 #include "phenom/string.h"
 #include "phenom/dns.h"
 #include "phenom/log.h"
-#include "ares.h"
 #include "tap.h"
+
+#ifdef HAVE_ARES
+
+#include "ares.h"
 
 static struct addr_test {
   const char *node;
@@ -163,8 +166,10 @@ int main(int argc, char **argv)
   ph_nbio_init(0);
   plan_tests(
       (2 * (sizeof(addr_tests)/sizeof(addr_tests[0]))) +
-      (2 * 3) + /* A and AAAA */
-      (6) /* MX */
+      (2 * 3) /* A and AAAA */
+#ifdef HAVE_ARES_PARSE_MX_REPLY
+      + (6) /* MX */
+#endif
   );
 
   ck_pr_inc_32(&num_left);
@@ -175,9 +180,11 @@ int main(int argc, char **argv)
   ph_dns_channel_query(NULL, "aaaa.test.phenom.wezfurlong.org.",
       PH_DNS_QUERY_AAAA, lookup_aaaa, NULL);
 
+#ifdef HAVE_ARES_PARSE_MX_REPLY
   ck_pr_inc_32(&num_left);
   ph_dns_channel_query(NULL, "mx1.test.phenom.wezfurlong.org.",
       PH_DNS_QUERY_MX, lookup_mx, NULL);
+#endif
 
   for (i = 0; i < sizeof(addr_tests)/sizeof(addr_tests[0]); i++) {
     ph_dns_getaddrinfo(addr_tests[i].node, addr_tests[i].service,
@@ -189,6 +196,18 @@ int main(int argc, char **argv)
 
   return exit_status();
 }
+
+#else
+
+int main(int argc, char **argv)
+{
+  plan_tests(1);
+  ok(1, "no ares support");
+  return exit_status();
+}
+
+#endif
+
 
 /* vim:ts=2:sw=2:et:
  */
