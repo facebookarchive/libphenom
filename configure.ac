@@ -138,8 +138,10 @@ if test "x$ares" != "xno" ; then
   esac
   LIBS="$LIBS `$PKG_CONFIG --libs libcares` $ares_rpath"
   CFLAGS="$CFLAGS `$PKG_CONFIG --cflags libcares`"
-  AC_CHECK_FUNCS(ares_parse_mx_reply)
-  AC_DEFINE(HAVE_ARES, 1, [whether we were built with c-ares support])
+  AC_CHECK_FUNCS(ares_parse_mx_reply,[
+    AC_DEFINE(PH_HAVE_ARES_MX, 1, [whether ares has mx parsing support])
+  ])
+  AC_DEFINE(PH_HAVE_ARES, 1, [whether we were built with c-ares support])
 fi
 
 CFLAGS="$CFLAGS `$PKG_CONFIG --cflags openssl`"
@@ -404,7 +406,7 @@ if test -n "$GCC" -a "$lenient" == "no" ; then
 fi
 AC_SUBST(IRONMANCFLAGS)
 
-AC_CONFIG_HEADER([include/phenom_build_config.h])
+AC_CONFIG_HEADER([include/phenom_build_config.h include/phenom/feature_test.h])
 AC_CONFIG_FILES([Makefile thirdparty/ck/include/ck_md.h libphenom.pc])
 AC_OUTPUT
 

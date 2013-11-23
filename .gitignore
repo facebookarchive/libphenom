@@ -19,6 +19,8 @@ libtool
 compile
 stamp-h1
 include/phenom/config.h
+include/phenom/feature_test.h
+include/phenom/stamp-h2
 include/phenom_build_config.h.in~
 include/phenom_build_config.h.in
 include/phenom_build_config.h

@@ -19,8 +19,12 @@
 
 #include "phenom/job.h"
 #include "phenom/socket.h"
+#include "phenom/feature_test.h"
 #include <netdb.h>
+
+#ifdef PH_HAVE_ARES
 #include <ares.h>
+#endif
 
 #ifdef __cplusplus
 extern "C" {
@@ -105,6 +109,7 @@ void ph_dns_addrinfo_free(ph_dns_addrinfo_t *info);
 struct ph_dns_channel;
 typedef struct ph_dns_channel ph_dns_channel_t;
 
+#ifdef PH_HAVE_ARES
 /** Create a new DNS resolving channel
  *
  * The channel encapsulates a c-ares
@@ -162,7 +167,9 @@ typedef void (*ph_dns_channel_query_func)(
 #define PH_DNS_QUERY_A    1
 #define PH_DNS_QUERY_AAAA 2
 #define PH_DNS_QUERY_SRV  3
-#define PH_DNS_QUERY_MX   4
+#ifdef PH_HAVE_ARES_MX
+# define PH_DNS_QUERY_MX   4
+#endif
 
 /** Schedule a DNS query
  *
@@ -253,6 +260,7 @@ void ph_dns_channel_gethostbyname(
     int family,
     ares_host_callback func,
     void *arg);
+#endif // PH_HAVE_ARES
 
 
 #ifdef __cplusplus

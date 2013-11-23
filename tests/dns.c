@@ -20,9 +20,7 @@
 #include "phenom/log.h"
 #include "tap.h"
 
-#ifdef HAVE_ARES
-
-#include "ares.h"
+#ifdef PH_HAVE_ARES
 
 static struct addr_test {
   const char *node;
@@ -167,7 +165,7 @@ int main(int argc, char **argv)
   plan_tests(
       (2 * (sizeof(addr_tests)/sizeof(addr_tests[0]))) +
       (2 * 3) /* A and AAAA */
-#ifdef HAVE_ARES_PARSE_MX_REPLY
+#ifdef PH_HAVE_ARES_MX
       + (6) /* MX */
 #endif
   );
@@ -180,7 +178,7 @@ int main(int argc, char **argv)
   ph_dns_channel_query(NULL, "aaaa.test.phenom.wezfurlong.org.",
       PH_DNS_QUERY_AAAA, lookup_aaaa, NULL);
 
-#ifdef HAVE_ARES_PARSE_MX_REPLY
+#ifdef PH_HAVE_ARES_MX
   ck_pr_inc_32(&num_left);
   ph_dns_channel_query(NULL, "mx1.test.phenom.wezfurlong.org.",
       PH_DNS_QUERY_MX, lookup_mx, NULL);
@@ -201,6 +199,9 @@ int main(int argc, char **argv)
 
 int main(int argc, char **argv)
 {
+  ph_unused_parameter(argc);
+  ph_unused_parameter(argv);
+
   plan_tests(1);
   ok(1, "no ares support");
   return exit_status();
