@@ -69,9 +69,7 @@ static void read_stdin(ph_job_t *job, ph_iomask_t why, void *data)
   }
 
   // Force the sock to wakeup and send the buffer.
-  // FIXME: Need something nicer than this hack
-  ph_sock_enable(remote_sock, false);
-  ph_sock_enable(remote_sock, true);
+  ph_sock_wakeup(remote_sock);
 
   ph_job_set_nbio_timeout_in(job, PH_IOMASK_READ, timeout);
 }

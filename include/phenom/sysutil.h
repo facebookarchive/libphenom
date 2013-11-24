@@ -61,6 +61,7 @@ ph_result_t ph_pingfd_ping(ph_pingfd_t *pfd);
 ph_result_t ph_pingfd_close(ph_pingfd_t *pfd);
 ph_socket_t ph_pingfd_get_fd(ph_pingfd_t *pfd);
 bool ph_pingfd_consume_one(ph_pingfd_t *pfd);
+uint32_t ph_pingfd_consume_all(ph_pingfd_t *pfd);
 
 void ph_freedtoa(char *s);
 char *ph_dtoa(double _d, int mode, int ndigits,

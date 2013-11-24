@@ -20,6 +20,7 @@
 #include "phenom/memory.h"
 #include "phenom/counter.h"
 #include "phenom/configuration.h"
+#include "corelib/job.h"
 #include <ck_epoch.h>
 
 #ifdef USE_GIMLI
@@ -27,7 +28,10 @@
 GIMLI_DECLARE_TRACER_MODULE("gimli_libphenom");
 #endif
 
-
+static ph_memtype_def_t ajob_def = {
+  "nbio", "affine_job", sizeof(struct ph_nbio_affine_job), PH_MEM_FLAGS_ZERO
+};
+static ph_memtype_t mt_ajob;
 static ph_counter_scope_t *counter_scope = NULL;
 static const char *counter_names[] = {
   "dispatched",     // number of jobs dispatched
@@ -135,6 +139,74 @@ void ph_nbio_emitter_timer_tick(struct ph_nbio_emitter *emitter)
       before_dispatch_timer, dispatch_timer, emitter);
 }
 
+void ph_nbio_process_affine_jobs(struct ph_nbio_emitter *emitter)
+{
+  struct ph_nbio_affine_job *ajob, *tmp;
+
+  if (ph_pingfd_consume_all(&emitter->affine_ping)) {
+    ph_nbio_affine_job_stailq_t list;
+
+    PH_STAILQ_INIT(&list);
+    ck_rwlock_write_lock(&emitter->wheel.lock);
+    PH_STAILQ_SWAP(&list, &emitter->affine_jobs, ph_nbio_affine_job);
+    ck_rwlock_write_unlock(&emitter->wheel.lock);
+
+    PH_STAILQ_FOREACH_SAFE(ajob, &list, ent, tmp) {
+      PH_STAILQ_REMOVE(&list, ajob, ph_nbio_affine_job, ent);
+
+      ajob->func(ajob->code, ajob->arg);
+      ph_mem_free(mt_ajob, ajob);
+    }
+  }
+}
+
+ph_result_t ph_nbio_queue_affine_func(uint32_t emitter_affinity,
+    ph_nbio_affine_func func, intptr_t code, void *arg)
+{
+  struct ph_nbio_affine_job *ajob;
+  struct ph_nbio_emitter *emitter;
+
+  ajob = ph_mem_alloc(mt_ajob);
+  if (!ajob) {
+    return PH_NOMEM;
+  }
+
+  ajob->func = func;
+  ajob->code = code;
+  ajob->arg = arg;
+
+  emitter = emitter_for_affinity(emitter_affinity);
+  ck_rwlock_write_lock(&emitter->wheel.lock);
+  PH_STAILQ_INSERT_TAIL(&emitter->affine_jobs, ajob, ent);
+  ck_rwlock_write_unlock(&emitter->wheel.lock);
+
+  ph_pingfd_ping(&emitter->affine_ping);
+  return PH_OK;
+}
+
+static void do_wakeup(intptr_t code, void *arg)
+{
+  ph_job_t *job = arg;
+  ph_unused_parameter(code);
+
+  job->callback(job, PH_IOMASK_WAKEUP, job->data);
+}
+
+ph_result_t ph_job_wakeup(ph_job_t *job)
+{
+  return ph_nbio_queue_affine_func(job->emitter_affinity, do_wakeup, 0, job);
+}
+
+static void affine_dispatch(ph_job_t *job, ph_iomask_t why, void *data)
+{
+  struct ph_nbio_emitter *emitter = data;
+
+  ph_unused_parameter(why);
+
+  ph_nbio_process_affine_jobs(emitter);
+  ph_job_set_nbio(job, PH_IOMASK_READ, 0);
+}
+
 ph_result_t ph_nbio_init(uint32_t sched_cores)
 {
   ph_thread_t *me;
@@ -145,6 +217,7 @@ ph_result_t ph_nbio_init(uint32_t sched_cores)
   }
 
   sched_cores = ph_config_query_int("$.nbio.sched_cores", sched_cores);
+  mt_ajob = ph_memtype_register(&ajob_def);
 
   if (sched_cores == 0) {
     /* Pick a reasonable default */
@@ -169,7 +242,20 @@ ph_result_t ph_nbio_init(uint32_t sched_cores)
   for (i = 0; i < num_schedulers; i++) {
     ph_timerwheel_init(&emitters[i].wheel, me->now, WHEEL_INTERVAL_MS);
     emitters[i].emitter_id = i;
+
+    // prep for affine dispatch
+    PH_STAILQ_INIT(&emitters[i].affine_jobs);
+    ph_pingfd_init(&emitters[i].affine_ping);
+    ph_job_init(&emitters[i].affine_job);
+    emitters[i].affine_job.callback = affine_dispatch;
+    emitters[i].affine_job.data = &emitters[i];
+    emitters[i].affine_job.fd = ph_pingfd_get_fd(&emitters[i].affine_ping);
+    emitters[i].affine_job.emitter_affinity = emitters[i].emitter_id;
+
     ph_nbio_emitter_init(&emitters[i]);
+
+    // Enable affine ping
+    ph_job_set_nbio(&emitters[i].affine_job, PH_IOMASK_READ, 0);
   }
 
   counter_scope = ph_counter_scope_define(NULL, "iosched", 16);

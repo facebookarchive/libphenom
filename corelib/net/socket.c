@@ -445,6 +445,11 @@ void ph_sock_free(ph_sock_t *sock)
   ph_job_free(&sock->job);
 }
 
+ph_result_t ph_sock_wakeup(ph_sock_t *sock)
+{
+  return ph_job_wakeup(&sock->job);
+}
+
 void ph_sock_enable(ph_sock_t *sock, bool enable)
 {
   if (sock->enabled == enable) {

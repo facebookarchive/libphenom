@@ -16,6 +16,7 @@
 #include "phenom/job.h"
 #include "phenom/log.h"
 #include "phenom/configuration.h"
+#include "corelib/job.h"
 
 #ifdef HAVE_EPOLL_CREATE
 #define DEFAULT_POLL_MASK EPOLLHUP|EPOLLERR|EPOLLONESHOT

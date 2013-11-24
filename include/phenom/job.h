@@ -50,6 +50,8 @@ typedef uint8_t ph_iomask_t;
 #define PH_IOMASK_ERR   4
 /* NBIO did not dispatch before timeout was met */
 #define PH_IOMASK_TIME  8
+/* Dispatch triggered by ph_job_wakeup */
+#define PH_IOMASK_WAKEUP 16
 
 struct ph_job;
 typedef struct ph_job ph_job_t;
@@ -318,6 +320,56 @@ ph_result_t ph_sched_run(void);
  * Can be called from any thread */
 void ph_sched_stop(void);
 
+typedef void (*ph_nbio_affine_func)(intptr_t code, void *arg);
+
+/** Queue an affine function dispatch
+ *
+ * Arranges to call FUNC with the supplied CODE and ARG parameters.
+ * The function will be called in the context of the emitter thread
+ * with the specified emitter_affinity value.
+ *
+ * This is useful in situations where you need to serialize the
+ * execution of FUNC with respect to IO or timer based function
+ * dispatch.
+ *
+ * Affine functions are dispatched in FIFO order with respect
+ * to other affine functions for a given emitter, and are batched together
+ * between IO and timer dispatches for that emitter.
+ *
+ * Note: if your affine function is operating on a job that is scheduled for IO
+ * or timer callbacks, it is possible that that job will be dispatched for IO
+ * or timer callbacks between the time that your affine function is queued and
+ * dispatched.
+ *
+ * The CODE and ARG parameters are passed through to your affine
+ * function callback; their use is entirely up to you.  Note that
+ * the CODE parameter can hold an integer or a pointer value.
+ *
+ * Should you need to pass more than two parameters to the affine
+ * function, you will need to allocate storage to hold the information;
+ * if you do so, you must ensure that the storage is released at the
+ * appropriate time, as the affine function dispatcher does not
+ * know how to release it for you.
+ *
+ * The queue request can fail due to OOM conditions.
+ */
+ph_result_t ph_nbio_queue_affine_func(uint32_t emitter_affinity,
+    ph_nbio_affine_func func, intptr_t code, void *arg);
+
+/** Queue a request to dispatch the job with `PH_IOMASK_WAKEUP`
+ *
+ * The dispatch will happen as soon as the nbio emitter associated
+ * with the job wakes up and processes the request.
+ *
+ * The ph_job_wakeup request can fail due to OOM conditions or
+ * any condition that can cause ph_nbio_queue_affine_func() to fail.
+ *
+ * Note: it is possible that that job will be dispatched for
+ * IO or timer callbacks between the time that ph_job_wakeup() is
+ * called and when the `PH_IOMASK_WAKEUP` is dispatched.
+ */
+ph_result_t ph_job_wakeup(ph_job_t *job);
+
 /* ----
  * the following are implementation specific and shouldn't
  * be called except by wizards
@@ -364,53 +416,6 @@ static inline bool ph_job_have_deferred_items(ph_thread_t *me)
   return PH_STAILQ_FIRST(&me->pending_nbio) ||
          PH_STAILQ_FIRST(&me->pending_pool);
 }
-
-#ifdef PHENOM_IMPL
-#include "phenom/counter.h"
-#ifdef HAVE_KQUEUE
-struct ph_nbio_kq_set {
-  int size;
-  int used;
-  struct kevent *events;
-  struct kevent base[16];
-};
-#endif
-struct ph_nbio_emitter {
-  ph_timerwheel_t wheel;
-  ph_job_t timer_job;
-  uint32_t emitter_id;
-  int io_fd, timer_fd;
-#ifdef HAVE_PORT_CREATE
-  timer_t port_timer;
-#endif
-  ph_thread_t *thread;
-  ph_counter_block_t *cblock;
-#ifdef HAVE_KQUEUE
-  struct ph_nbio_kq_set kqset;
-#endif
-};
-
-#define SLOT_DISP 0
-#define SLOT_TIMER_TICK 1
-#define SLOT_BUSY 2
-// We use 100ms resolution
-#define WHEEL_INTERVAL_MS 100
-
-void ph_nbio_emitter_init(struct ph_nbio_emitter *emitter);
-ph_result_t ph_nbio_emitter_apply_io_mask(struct ph_nbio_emitter *emitter,
-    ph_job_t *job, ph_iomask_t mask);
-void ph_nbio_emitter_run(struct ph_nbio_emitter *emitter, ph_thread_t *me);
-
-void ph_nbio_emitter_timer_tick(struct ph_nbio_emitter *emitter);
-void ph_nbio_emitter_dispatch_immediate(struct ph_nbio_emitter *emitter,
-    ph_job_t *job, ph_iomask_t why);
-
-extern int _ph_run_loop;
-
-struct ph_nbio_emitter *ph_nbio_emitter_for_job(ph_job_t *job);
-
-#endif
-
 
 #ifdef __cplusplus
 }

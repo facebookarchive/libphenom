@@ -89,6 +89,29 @@ ph_socket_t ph_pingfd_get_fd(ph_pingfd_t *pfd)
   return pfd->fds[0];
 }
 
+uint32_t ph_pingfd_consume_all(ph_pingfd_t *pfd)
+{
+  uint32_t res = 0;
+#ifdef HAVE_EVENTFD
+  while (ph_pingfd_consume_one(pfd)) {
+    res++;
+  }
+  return res;
+#else
+  int n;
+  char buf[64];
+
+  do {
+    n = read(pfd->fds[0], buf, sizeof(buf));
+    if (n <= 0) {
+      break;
+    }
+    res += n;
+  } while (n == sizeof(buf));
+  return res;
+#endif
+}
+
 bool ph_pingfd_consume_one(ph_pingfd_t *pfd)
 {
 #ifdef HAVE_EVENTFD

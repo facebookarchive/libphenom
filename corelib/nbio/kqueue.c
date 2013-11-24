@@ -17,6 +17,7 @@
 #include "phenom/log.h"
 #include "phenom/sysutil.h"
 #include "phenom/configuration.h"
+#include "corelib/job.h"
 
 #ifdef HAVE_KQUEUE
 

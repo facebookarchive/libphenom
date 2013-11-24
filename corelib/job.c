@@ -20,6 +20,7 @@
 #include "phenom/memory.h"
 #include "phenom/counter.h"
 #include "phenom/configuration.h"
+#include "corelib/job.h"
 #include <ck_spinlock.h>
 #include <ck_ring.h>
 #include <ck_stack.h>

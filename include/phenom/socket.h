@@ -254,6 +254,17 @@ ph_sock_t *ph_sock_new_from_socket(ph_socket_t s, const ph_sockaddr_t *sockname,
  */
 void ph_sock_enable(ph_sock_t *sock, bool enable);
 
+/** Wakeup the socket object
+ *
+ * Queues an PH_IOMASK_WAKEUP to the sock.  This is primarily useful in cases
+ * where some asynchronous processing has completed and you wish to ping the
+ * sock job so that it can consume the results.
+ *
+ * Delegates to ph_job_wakeup() and can fail for the same reasons as that
+ * function.
+ */
+ph_result_t ph_sock_wakeup(ph_sock_t *sock);
+
 /** Release all resources associated with a socket object
  *
  * Implicitly disables the socket.

@@ -15,6 +15,7 @@
  */
 #include "phenom/job.h"
 #include "phenom/configuration.h"
+#include "corelib/job.h"
 
 #ifdef HAVE_PORT_CREATE
 #define DEFAULT_POLL_MASK POLLHUP|POLLERR
