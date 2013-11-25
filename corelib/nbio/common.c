@@ -134,9 +134,12 @@ static void dispatch_timer(
 
 void ph_nbio_emitter_timer_tick(struct ph_nbio_emitter *emitter)
 {
-  ph_counter_block_add(emitter->cblock, SLOT_TIMER_TICK, 1);
-  ph_timerwheel_tick(&emitter->wheel, ph_time_now(),
-      before_dispatch_timer, dispatch_timer, emitter);
+  struct timeval now = ph_time_now();
+  while (timercmp(&emitter->wheel.next_run, &now, <)) {
+    ph_counter_block_add(emitter->cblock, SLOT_TIMER_TICK, 1);
+    ph_timerwheel_tick(&emitter->wheel, now,
+        before_dispatch_timer, dispatch_timer, emitter);
+  }
 }
 
 void ph_nbio_process_affine_jobs(struct ph_nbio_emitter *emitter)
