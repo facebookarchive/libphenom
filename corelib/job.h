@@ -19,6 +19,20 @@
 
 #include "phenom/counter.h"
 #include "phenom/sysutil.h"
+#include <ck_ring.h>
+#include <ck_spinlock.h>
+#ifdef __linux__
+#include <sys/syscall.h>
+#endif
+#ifdef __sun__
+# include <sys/lwp.h>
+#endif
+
+#ifdef __linux__
+# define USE_FUTEX 1
+#else
+# define USE_COND 1
+#endif
 
 #ifdef HAVE_KQUEUE
 struct ph_nbio_kq_set {
@@ -56,6 +70,48 @@ struct ph_nbio_emitter {
 #endif
 };
 
+struct ph_thread_pool_wait {
+  uint32_t num_waiting;
+  char pad[CK_MD_CACHELINE - sizeof(uint32_t)];
+#ifdef USE_FUTEX
+  int futcounter;
+#elif defined(USE_COND)
+  pthread_mutex_t m;
+  pthread_cond_t c;
+#endif
+};
+
+// Bounded by sizeof(used_rings). The last ring is the
+// contended ring, so this must be 1 less than the number
+// of available bits.  sizeof(used_rings) is in-turn
+// bounded by the number of bits supported by the ffs()
+// intrinsic
+#define MAX_RINGS ((sizeof(intptr_t)*8)-1)
+
+struct ph_thread_pool {
+  struct ph_thread_pool_wait consumer CK_CC_CACHELINE;
+
+  uint32_t max_queue_len;
+
+  ck_ring_t *rings[MAX_RINGS+1];
+  intptr_t used_rings;
+
+  ck_spinlock_t lock CK_CC_CACHELINE;
+  char pad1[CK_MD_CACHELINE - sizeof(ck_spinlock_t)];
+
+  struct ph_thread_pool_wait producer CK_CC_CACHELINE;
+  int stop;
+
+  char *name;
+  ph_counter_scope_t *counters;
+  CK_LIST_ENTRY(ph_thread_pool) plink;
+  ph_thread_t **threads;
+
+  uint32_t max_workers;
+  uint32_t num_workers;
+};
+
+
 static inline bool has_pending_affine_jobs(struct ph_nbio_emitter *e) {
   return !PH_STAILQ_EMPTY(&e->affine_jobs);
 }
@@ -80,6 +136,19 @@ extern int _ph_run_loop;
 
 struct ph_nbio_emitter *ph_nbio_emitter_for_job(ph_job_t *job);
 
+static inline pid_t get_own_tid(void) {
+#if defined(__linux__)
+  return syscall(SYS_gettid);
+#elif defined(__MACH__)
+  uint64_t tid;
+  pthread_threadid_np(pthread_self(), &tid);
+  return tid;
+#elif defined(__sun__)
+  return _lwp_self();
+#else
+  return (pid_t)(intptr_t)&errno;
+#endif
+}
 
 #endif
 

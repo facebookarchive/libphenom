@@ -55,6 +55,8 @@ PH_GIMLI_INIT(initfn)
   PH_GIMLI_TYPE_INNER(tname, fname, ph_defs_gen_symbol(regtype))
 
 ph_thread_t *ph_gimli_get_threads(gimli_proc_t proc, uint32_t *nthreads);
+bool ph_gimli_is_thread_interesting(gimli_proc_t proc, ph_thread_t *thr);
+void ph_gimli_print_summary_for_thread(gimli_proc_t proc, ph_thread_t *thr);
 
 // Helper for visiting each value in a ck_hs_t
 struct ph_gimli_ck_hs_iter {

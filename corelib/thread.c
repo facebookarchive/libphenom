@@ -18,6 +18,8 @@
 #include "phenom/sysutil.h"
 #include "phenom/log.h"
 #include <ck_backoff.h>
+#include "corelib/job.h"
+
 #ifdef __sun__
 # include <sys/lwp.h>
 #endif
@@ -162,9 +164,7 @@ static ph_thread_t *ph_thread_init_myself(bool booting)
 
   me->tid = ck_pr_faa_32(&next_tid, 1);
   me->thr = pthread_self();
-#ifdef __sun__
-  me->lwpid = _lwp_self();
-#endif
+  me->lwpid = get_own_tid();
 
 #ifdef HAVE_PTHREAD_GETNAME_NP
   // see if we can discover our thread name from the system

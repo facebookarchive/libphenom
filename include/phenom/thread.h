@@ -58,9 +58,7 @@ struct ph_thread {
   // If part of a pool, linkage in that pool
   CK_LIST_ENTRY(ph_thread) pool_ent;
 
-#ifdef __sun__
-  id_t lwpid;
-#endif
+  pid_t lwpid;
 
 #ifdef HAVE_STRERROR_R
   char strerror_buf[128];

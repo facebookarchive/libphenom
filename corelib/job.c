@@ -21,8 +21,6 @@
 #include "phenom/counter.h"
 #include "phenom/configuration.h"
 #include "corelib/job.h"
-#include <ck_spinlock.h>
-#include <ck_ring.h>
 #include <ck_stack.h>
 #include <ck_backoff.h>
 #include <ck_queue.h>
@@ -31,12 +29,6 @@
 #include <linux/futex.h>
 #include <asm/unistd.h>
 #include <sys/syscall.h>
-#endif
-
-#ifdef __linux__
-# define USE_FUTEX 1
-#else
-# define USE_COND 1
 #endif
 
 /** Thread pool dispatcher mechanics.
@@ -76,54 +68,13 @@
  * for dispatching work.
  */
 
-struct ph_thread_pool_wait {
-  uint32_t num_waiting;
-  char pad[CK_MD_CACHELINE - sizeof(uint32_t)];
-#ifdef USE_FUTEX
-  int futcounter;
-#elif defined(USE_COND)
-  pthread_mutex_t m;
-  pthread_cond_t c;
-#endif
-};
-
 // Holds max wait time for futex or condition waits
 // This value is updated from configuration when we start the
 // threads
 static struct timespec wait_timespec = { 5, 0 };
 
-// Bounded by sizeof(used_rings). The last ring is the
-// contended ring, so this must be 1 less than the number
-// of available bits.  sizeof(used_rings) is in-turn
-// bounded by the number of bits supported by the ffs()
-// intrinsic
-#define MAX_RINGS ((sizeof(intptr_t)*8)-1)
-
-struct ph_thread_pool {
-  struct ph_thread_pool_wait consumer CK_CC_CACHELINE;
-
-  uint32_t max_queue_len;
-
-  ck_ring_t *rings[MAX_RINGS+1];
-  intptr_t used_rings;
-
-  ck_spinlock_t lock CK_CC_CACHELINE;
-  char pad1[CK_MD_CACHELINE - sizeof(ck_spinlock_t)];
-
-  struct ph_thread_pool_wait producer CK_CC_CACHELINE;
-  int stop;
-
-  char *name;
-  ph_counter_scope_t *counters;
-  CK_LIST_ENTRY(ph_thread_pool) plink;
-  ph_thread_t **threads;
-
-  uint32_t max_workers;
-  uint32_t num_workers;
-};
-
 static CK_LIST_HEAD(plist, ph_thread_pool)
-  pools = CK_LIST_HEAD_INITIALIZER(pools);
+  ph_all_thread_pools = CK_LIST_HEAD_INITIALIZER(ph_all_thread_pools);
 static pthread_mutex_t pool_write_lock = PTHREAD_MUTEX_INITIALIZER;
 static struct {
   ph_memtype_t
@@ -216,7 +167,7 @@ ph_thread_pool_t *ph_thread_pool_by_name(const char *name)
 {
   ph_thread_pool_t *pool;
 
-  CK_LIST_FOREACH(pool, &pools, plink) {
+  CK_LIST_FOREACH(pool, &ph_all_thread_pools, plink) {
     if (!strcmp(name, pool->name)) {
       return pool;
     }
@@ -263,7 +214,7 @@ ph_thread_pool_t *ph_thread_pool_define(
   wait_init(&pool->producer);
   wait_init(&pool->consumer);
 
-  CK_LIST_INSERT_HEAD(&pools, pool, plink);
+  CK_LIST_INSERT_HEAD(&ph_all_thread_pools, pool, plink);
 
   pthread_mutex_unlock(&pool_write_lock);
 
@@ -309,13 +260,13 @@ void ph_thread_pool_wait_stop(ph_thread_pool_t *pool)
   }
 }
 
-// Wait for all pools to be torn down
+// Wait for all ph_all_thread_pools to be torn down
 void ph_job_pool_shutdown(void)
 {
   ph_thread_pool_t *pool, *tmp;
   uint32_t i;
 
-  CK_LIST_FOREACH_SAFE(pool, &pools, plink, tmp) {
+  CK_LIST_FOREACH_SAFE(pool, &ph_all_thread_pools, plink, tmp) {
     pthread_mutex_lock(&pool_write_lock);
     CK_LIST_REMOVE(pool, plink);
     pthread_mutex_unlock(&pool_write_lock);
@@ -517,7 +468,7 @@ void _ph_job_pool_start_threads(void)
   wait_timespec.tv_nsec =
     (max_sleep - (wait_timespec.tv_sec * 1000)) * 1000000;
 
-  CK_LIST_FOREACH(pool, &pools, plink) {
+  CK_LIST_FOREACH(pool, &ph_all_thread_pools, plink) {
     if (ck_pr_load_32(&pool->num_workers) < pool->max_workers) {
       ph_thread_pool_start_workers(pool);
     }

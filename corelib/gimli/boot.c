@@ -48,6 +48,20 @@ static struct {
   { {"syscall", "wait_pool", "worker_thread", NULL} },
 };
 
+static ph_thread_t *tid_to_thread(int tid)
+{
+  ph_thread_t *threads;
+  uint32_t nthreads, i;
+
+  threads = ph_gimli_get_threads(the_proc, &nthreads);
+  for (i = 0; i < nthreads; i++) {
+    if (threads[i].lwpid == tid) {
+      return &threads[i];
+    }
+  }
+  return NULL;
+}
+
 // Suppress parked threads
 static int begin_thread_trace(const struct gimli_ana_api *api,
     const char *object, int tid, int nframes,
@@ -56,49 +70,40 @@ static int begin_thread_trace(const struct gimli_ana_api *api,
   uint32_t i;
   char fname[1024];
   const char *name;
-#ifdef __sun__
-  ph_thread_t *threads;
-  uint32_t nthreads;
-#endif
+  ph_thread_t *thr;
 
   ph_unused_parameter(object);
   ph_unused_parameter(tid);
   ph_unused_parameter(contexts);
 
-  for (i = 0; i < sizeof(suppress_threads)/sizeof(suppress_threads[0]); i++) {
-    uint32_t j;
-    bool matched = true;
+  thr = tid_to_thread(tid);
 
-    for (j = 0; suppress_threads[i].names[j]; j++) {
-      if (j >= (uint32_t)nframes) {
-        matched = false;
-        break;
-      }
-      name = bare_proc_sym_name(api, pcaddrs[j], fname, sizeof(fname));
-      if (strcmp(name, suppress_threads[i].names[j])) {
-        matched = false;
-        break;
-      }
-    }
+  if (!thr || !ph_gimli_is_thread_interesting(the_proc, thr)) {
+    for (i = 0; i < sizeof(suppress_threads)/sizeof(suppress_threads[0]); i++) {
+      uint32_t j;
+      bool matched = true;
 
-    if (matched) {
-      return GIMLI_ANA_SUPPRESS;
+      for (j = 0; suppress_threads[i].names[j]; j++) {
+        if (j >= (uint32_t)nframes) {
+          matched = false;
+          break;
+        }
+        name = bare_proc_sym_name(api, pcaddrs[j], fname, sizeof(fname));
+        if (strcmp(name, suppress_threads[i].names[j])) {
+          matched = false;
+          break;
+        }
+      }
+
+      if (matched) {
+        return GIMLI_ANA_SUPPRESS;
+      }
     }
   }
 
-#ifdef __sun__
-  // This system has no thread naming functionality, so we augment the
-  // trace with the names from the ph_thread_t data we collected
-  threads = ph_gimli_get_threads(the_proc, &nthreads);
-  for (i = 0; i < nthreads; i++) {
-    if (threads[i].lwpid == tid) {
-      // omit a newline so this shows up on the same line as the
-      // regular "Thread X (LWP Y)" stuff
-      printf("[%s] ", threads[i].name);
-      break;
-    }
+  if (thr) {
+    ph_gimli_print_summary_for_thread(the_proc, thr);
   }
-#endif
 
   return GIMLI_ANA_CONTINUE;
 }

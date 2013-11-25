@@ -20,13 +20,8 @@
 #include "phenom/sysutil.h"
 #include "phenom/printf.h"
 #include "phenom/hook.h"
-#ifdef __linux__
-#include <sys/syscall.h>
-#endif
-#ifdef __sun__
-# include <sys/lwp.h>
-#endif
 #include "corelib/log.h"
+#include "corelib/job.h"
 
 static pthread_mutex_t log_lock = PTHREAD_MUTEX_INITIALIZER;
 static uint8_t log_level = PH_LOG_ERR;
@@ -69,15 +64,7 @@ static void get_tname(ph_thread_t *me, char *buf, uint32_t size)
     return;
   }
 
-#if defined(__linux__)
-  tid = syscall(SYS_gettid);
-#elif defined(__MACH__)
-  pthread_threadid_np(pthread_self(), &tid);
-#elif defined(__sun__)
-  tid = _lwp_self();
-#else
-  tid = (uint64_t)(intptr_t)self;
-#endif
+  tid = get_own_tid();
 
 #ifdef HAVE_PTHREAD_GETNAME_NP
   if (pthread_getname_np(pthread_self(), buf, size) == 0) {
