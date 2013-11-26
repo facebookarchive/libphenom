@@ -19,7 +19,7 @@
 
 struct log_entry {
   struct timeval when;
-  char msg[128];
+  char msg[1024];
 };
 #define PH_LOG_CIRC_ENTRIES 128
 
