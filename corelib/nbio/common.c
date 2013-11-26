@@ -168,6 +168,7 @@ ph_result_t ph_nbio_queue_affine_func(uint32_t emitter_affinity,
 {
   struct ph_nbio_affine_job *ajob;
   struct ph_nbio_emitter *emitter;
+  bool need_ping;
 
   ajob = ph_mem_alloc(mt_ajob);
   if (!ajob) {
@@ -180,10 +181,13 @@ ph_result_t ph_nbio_queue_affine_func(uint32_t emitter_affinity,
 
   emitter = emitter_for_affinity(emitter_affinity);
   ck_rwlock_write_lock(&emitter->wheel.lock);
+  need_ping = PH_STAILQ_EMPTY(&emitter->affine_jobs);
   PH_STAILQ_INSERT_TAIL(&emitter->affine_jobs, ajob, ent);
   ck_rwlock_write_unlock(&emitter->wheel.lock);
 
-  ph_pingfd_ping(&emitter->affine_ping);
+  if (need_ping) {
+    ph_pingfd_ping(&emitter->affine_ping);
+  }
   return PH_OK;
 }
 
