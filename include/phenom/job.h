@@ -36,6 +36,90 @@ extern "C" {
  * - Pool. The work is queued to a thread pool and is dispatched as soon as a
  *   worker becomes available.  libPhenom allows multiple pools to be defined to
  *   better partition and prioritize your workload.
+ *
+ * # Affinity
+ *
+ * By default, threads created by ph_thread_pool_define() and threads in the
+ * NBIO pool use an affinity policy that spreads out the threads and binds
+ * them to the CPU cores based on their phenom `tid`.
+ *
+ * Each thread with a phenom TLS segment is assigned a `tid` starting with 0
+ * for the main thread of the process, increasing by 1 for each additional
+ * thread.
+ *
+ * Each thread in a thread pool has a `wid` starting at 1 for the "first"
+ * thread in that pool, increasing by 1 for each additional thread.
+ *
+ * The default affinity selector is based on the `tid` such that a process
+ * that uses libphenom exclusively for its threads maps each thread across
+ * the set of CPU cores.
+ *
+ * In more complex environments, there may be threads created by other
+ * libraries and the overall affinity configuration is made more complex.
+ * To cater for this, you may specify the affinity selection in your phenom
+ * configuration file.
+ *
+ * For the NBIO pool:
+ *
+ * ```
+ * {
+ *   "nbio": {
+ *     "affinity": {
+ *       "base": 0,
+ *       "selector": "tid"
+ *     }
+ *   }
+ * }
+ * ```
+ *
+ * For any other thread pool, for example, the "MYNAME" pool:
+ *
+ * ```
+ * {
+ *   "threadpool": {
+ *     "MYNAME": {
+ *       "affinity": {
+ *         "base": 0,
+ *         "selector": "tid"
+ *       }
+ *     }
+ *   }
+ * }
+ * ```
+ *
+ * The `base` parameter specifies the offset of the first CPU to bind.
+ * The default is CPU `0`.
+ *
+ * Possible values for `selector` are:
+ *
+ * * `tid` - binds to `(base + thr->tid) % cores`
+ * * `wid` - binds to `(base + thr->wid - 1) % cores`
+ * * `none` - does not set CPU affinity
+ * * `[1,2,3]` allows the thread to bind to any CPU in the set
+ *   `[base + 1, base + 2, base + 3]`.  This specifies an affinity mask, so all
+ *   of the threads in this pool will be able to run on any of the CPUs in the
+ *   specified set.  libPhenom currently only supports this form on Linux and
+ *   BSDish systems; other platforms will bind to the first CPU in the set.
+ * * `2` - binds to CPU `base + 2`.  This causes all threads in the pool to
+ *   bind to the specified CPU.
+ *
+ * If you need to bind a `POOL1` to processors 0-3 and `POOL2` to processors
+ * 4-8, you'd set your configuration like this:
+ *
+ * ```
+ * {
+ *   "threadpool": {
+ *     "POOL1": {
+ *       "affinity": { "base": 0, "selector": "wid" },
+ *       "num_threads": 4
+ *     },
+ *     "POOL2": {
+ *       "affinity": { "base": 4, "selector": "wid" },
+ *       "num_threads": 4
+ *     },
+ *   }
+ * }
+ * ```
  */
 
 /* NBIO trigger mask */

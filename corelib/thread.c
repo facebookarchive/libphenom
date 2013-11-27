@@ -268,37 +268,106 @@ void ph_thread_set_name(const char *name)
 #endif
 }
 
-bool ph_thread_set_affinity(ph_thread_t *me, int affinity)
-{
-#ifdef HAVE_PTHREAD_SETAFFINITY_NP
+#if defined(HAVE_PTHREAD_SETAFFINITY_NP) || defined(HAVE_CPUSET_SETAFFINITY)
 # ifdef __linux__
-  cpu_set_t set;
+typedef cpu_set_t ph_cpu_set_t;
 # else /* FreeBSD */
-  cpuset_t set;
+typedef cpuset_t ph_cpu_set_t;
+# endif
+static bool apply_affinity(ph_cpu_set_t *set, ph_thread_t *me) {
+#  ifdef HAVE_CPUSET_SETAFFINITY
+  return cpuset_setaffinity(CPU_LEVEL_WHICH,
+      CPU_WHICH_TID, -1, sizeof(*set), set);
+#  else
+  return pthread_setaffinity_np(me->thr, sizeof(*set), set) == 0;
 #endif
-
-  CPU_ZERO(&set);
-  CPU_SET(affinity, &set);
-
-  return pthread_setaffinity_np(me->thr, sizeof(set), &set) == 0;
+}
 #elif defined(__APPLE__)
-  thread_affinity_policy_data_t data;
-
-  data.affinity_tag = affinity + 1;
+typedef thread_affinity_policy_data_t ph_cpu_set_t;
+# define CPU_ZERO(setp)      (setp)->affinity_tag = 0
+# define CPU_SET(aff, setp)  \
+  if (!(setp)->affinity_tag) (setp)->affinity_tag = 1 + aff
+static bool apply_affinity(ph_cpu_set_t *set, ph_thread_t *me) {
   return thread_policy_set(pthread_mach_thread_np(me->thr),
       THREAD_AFFINITY_POLICY,
-      (thread_policy_t)&data, THREAD_AFFINITY_POLICY_COUNT) == 0;
-#elif defined(HAVE_CPUSET_SETAFFINITY)
-  /* untested bsdish */
-  cpuset_t set;
+      (thread_policy_t)set, THREAD_AFFINITY_POLICY_COUNT) == 0;
+}
+#elif defined(HAVE_PROCESSOR_BIND)
+typedef processorid_t ph_cpu_set_t;
+# define CPU_ZERO(setp)     (*setp) = PBIND_NONE
+# define CPU_SET(aff, setp) \
+  if (*setp == PBIND_NONE) (*setp) = aff
+static bool apply_affinity(ph_cpu_set_t *set, ph_thread_t *me) {
+  return processor_bind(P_LWPID, me->lwpid, *set, NULL) == 0;
+}
+#endif
+
+static inline void ph_cpu_set(int aff, ph_cpu_set_t *set) {
+  // ph_log(PH_LOG_DEBUG, "CPU affinity: Adding %d", aff);
+  CPU_SET(aff, set);
+}
+
+/* {
+ *   "base": 0, // base core number; is added to "selector"
+ *   "selector": "tid", // use tid
+ *   "selector": "wid", // use thr->is_worker id
+ *   "selector": [1,2,3],  // use 1+base, 2+base, 3+base
+ *   "selector": 1, // use 1+base
+ *   "selector": "none" // don't specify affinity
+ * }
+ */
+bool ph_thread_set_affinity_policy(ph_thread_t *me, ph_variant_t *policy)
+{
+  ph_cpu_set_t set;
+  uint32_t cores = ph_num_cores();
+
+  CPU_ZERO(&set);
+  if (!policy) {
+    ph_cpu_set(me->tid % cores, &set);
+  } else {
+    int base = 0;
+    ph_var_err_t err;
+    ph_variant_t *sel = NULL;
+
+    ph_var_unpack(policy, &err, 0, "{si, so}", "base", &base, "selector", &sel);
+
+    if (sel && ph_var_is_array(sel)) {
+      uint32_t i;
+
+      for (i = 0; i < ph_var_array_size(sel); i++) {
+        int cpu = ph_var_int_val(ph_var_array_get(sel, i));
+        ph_cpu_set((base + cpu) % cores, &set);
+      }
+    } else if (sel && ph_var_is_string(sel)) {
+      ph_string_t *s = ph_var_string_val(sel);
+      if (ph_string_equal_cstr(s, "tid")) {
+        ph_cpu_set((base + me->tid) % cores, &set);
+      } else if (ph_string_equal_cstr(s, "wid")) {
+        ph_cpu_set((base + me->is_worker - 1) % cores, &set);
+      } else if (ph_string_equal_cstr(s, "none")) {
+        return true;
+      } else {
+        ph_log(PH_LOG_ERR, "Unknown thread affinity selector `Ps%p",
+            (void*)s);
+      }
+    } else if (sel && ph_var_is_int(sel)) {
+      ph_cpu_set((base + ph_var_int_val(sel)) % cores, &set);
+    } else {
+      ph_cpu_set((base + me->tid) % cores, &set);
+    }
+  }
+
+  return apply_affinity(&set, me);
+}
+
+bool ph_thread_set_affinity(ph_thread_t *me, int affinity)
+{
+  ph_cpu_set_t set;
 
   CPU_ZERO(&set);
   CPU_SET(affinity, &set);
-  cpuset_setaffinity(CPU_LEVEL_WHICH, CPU_WHICH_TID, -1, sizeof(set), set);
-#elif defined(HAVE_PROCESSOR_BIND)
-  return processor_bind(P_LWPID, me->lwpid, affinity, NULL) == 0;
-#endif
-  return true;
+
+  return apply_affinity(&set, me);
 }
 
 void ph_thread_epoch_begin(void)

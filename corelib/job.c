@@ -20,6 +20,7 @@
 #include "phenom/memory.h"
 #include "phenom/counter.h"
 #include "phenom/configuration.h"
+#include "phenom/printf.h"
 #include "corelib/job.h"
 #include <ck_stack.h>
 #include <ck_backoff.h>
@@ -383,19 +384,15 @@ static void *worker_thread(void *arg)
   int my_bucket;
 
   me = ph_thread_self_slow();
-  me->is_worker = true;
-
-  ck_pr_inc_32(&pool->num_workers);
+  me->is_worker = 1 + ck_pr_faa_32(&pool->num_workers, 1);
   ph_thread_set_name(pool->name);
   my_bucket = me->tid < MAX_RINGS ? me->tid : MAX_RINGS;
   if (should_init_ring(pool, my_bucket)) {
     init_ring(pool, my_bucket);
   }
 
-  if (!ph_thread_set_affinity(me, me->tid % ph_num_cores())) {
-    ph_log(PH_LOG_ERR,
-      "failed to set thread %p affinity to CPU %d\n",
-      (void*)me, me->tid);
+  if (!ph_thread_set_affinity_policy(me, pool->config)) {
+    ph_log(PH_LOG_ERR, "failed to set thread %p affinity", (void*)me);
   }
 
   cblock = ph_counter_block_open(pool->counters);
@@ -449,6 +446,12 @@ bool ph_thread_pool_start_workers(ph_thread_pool_t *pool)
   // If we're being used to restart the pool, make sure we're
   // not set to stop...
   ck_pr_store_int(&pool->stop, 0);
+
+  if (!pool->config) {
+    char query[512];
+    ph_snprintf(query, sizeof(query), "$.threadpool.%s.affinity", pool->name);
+    pool->config = ph_config_query(query);
+  }
 
   for (i = 0; i < pool->max_workers; i++) {
     pool->threads[i] = ph_thread_spawn(worker_thread, pool);

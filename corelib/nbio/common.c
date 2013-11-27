@@ -240,7 +240,7 @@ ph_result_t ph_nbio_init(uint32_t sched_cores)
   }
 
   me = ph_thread_self_slow();
-  me->is_worker = true;
+  me->is_worker = 1;
 
   gettimeofday(&me->now, NULL);
   me->refresh_time = false;
@@ -280,13 +280,15 @@ static void *sched_loop(void *arg)
 {
   ph_thread_t *me = ph_thread_self();
   struct ph_nbio_emitter *emitter = arg;
+  ph_variant_t *affinity;
 
-  me->is_worker = true;
-
-  if (!ph_thread_set_affinity(me, me->tid % ph_num_cores())) {
-    ph_log(PH_LOG_ERR,
-      "failed to set thread %p affinity to CPU %d\n",
-      (void*)me, me->tid);
+  me->is_worker = 1 + (emitter - emitters);
+  affinity = ph_config_query("$.nbio.affinity");
+  if (!ph_thread_set_affinity_policy(me, affinity)) {
+    ph_log(PH_LOG_ERR, "failed to set thread %p affinity", (void*)me);
+  }
+  if (affinity) {
+    ph_var_delref(affinity);
   }
 
   // Preserve the longer name we picked for the main thread.

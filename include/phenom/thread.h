@@ -44,7 +44,7 @@ struct ph_thread {
   PH_STAILQ_HEAD(pdisp, ph_job) pending_nbio, pending_pool;
   struct ph_nbio_emitter *is_emitter;
 
-  bool is_worker;
+  int is_worker;
   struct timeval now;
 
   ck_epoch_record_t epoch_record;

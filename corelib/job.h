@@ -19,6 +19,7 @@
 
 #include "phenom/counter.h"
 #include "phenom/sysutil.h"
+#include "phenom/variant.h"
 #include <ck_ring.h>
 #include <ck_spinlock.h>
 #ifdef __linux__
@@ -109,6 +110,8 @@ struct ph_thread_pool {
 
   uint32_t max_workers;
   uint32_t num_workers;
+
+  ph_variant_t *config;
 };
 
 
@@ -135,6 +138,7 @@ void ph_nbio_emitter_dispatch_immediate(struct ph_nbio_emitter *emitter,
 extern int _ph_run_loop;
 
 struct ph_nbio_emitter *ph_nbio_emitter_for_job(ph_job_t *job);
+bool ph_thread_set_affinity_policy(ph_thread_t *me, ph_variant_t *policy);
 
 static inline pid_t get_own_tid(void) {
 #if defined(__linux__)
