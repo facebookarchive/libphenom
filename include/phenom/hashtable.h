@@ -263,7 +263,8 @@ struct ph_ht_elem {
 };
 
 struct ph_ht {
-  uint32_t nelems, table_size, elem_size, mask;
+  uint32_t nelems;
+  uint64_t table_size, elem_size, mask;
   const struct ph_ht_key_def *kdef;
   const struct ph_ht_val_def *vdef;
   /* points to the table, an array of table_size elements */

@@ -18,16 +18,23 @@ static void load_data(ph_ht_t *ht, uint32_t howmany)
 
   ph_ht_free_entries(ht);
 
-  if (howmany > 1000) {
-    // need to fix the format to allow for this many
+  ph_ht_grow(ht, howmany);
+
+  data = calloc(howmany, sizeof(*data));
+  ok(data, "allocated space");
+  if (!data) {
     abort();
   }
 
-  data = calloc(howmany, sizeof(*data));
   for (i = 0; i < howmany; i++) {
-    data[i] = ph_string_make_printf(mt_misc, 16, "key:%04" PRIu32, i);
+    data[i] = ph_string_make_printf(mt_misc, 16, "key:%08" PRIu32, i);
+    if (!data[i]) {
+      ok(0, "failed to create string for %" PRIu32, i);
+    }
 
-    ph_ht_set(ht, &data[i], &data[i]);
+    if (ph_ht_set(ht, &data[i], &data[i]) != PH_OK) {
+      ok(0, "failed to insert item %d %.*s", i, data[i]->len, data[i]->buf);
+    }
   }
 
   is(ph_ht_size(ht), howmany);
@@ -57,7 +64,7 @@ int main(int argc, char **argv)
   ph_unused_parameter(argv);
 
   ph_library_init();
-  plan_tests(217);
+  plan_tests(221);
 
   mt_misc = ph_memtype_register(&mt_def);
 
@@ -146,6 +153,9 @@ int main(int argc, char **argv)
   load_data(&ht, 8);
   load_data(&ht, 16);
   load_data(&ht, 64);
+  // to test extreme size, uncomment this.  It is too expensive to run
+  // as a unit test
+  // load_data(&ht, 100000000);
 
   ph_ht_destroy(&ht);
 
