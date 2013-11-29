@@ -161,6 +161,7 @@ void ph_nbio_emitter_run(struct ph_nbio_emitter *emitter, ph_thread_t *thread)
     }
 
     if (n <= 0) {
+      ph_job_collector_emitter_call(emitter);
       ph_thread_epoch_poll();
       continue;
     }
@@ -179,6 +180,7 @@ void ph_nbio_emitter_run(struct ph_nbio_emitter *emitter, ph_thread_t *thread)
       ph_job_pool_apply_deferred_items(thread);
     }
     ph_thread_epoch_end();
+    ph_job_collector_emitter_call(emitter);
     ph_thread_epoch_poll();
   }
 

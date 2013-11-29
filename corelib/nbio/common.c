@@ -47,6 +47,7 @@ static int gc_interval;
 #ifdef USE_GIMLI
 static volatile struct gimli_heartbeat *hb = NULL;
 #endif
+static struct timeval max_sleep_tv = { 5, 0 };
 
 static inline struct ph_nbio_emitter *emitter_for_affinity(uint32_t n)
 {
@@ -79,8 +80,26 @@ void ph_nbio_emitter_dispatch_immediate(
     return;
   }
   ph_counter_block_add(emitter->cblock, SLOT_DISP, 1);
+
+  if (job != &emitter->timer_job && job != &gc_job) {
+    emitter->last_dispatch = ph_time_now();
+  }
   job->callback(job, why, job->data);
 }
+
+void ph_job_collector_emitter_call(struct ph_nbio_emitter *emitter)
+{
+  struct timeval now = ph_time_now();
+  struct timeval target;
+
+  timeradd(&emitter->last_dispatch, &max_sleep_tv, &target);
+
+  if (!timercmp(&now, &target, <)) {
+    emitter->last_dispatch = now;
+    ph_job_collector_call(emitter->thread);
+  }
+}
+
 
 // map the timer address back to that of its containing
 // work item
@@ -218,10 +237,15 @@ ph_result_t ph_nbio_init(uint32_t sched_cores)
 {
   ph_thread_t *me;
   uint32_t i;
+  int max_sleep;
 
   if (counter_scope) {
     return PH_OK;
   }
+
+  max_sleep = ph_config_query_int("$.nbio.max_sleep", 5000);
+  max_sleep_tv.tv_sec = max_sleep / 1000;
+  max_sleep_tv.tv_usec = (max_sleep - (max_sleep_tv.tv_sec * 1000)) * 1000;
 
   sched_cores = ph_config_query_int("$.nbio.sched_cores", sched_cores);
   mt_ajob = ph_memtype_register(&ajob_def);
@@ -249,6 +273,7 @@ ph_result_t ph_nbio_init(uint32_t sched_cores)
   for (i = 0; i < num_schedulers; i++) {
     ph_timerwheel_init(&emitters[i].wheel, me->now, WHEEL_INTERVAL_MS);
     emitters[i].emitter_id = i;
+    emitters[i].last_dispatch = me->now;
 
     // prep for affine dispatch
     PH_STAILQ_INIT(&emitters[i].affine_jobs);

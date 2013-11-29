@@ -57,6 +57,7 @@ struct ph_nbio_emitter {
   ph_timerwheel_t wheel;
   ph_job_t timer_job;
   uint32_t emitter_id;
+  struct timeval last_dispatch;
   int io_fd, timer_fd;
   ph_nbio_affine_job_stailq_t affine_jobs;
   ph_job_t affine_job;
@@ -139,6 +140,9 @@ extern int _ph_run_loop;
 
 struct ph_nbio_emitter *ph_nbio_emitter_for_job(ph_job_t *job);
 bool ph_thread_set_affinity_policy(ph_thread_t *me, ph_variant_t *policy);
+
+void ph_job_collector_emitter_call(struct ph_nbio_emitter *emitter);
+void ph_job_collector_call(ph_thread_t *me);
 
 static inline pid_t get_own_tid(void) {
 #if defined(__linux__)

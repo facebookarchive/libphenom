@@ -100,6 +100,37 @@ static const char *counter_names[] = {
 
 extern int _ph_run_loop;
 
+#define MAX_COLLECTORS 128
+static uint8_t next_collector_id = 0;
+static ph_job_collector_func collector_funcs[MAX_COLLECTORS];
+
+ph_result_t ph_job_collector_register(ph_job_collector_func func)
+{
+  uint8_t slot;
+
+  if (next_collector_id >= MAX_COLLECTORS) {
+    return PH_ERR;
+  }
+
+  slot = ck_pr_faa_8(&next_collector_id, 1);
+  if (next_collector_id >= MAX_COLLECTORS) {
+    return PH_ERR;
+  }
+
+  collector_funcs[slot] = func;
+  return PH_OK;
+}
+
+void ph_job_collector_call(ph_thread_t *me)
+{
+  uint8_t i;
+
+  me->refresh_time = true;
+  for (i = 0; i < next_collector_id; i++) {
+    collector_funcs[i](me);
+  }
+}
+
 static void wait_destroy(struct ph_thread_pool_wait *waiter)
 {
 #if defined(USE_COND)
@@ -121,12 +152,14 @@ static void wait_init(struct ph_thread_pool_wait *waiter)
 }
 
 #define SECONDS_TO_NS 1000000000LL
-static void wait_pool(struct ph_thread_pool_wait *waiter)
+static bool wait_pool(struct ph_thread_pool_wait *waiter)
 {
+  bool woke;
+
   ck_pr_inc_32(&waiter->num_waiting);
 #ifdef USE_FUTEX
-  syscall(SYS_futex, &waiter->futcounter, FUTEX_WAIT,
-      ck_pr_load_int(&waiter->futcounter), &wait_timespec, NULL, 0);
+  woke = syscall(SYS_futex, &waiter->futcounter, FUTEX_WAIT,
+      ck_pr_load_int(&waiter->futcounter), &wait_timespec, NULL, 0) == 0;
 #elif defined(USE_COND)
   struct timeval now;
   struct timespec ts;
@@ -138,10 +171,11 @@ static void wait_pool(struct ph_thread_pool_wait *waiter)
     ts.tv_sec++;
     ts.tv_nsec -= SECONDS_TO_NS;
   }
-  pthread_cond_timedwait(&waiter->c, &waiter->m, &ts);
+  woke = pthread_cond_timedwait(&waiter->c, &waiter->m, &ts) == 0;
   pthread_mutex_unlock(&waiter->m);
 #endif
   ck_pr_dec_32(&waiter->num_waiting);
+  return woke;
 }
 
 #define should_wake_pool(waiter)  \
@@ -297,6 +331,7 @@ static inline ph_job_t *pop_job(ph_thread_pool_t *pool,
   ph_job_t *job;
   uint32_t i;
   intptr_t bits;
+  bool woke;
 
   for (;;) {
     // Try the my own bucket first, as this is lowest contention
@@ -320,10 +355,14 @@ static inline ph_job_t *pop_job(ph_thread_pool_t *pool,
 
     // Can't find anything to do, so go to sleep
     ph_counter_block_add(cblock, SLOT_CONSUMER_SLEEP, 1);
-    wait_pool(&pool->consumer);
+    woke = wait_pool(&pool->consumer);
 
     if (!ck_pr_load_int(&_ph_run_loop)) {
       return NULL;
+    }
+
+    if (!woke) {
+      ph_job_collector_call(ph_thread_self());
     }
 
     // poll to clean up anything we might have been sitting on while waiting for

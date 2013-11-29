@@ -454,6 +454,32 @@ ph_result_t ph_nbio_queue_affine_func(uint32_t emitter_affinity,
  */
 ph_result_t ph_job_wakeup(ph_job_t *job);
 
+typedef void (*ph_job_collector_func)(ph_thread_t *me);
+
+/** Register a worker collector callback
+ *
+ * Certain workloads will benefit from aggressive caching or relaxed
+ * cleanup processing while the system is busy.  In order to provide
+ * timely resource reclamation, an application may register one or
+ * more collector callbacks.
+ *
+ * A collector callback is invoked by emitter threads in the NBIO
+ * pool and worker threads in other thread pools when that thread
+ * reaches a quiescent state.  For NBIO threads, this is when a given
+ * emitter thread has not dispatched a job in the past `$.nbio.max_sleep`
+ * milliseconds.  For worker threads, this is when a given thread waits
+ * `$.nbio.max_sleep` without being woken up.  These states are assessed
+ * per thread.  An idle system will trigger a collector once per thread
+ * every `$.nbio.max_sleep` milliseconds while idle.
+ *
+ * The collector callback is invoked in the context of the thread that
+ * is now quiescent and is passed the `ph_thread_t` for that thread.
+ *
+ * The collector callback should ideally restrict itself to cleaning up data
+ * associated with the current thread.
+ */
+ph_result_t ph_job_collector_register(ph_job_collector_func func);
+
 /* ----
  * the following are implementation specific and shouldn't
  * be called except by wizards

@@ -126,7 +126,9 @@ void ph_nbio_emitter_run(struct ph_nbio_emitter *emitter, ph_thread_t *thread)
       if (errno != EINTR) {
         ph_log(PH_LOG_ERR, "epoll_wait: `Pe%d", errno);
       }
+      ph_job_collector_emitter_call(emitter);
       ph_thread_epoch_poll();
+      continue;
     }
     for (i = 0; i < n; i++) {
       ph_iomask_t mask = 0;
@@ -155,6 +157,7 @@ void ph_nbio_emitter_run(struct ph_nbio_emitter *emitter, ph_thread_t *thread)
         ph_job_pool_apply_deferred_items(thread);
       }
       ph_thread_epoch_end();
+      ph_job_collector_emitter_call(emitter);
       ph_thread_epoch_poll();
     }
   }
