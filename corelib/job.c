@@ -93,10 +93,12 @@ static const char *counter_names[] = {
   "dispatched",     // number of jobs dispatched
   "consumer_sleep", // number of times consumer sleeps
   "producer_sleep", // number of times producer sleeps
+  "num_pending",    // how many outstanding jobs
 };
 #define SLOT_DISP 0
 #define SLOT_CONSUMER_SLEEP 1
 #define SLOT_PRODUCER_SLEEP 2
+#define SLOT_NUM_PENDING    3
 
 extern int _ph_run_loop;
 
@@ -446,6 +448,8 @@ static void *worker_thread(void *arg)
       continue;
     }
 
+    ph_counter_block_add(cblock, SLOT_NUM_PENDING, -1);
+
     me->refresh_time = true;
     ph_thread_epoch_begin();
     job->callback(job, PH_IOMASK_NONE, job->data);
@@ -520,8 +524,12 @@ void _ph_job_pool_start_threads(void)
 static inline void do_set_pool(ph_job_t *job, ph_thread_t *me)
 {
   ph_thread_pool_t *pool;
+  ph_counter_block_t *cblock;
 
   pool = job->pool;
+
+  cblock = ph_counter_block_open(pool->counters);
+  ph_counter_block_add(cblock, SLOT_NUM_PENDING, 1);
 
   if (ph_unlikely(me->tid >= MAX_RINGS)) {
     ck_spinlock_lock(&pool->lock);
@@ -530,7 +538,7 @@ static inline void do_set_pool(ph_job_t *job, ph_thread_t *me)
     }
     while (!ck_ring_enqueue_spmc(pool->rings[MAX_RINGS], job)) {
       ck_spinlock_unlock(&pool->lock);
-      ph_counter_scope_add(pool->counters, SLOT_PRODUCER_SLEEP, 1);
+      ph_counter_block_add(cblock, SLOT_PRODUCER_SLEEP, 1);
       wait_pool(&pool->producer);
       ck_spinlock_lock(&pool->lock);
     }
@@ -540,7 +548,7 @@ static inline void do_set_pool(ph_job_t *job, ph_thread_t *me)
       init_ring(pool, me->tid);
     }
     while (ph_unlikely(!ck_ring_enqueue_spmc(pool->rings[me->tid], job))) {
-      ph_counter_scope_add(pool->counters, SLOT_PRODUCER_SLEEP, 1);
+      ph_counter_block_add(cblock, SLOT_PRODUCER_SLEEP, 1);
       wait_pool(&pool->producer);
     }
   }
@@ -548,6 +556,8 @@ static inline void do_set_pool(ph_job_t *job, ph_thread_t *me)
   if (should_wake_pool(&pool->consumer)) {
     wake_pool(&pool->consumer);
   }
+
+  ph_counter_block_delref(cblock);
 }
 
 void _ph_job_set_pool_immediate(ph_job_t *job, ph_thread_t *me)

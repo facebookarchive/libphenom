@@ -376,6 +376,10 @@ struct ph_thread_pool_stats {
   // How many times a producer has been blocked by a full
   // local ring buffer and gone to sleep
   int64_t producer_sleeps;
+  // How many items are pending dispatch; includes items
+  // in the pool rings and threads attempting to enqueue
+  // to the pool
+  int64_t num_pending;
 };
 
 /** Return thread pool counters for a given pool */
