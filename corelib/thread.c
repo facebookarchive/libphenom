@@ -276,6 +276,7 @@ typedef cpuset_t ph_cpu_set_t;
 # endif
 static bool apply_affinity(ph_cpu_set_t *set, ph_thread_t *me) {
 #  ifdef HAVE_CPUSET_SETAFFINITY
+  ph_unused_parameter(me);
   return cpuset_setaffinity(CPU_LEVEL_WHICH,
       CPU_WHICH_TID, -1, sizeof(*set), set);
 #  else

@@ -188,6 +188,8 @@ void ph_log_stacktrace(uint8_t level)
   }
 
   free(strings);
+#else
+  ph_unused_parameter(level);
 #endif
 }
 
