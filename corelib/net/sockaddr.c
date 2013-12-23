@@ -97,7 +97,7 @@ ph_result_t ph_sockaddr_set_v6(
   }
 
   memset(&hints, 0, sizeof(hints));
-  hints.ai_flags = AI_NUMERICHOST|AI_V4MAPPED;
+  hints.ai_flags = AI_NUMERICHOST;
   hints.ai_family = AF_INET6;
 
   res = getaddrinfo(addr, NULL, &hints, &ai);
