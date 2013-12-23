@@ -33,9 +33,14 @@
 # define _REENTRANT
 #endif
 #define __EXTENSIONS__ 1
-#define _XOPEN_SOURCE 600
 #define _BSD_SOURCE
+#ifdef __sun__
+#define _XOPEN_SOURCE 600
+#define _POSIX_C_SOURCE 200112L
+#else
+#define _XOPEN_SOURCE 700
 #define _POSIX_C_SOURCE 200809
+#endif
 #define _GNU_SOURCE
 #define _DARWIN_C_SOURCE
 
