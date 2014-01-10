@@ -50,6 +50,7 @@ static ph_memtype_def_t defs[] = {
   { "ares", "query_response", 0, PH_MEM_FLAGS_ZERO },
 };
 
+static bool torn_down = false;
 static ph_dns_channel_t *default_channel = NULL;
 static void process_ares(ph_job_t *job, ph_iomask_t why, void *data);
 static struct ph_job_def ares_job_template = {
@@ -129,7 +130,9 @@ static void sock_state_cb(void *data, ares_socket_t socket_fd,
   if (mask) {
     apply_mask(chan, job, mask);
   } else {
-    ph_job_set_nbio(job, 0, NULL);
+    if (ph_likely(!torn_down)) {
+      ph_job_set_nbio(job, 0, NULL);
+    }
     // We're done with this guy, remove it
     ph_ht_del(&chan->sock_map, &socket_fd);
     ph_job_free(job);
@@ -207,6 +210,7 @@ static void free_chan(ph_dns_channel_t *chan)
 
 static void do_ares_fini(void)
 {
+  torn_down = true;
   free_chan(default_channel);
 }
 

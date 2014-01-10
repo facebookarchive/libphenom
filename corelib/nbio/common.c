@@ -458,10 +458,10 @@ ph_result_t ph_job_set_nbio(ph_job_t *job, ph_iomask_t mask,
   job->pool = NULL;
 
   job->mask = mask;
+  ph_timerwheel_remove(&target_emitter->wheel, &job->timer);
   if (timeout) {
     job->timer.due = *timeout;
   } else {
-    ph_timerwheel_disable(&target_emitter->wheel, &job->timer);
     timerclear(&job->timer.due);
   }
 
