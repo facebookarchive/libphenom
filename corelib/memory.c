@@ -85,17 +85,36 @@ static void memory_destroy(void)
   free(memtypes);
 }
 
+// Can't use ph_panic() from here, as that may allocate
+static void
+#ifdef __GNUC__
+  __attribute__((format(printf, 1, 2)))
+  __attribute__((noreturn))
+#endif
+  memory_panic(const char *fmt, ...)
+{
+  va_list ap;
+  char buf[512];
+
+  va_start(ap, fmt);
+  snprintf(buf, sizeof(buf), fmt, ap);
+  va_end(ap);
+
+  ph_ignore_result(write(STDERR_FILENO, buf, strlen(buf)));
+  abort();
+}
+
 static void memory_init(void)
 {
   memtypes_size = 1024;
   memtypes = malloc(memtypes_size * sizeof(*memtypes));
   if (!memtypes) {
-    abort();
+    memory_panic("failed to allocate memtypes array");
   }
 
   memory_scope = ph_counter_scope_define(NULL, "memory", 16);
   if (!memory_scope) {
-    abort();
+    memory_panic("failed to define memory scope");
   }
 }
 
@@ -135,7 +154,7 @@ ph_memtype_t ph_memtype_register(const ph_memtype_def_t *def)
 
   mt = ck_pr_faa_int(&next_memtype, 1);
   if ((uint32_t)mt >= memtypes_size) {
-    ph_panic("You need to recompile libphenom with memtypes_size = %d",
+    memory_panic("You need to recompile libphenom with memtypes_size = %d",
         2 * memtypes_size);
   }
   mem_type = &memtypes[mt];
@@ -155,7 +174,8 @@ ph_memtype_t ph_memtype_register(const ph_memtype_def_t *def)
   }
   if (!ph_counter_scope_register_counter_block(
       scope, num_slots, 0, names)) {
-    abort();
+    memory_panic("failed to register counter block for memory scope %s",
+      def->name);
   }
 
   return mt;
@@ -187,7 +207,7 @@ ph_memtype_t ph_memtype_register_block(
 
   mt = ck_pr_faa_int(&next_memtype, num_types);
   if ((uint32_t)mt >= memtypes_size) {
-    ph_panic("You need to recompile libphenom with memtypes_size = %d",
+    memory_panic("You need to recompile libphenom with memtypes_size = %d",
         2 * memtypes_size);
   }
 
@@ -221,7 +241,8 @@ ph_memtype_t ph_memtype_register_block(
     mem_type->first_slot = ph_counter_scope_get_num_slots(scope);
     if (!ph_counter_scope_register_counter_block(
           scope, num_slots, 0, names)) {
-      abort();
+      memory_panic("failed to register counter block for memory scope %s",
+        mem_type->def.name);
     }
   }
 
@@ -236,10 +257,12 @@ ph_memtype_t ph_memtype_register_block(
   return mt;
 }
 
-static inline struct mem_type *resolve_mt(ph_memtype_t mt)
+static struct mem_type *resolve_mt(ph_memtype_t mt)
 {
-  if (mt < PH_MEMTYPE_FIRST || mt >= next_memtype) {
-    abort();
+  if (ph_unlikely(mt < PH_MEMTYPE_FIRST || mt >= next_memtype)) {
+    memory_panic(
+      "resolve_mt: mt(%d) < PH_MEMTYPE_FIRST || mt(%d) >= next_memtype(%d)",
+      mt, mt, next_memtype);
   }
   return &memtypes[mt];
 }
@@ -255,7 +278,8 @@ void *ph_mem_alloc(ph_memtype_t mt)
   };
 
   if (mem_type->def.item_size == 0) {
-    abort();
+    memory_panic("mem_type %s is vsize, cannot be used with ph_mem_alloc",
+        mem_type->def.name);
     return NULL;
   }
 
@@ -308,7 +332,9 @@ void *ph_mem_alloc_size(ph_memtype_t mt, uint64_t size)
   int64_t values[2];
 
   if (mem_type->def.item_size) {
-    abort();
+    memory_panic(
+        "mem_type %s is not vsize, cannot be used with ph_mem_alloc_size",
+        mem_type->def.name);
     return NULL;
   }
 
@@ -371,7 +397,8 @@ void ph_mem_free(ph_memtype_t mt, void *ptr)
 
     size = hdr->size;
     if (hdr->mt != mt) {
-      abort();
+      memory_panic("ph_mem_free: hdr->mt %d != caller provided mt %d %s",
+        hdr->mt, mt, mem_type->def.name);
     }
   }
 
@@ -403,7 +430,9 @@ void *ph_mem_realloc(ph_memtype_t mt, void *ptr, uint64_t size)
   }
   mem_type = resolve_mt(mt);
   if (mem_type->def.item_size) {
-    abort();
+    memory_panic(
+      "mem_type %s is not vsize and cannot be used with ph_mem_realloc",
+      mem_type->def.name);
     return NULL;
   }
 
@@ -412,7 +441,8 @@ void *ph_mem_realloc(ph_memtype_t mt, void *ptr, uint64_t size)
   ptr = hdr;
 
   if (hdr->mt != mt) {
-    abort();
+    memory_panic("ph_mem_realloc: hdr->mt %d != caller provided mt %d %s",
+      hdr->mt, mt, mem_type->def.name);
   }
 
   orig_size = hdr->size;

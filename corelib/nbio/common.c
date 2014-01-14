@@ -215,12 +215,19 @@ static void do_wakeup(intptr_t code, void *arg)
   ph_job_t *job = arg;
   ph_unused_parameter(code);
 
+  ck_pr_dec_32(&job->n_wakeups_pending);
   job->callback(job, PH_IOMASK_WAKEUP, job->data);
 }
 
 ph_result_t ph_job_wakeup(ph_job_t *job)
 {
-  return ph_nbio_queue_affine_func(job->emitter_affinity, do_wakeup, 0, job);
+  ph_result_t res;
+  ck_pr_inc_32(&job->n_wakeups_pending);
+  res = ph_nbio_queue_affine_func(job->emitter_affinity, do_wakeup, 0, job);
+  if (res != PH_OK) {
+    ck_pr_dec_32(&job->n_wakeups_pending);
+  }
+  return res;
 }
 
 static void affine_dispatch(ph_job_t *job, ph_iomask_t why, void *data)
@@ -417,7 +424,7 @@ static void process_deferred(ph_thread_t *me, void *impl)
     struct ph_nbio_emitter *target_emitter;
 
     PH_STAILQ_REMOVE(&me->pending_nbio, job, ph_job, q_ent);
-    job->in_apply = false;
+    ck_pr_store_int(&job->in_apply, false);
     target_emitter = emitter_for_job(job);
 
     // Swap out the mask so that we can apply it safely
@@ -478,9 +485,9 @@ ph_result_t ph_job_set_nbio(ph_job_t *job, ph_iomask_t mask,
   // an explicit teardown function
 
   // queue to our deferred list
-  if (ph_likely(!job->in_apply)) {
+  if (ph_likely(!ck_pr_load_int(&job->in_apply))) {
+    ck_pr_store_int(&job->in_apply, true);
     PH_STAILQ_INSERT_TAIL(&me->pending_nbio, job, q_ent);
-    job->in_apply = true;
   }
 
   return PH_OK;

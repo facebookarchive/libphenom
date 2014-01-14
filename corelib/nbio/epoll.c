@@ -192,10 +192,6 @@ ph_result_t ph_nbio_emitter_apply_io_mask(
       break;
   }
 
-  if (want_mask == job->kmask) {
-    return PH_OK;
-  }
-
   if (want_mask == 0) {
     res = epoll_ctl(emitter->io_fd, EPOLL_CTL_DEL, job->fd, &evt);
     if (res < 0 && errno == ENOENT) {
@@ -216,12 +212,19 @@ ph_result_t ph_nbio_emitter_apply_io_mask(
       // pointers, for instance, when we're moving from an async connect
       // to setting up the sock job
       res = epoll_ctl(emitter->io_fd, EPOLL_CTL_MOD, job->fd, &evt);
+    } else if (res == -1 && errno == ENOENT && op == EPOLL_CTL_MOD) {
+      res = epoll_ctl(emitter->io_fd, EPOLL_CTL_ADD, job->fd, &evt);
+    }
+
+    if (res == -1 && errno == EEXIST) {
+      res = 0;
     }
   }
 
   if (res == -1) {
-    ph_panic("epoll_ctl: setting mask to %02x on fd %d -> `Pe%d",
-        mask, job->fd, errno);
+    ph_log(PH_LOG_ERR, "fd=%d (callback=%p) epoll_ctl: setting mask to %02x -> %d `Pe%d",
+        job->fd, (void*)(uintptr_t)job->callback, mask, errno, errno);
+    ph_log_stacktrace(PH_LOG_ERR);
     return PH_ERR;
   }
   return PH_OK;

@@ -43,6 +43,11 @@ static bool do_ssl_read_or_write(ph_stream_t *stm, bool is_reading,
   int line;
   SSL *s = stm->cookie;
 
+  if (ph_unlikely(s == NULL)) {
+    stm->last_err = EBADF;
+    return false;
+  }
+
   for (i = 0; i < iovcnt; i++) {
     if (iov[i].iov_len == 0) {
       continue;

@@ -174,7 +174,7 @@ struct ph_job {
   // deferred apply list
   PH_STAILQ_ENTRY(ph_job) q_ent;
   // whether we're in a deferred apply
-  bool in_apply;
+  int in_apply;
   // for PH_RUNCLASS_NBIO, trigger mask */
   ph_iomask_t mask;
   // use ph_job_get_kmask() to interpret
@@ -188,6 +188,8 @@ struct ph_job {
   struct ph_timerwheel_timer timer;
   // When targeting a thread pool, which pool
   ph_thread_pool_t *pool;
+  // Counter of pending wakeups
+  uint32_t n_wakeups_pending;
   // for SMR
   ck_epoch_entry_t epoch_entry;
   struct ph_job_def *def;
@@ -457,6 +459,11 @@ ph_result_t ph_nbio_queue_affine_func(uint32_t emitter_affinity,
  * called and when the `PH_IOMASK_WAKEUP` is dispatched.
  */
 ph_result_t ph_job_wakeup(ph_job_t *job);
+
+/** Returns true if any wakeups are pending for this job */
+static inline bool ph_job_has_pending_wakeup(ph_job_t *job) {
+  return ck_pr_load_32(&job->n_wakeups_pending) > 0;
+}
 
 typedef void (*ph_job_collector_func)(ph_thread_t *me);
 

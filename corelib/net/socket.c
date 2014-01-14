@@ -136,10 +136,31 @@ static void sock_dtor(ph_job_t *job)
 
 static bool try_send(ph_sock_t *sock)
 {
-  if (ph_bufq_len(sock->wbuf) &&
-      !ph_bufq_stm_write(sock->wbuf, sock->conn, NULL) &&
-      ph_stm_errno(sock->conn) != EAGAIN) {
-    return false;
+  while (ph_bufq_len(sock->wbuf)) {
+    if (!ph_bufq_stm_write(sock->wbuf, sock->conn, NULL)) {
+      if (ph_stm_errno(sock->conn) != EAGAIN) {
+        return false;
+      }
+      // No room right now
+      return true;
+    }
+  }
+  return true;
+}
+
+static bool try_ssl_shunt(ph_sock_t *sock)
+{
+  if (!sock->sslwbuf) {
+    return true;
+  }
+  while (ph_bufq_len(sock->sslwbuf)) {
+    if (!ph_bufq_stm_write(sock->sslwbuf, sock->ssl_stream, NULL)) {
+      if (ph_stm_errno(sock->conn) != EAGAIN) {
+        return false;
+      }
+      // No room right now
+      return true;
+    }
   }
   return true;
 }
@@ -162,25 +183,25 @@ static void sock_dispatch(ph_job_t *j, ph_iomask_t why, void *data)
   sock->conn->need_mask = 0;
 
   // Push data into the SSL stream
-  if (sock->sslwbuf && ph_bufq_len(sock->sslwbuf)) {
-    ph_bufq_stm_write(sock->sslwbuf, sock->ssl_stream, NULL);
+  if (sock->sslwbuf) {
+    try_ssl_shunt(sock);
     why |= PH_IOMASK_WRITE;
   }
 
-  if ((why & (PH_IOMASK_WRITE|PH_IOMASK_ERR)) == PH_IOMASK_WRITE) {
-    // If we have data pending write, try to get that sent, and flag
-    // errors
-    if (!try_send(sock)) {
-      why |= PH_IOMASK_ERR;
-    }
+  // If we have data pending write, try to get that sent, and flag
+  // errors
+  if (sock->enabled && !try_send(sock)) {
+    why |= PH_IOMASK_ERR;
   }
-  if ((why & (PH_IOMASK_READ|PH_IOMASK_ERR)) == PH_IOMASK_READ) {
+
+  if (sock->enabled &&
+      (why & (PH_IOMASK_READ|PH_IOMASK_ERR)) == PH_IOMASK_READ) {
     if (!try_read(sock)) {
       why |= PH_IOMASK_ERR;
     }
   }
 
-  if (sock->ssl && SSL_in_init(sock->ssl)
+  if (sock->enabled && sock->ssl && SSL_in_init(sock->ssl)
       && SSL_total_renegotiations(sock->ssl) == 0) {
     switch (SSL_get_error(sock->ssl, SSL_do_handshake(sock->ssl))) {
       case SSL_ERROR_NONE:
@@ -211,11 +232,13 @@ static void sock_dispatch(ph_job_t *j, ph_iomask_t why, void *data)
 
   sock->callback(sock, why, data);
 
-  if (sock->sslwbuf && ph_bufq_len(sock->sslwbuf)) {
-    ph_bufq_stm_write(sock->sslwbuf, sock->ssl_stream, NULL);
-  }
+  try_ssl_shunt(sock);
 
   if (sock->enabled) {
+    if (!try_send(sock)) {
+      sock->callback(sock, PH_IOMASK_ERR, data);
+    }
+
     ph_iomask_t mask = sock->conn->need_mask | PH_IOMASK_READ;
 
     if (ph_bufq_len(sock->wbuf) ||
@@ -223,6 +246,9 @@ static void sock_dispatch(ph_job_t *j, ph_iomask_t why, void *data)
       mask |= PH_IOMASK_WRITE;
     }
 
+    ph_log(PH_LOG_DEBUG, "fd=%d setting mask=%x timeout={%d,%d}",
+        sock->job.fd, mask, (int)sock->timeout_duration.tv_sec,
+        (int)sock->timeout_duration.tv_usec);
     ph_job_set_nbio_timeout_in(&sock->job, mask, sock->timeout_duration);
   }
 }
