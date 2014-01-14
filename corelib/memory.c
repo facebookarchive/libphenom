@@ -97,7 +97,7 @@ static void
   char buf[512];
 
   va_start(ap, fmt);
-  snprintf(buf, sizeof(buf), fmt, ap);
+  snprintf(buf, sizeof(buf), fmt, ap); // NOLINT(runtime/printf)
   va_end(ap);
 
   ph_ignore_result(write(STDERR_FILENO, buf, strlen(buf)));
