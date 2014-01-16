@@ -472,7 +472,7 @@ ph_result_t ph_job_set_nbio(ph_job_t *job, ph_iomask_t mask,
     timerclear(&job->timer.due);
   }
 
-  if (!me->is_worker) {
+  if (!me->is_worker || target_emitter == me->is_emitter) {
     if (timerisset(&job->timer.due)) {
       ph_timerwheel_enable(&target_emitter->wheel, &job->timer);
     }

@@ -97,6 +97,11 @@ static void connect_complete(ph_job_t *j, ph_iomask_t why, void *data)
 
   done = ph_time_now();
   timersub(&done, &job->start, &done);
+
+  // Ensure that we de-schedule the fd from this emitter, in case it gets
+  // associated with a different one later
+  ph_job_set_nbio(&job->job, 0, NULL);
+
   job->func(job->s, &job->addr, status, &done, job->arg);
   ph_job_free(&job->job);
 }
