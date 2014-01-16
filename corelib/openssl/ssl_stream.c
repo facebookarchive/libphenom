@@ -85,7 +85,7 @@ static bool do_ssl_read_or_write(ph_stream_t *stm, bool is_reading,
         while ((serr = ERR_get_error_line(&file, &line)) != 0) {
           char ebuf[120];
           ERR_error_string_n(serr, ebuf, sizeof(ebuf));
-          ph_log(PH_LOG_ERR, "SSL err: %s:%d %lu %s", file, line, serr, ebuf);
+          ph_log(PH_LOG_INFO, "SSL err: %s:%d %lu %s", file, line, serr, ebuf);
         }
         return false;
     }
