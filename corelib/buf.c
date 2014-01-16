@@ -683,10 +683,17 @@ bool ph_bufq_stm_write(ph_bufq_t *q, ph_stream_t *stm, uint64_t *nwrotep)
   if (res && nwrote > 0) {
     // Mark them as being consumed
     PH_STAILQ_FOREACH(ent, &q->fifo, ent) {
-      uint64_t len = ent->wpos - ent->rpos;
+      uint64_t ate, len = ent->wpos - ent->rpos;
 
-      ent->rpos = ent->wpos;
-      nwrote -= len;
+      if (len == 0) {
+        // Nothing in here to be dealt with
+        continue;
+      }
+
+      ate = MIN(len, nwrote);
+      ent->rpos += ate;
+      nwrote -= ate;
+
       if (nwrote == 0) {
         break;
       }
