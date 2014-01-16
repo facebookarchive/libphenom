@@ -153,10 +153,6 @@ ph_result_t ph_nbio_emitter_apply_io_mask(struct ph_nbio_emitter *emitter,
       want_mask = 0;
   }
 
-  if (want_mask == job->kmask) {
-    return PH_OK;
-  }
-
   switch (want_mask) {
     case 0:
       res = port_dissociate(emitter->io_fd, PORT_SOURCE_FD, job->fd);

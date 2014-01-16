@@ -49,24 +49,6 @@ static void grow_kq_set(struct ph_nbio_kq_set *set)
   set->size *= 2;
 }
 
-static inline void add_kq_set(struct ph_nbio_kq_set *set,
-    uintptr_t ident,
-    int16_t filter,
-    uint16_t flags,
-    uint32_t fflags,
-    intptr_t data,
-    void *udata)
-{
-  int n;
-
-  if (set->used + 1 >= set->size) {
-    grow_kq_set(set);
-  }
-
-  n = set->used++;
-  EV_SET(&set->events[n], ident, filter, flags, fflags, data, udata);
-}
-
 static inline void dispose_kq_set(struct ph_nbio_kq_set *set)
 {
   if (set->events == set->base) {
@@ -190,51 +172,42 @@ void ph_nbio_emitter_run(struct ph_nbio_emitter *emitter, ph_thread_t *thread)
 ph_result_t ph_nbio_emitter_apply_io_mask(struct ph_nbio_emitter *emitter,
     ph_job_t *job, ph_iomask_t mask)
 {
-  struct ph_nbio_kq_set *set, local_set;
+  struct kevent kev[2];
+  int nev = 0;
   int res;
 
   if (job->fd == -1) {
     return PH_OK;
   }
 
-  if (mask == job->kmask) {
-    return PH_OK;
-  }
-
-  if (emitter == ph_thread_self()->is_emitter) {
-    set = &emitter->kqset;
-  } else {
-    init_kq_set(&local_set);
-    set = &local_set;
-  }
-
   if (mask & PH_IOMASK_READ) {
-    add_kq_set(set, job->fd, EVFILT_READ, EV_ADD|EV_ONESHOT, 0, 0, job);
+    EV_SET(&kev[nev], job->fd, EVFILT_READ, EV_ADD|EV_ONESHOT, 0, 0, job);
+    nev++;
   }
   if (mask & PH_IOMASK_WRITE) {
-    add_kq_set(set, job->fd, EVFILT_WRITE, EV_ADD|EV_ONESHOT, 0, 0, job);
+    EV_SET(&kev[nev], job->fd, EVFILT_READ, EV_ADD|EV_ONESHOT, 0, 0, job);
+    nev++;
   }
   if ((mask & (PH_IOMASK_READ|PH_IOMASK_WRITE)) == 0) {
     // Neither read nor write -> delete
-    add_kq_set(set, job->fd, EVFILT_READ, EV_DELETE, 0, 0, job);
-    add_kq_set(set, job->fd, EVFILT_WRITE, EV_DELETE, 0, 0, job);
+    EV_SET(&kev[nev], job->fd, EVFILT_READ, EV_DELETE, 0, 0, job);
+    nev++;
+    EV_SET(&kev[nev], job->fd, EVFILT_WRITE, EV_DELETE, 0, 0, job);
+    nev++;
   }
 
   job->kmask = mask;
   job->mask = mask;
 
-  if (set == &local_set) {
-    // Apply it immediately
-    res = kevent(emitter->io_fd, set->events, set->used, NULL, 0, NULL);
-    if (res != 0 && mask == 0 && errno == ENOENT) {
-      // It's "OK" if we decided to delete it and it wasn't there
-      res = 0;
-    }
-    if (res != 0) {
-      ph_panic("kevent: setting mask to %02x on fd %d with %d slots -> `Pe%d",
-          mask, job->fd, set->used, errno);
-      return PH_ERR;
-    }
+  res = kevent(emitter->io_fd, kev, nev, NULL, 0, NULL);
+  if (res != 0 && mask == 0 && errno == ENOENT) {
+    // It's "OK" if we decided to delete it and it wasn't there
+    res = 0;
+  }
+  if (res != 0) {
+    ph_panic("kevent: setting mask to %02x on fd %d with %d slots -> `Pe%d",
+        mask, job->fd, nev, errno);
+    return PH_ERR;
   }
   return PH_OK;
 }
