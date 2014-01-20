@@ -53,6 +53,7 @@ static void stack_tests(void)
   is_string(nocopy2, "hello");
   ok(nocopy2 != stack2.buf, "copied");
   ok(ph_string_equal_cstr(&stack2, "hello12345678901234567890"), "didn't break stack2");
+  ph_string_delref(slice);
 
   PH_STRING_DECLARE_STACK(stack3, 32);
   ph_string_append_cstr(&stack3, "woot");

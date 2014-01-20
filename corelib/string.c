@@ -134,7 +134,7 @@ void ph_string_delref(ph_string_t *str)
     return;
   }
 
-  if (str->mt >= 0) {
+  if (str->mt > 0) {
     ph_mem_free(str->mt, str->buf);
     str->mt = PH_MEMTYPE_INVALID;
   }
