@@ -30,6 +30,9 @@ typedef void (*ph_listener_accept_func)(
     ph_listener_t *listener, ph_sock_t *sock);
 
 struct ph_listener {
+  // data associated with the listener.
+  void* data;
+
   // Embedded job so we can participate in NBIO
   ph_job_t job;
 
