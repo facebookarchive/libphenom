@@ -228,6 +228,15 @@ void ph_listener_enable(ph_listener_t *lstn, bool enable)
 }
 
 
+void ph_listener_set_acceptor_data(ph_listener_t* lstn, void* data)
+{
+  lstn->acceptor_data = data;
+}
+
+void* ph_listener_get_acceptor_data(ph_listener_t* lstn)
+{
+  return lstn->acceptor_data;
+}
+
 /* vim:ts=2:sw=2:et:
  */
-

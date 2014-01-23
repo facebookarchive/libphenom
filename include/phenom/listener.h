@@ -31,7 +31,7 @@ typedef void (*ph_listener_accept_func)(
 
 struct ph_listener {
   // data associated with the listener.
-  void* data;
+  void* acceptor_data;
 
   // Embedded job so we can participate in NBIO
   ph_job_t job;
@@ -94,6 +94,39 @@ void ph_listener_set_backlog(ph_listener_t *lstn, int backlog);
  */
 void ph_listener_enable(ph_listener_t *lstn, bool enable);
 
+/** Set the acceptor data for the listener
+ *
+ * This allows data to be passed from the function that calls
+ * ph_listener_new() to the accept callback function.
+ *
+ * ```
+ * static void handle_recv(ph_sock_t* sock, ph_iomask_t why, void* arg) {
+ *   struct path* paths = arg;
+ *   // handle the request with the list of paths...
+ * }
+ *
+ * static void handle_accept(ph_listener_t* lstn, ph_sock_t* sock)
+ * {
+ *   struct path* paths = ph_listener_get_acceptor_data(lstn);
+ *   sock->job.data = paths;
+ *   sock->callback = handle_recv;
+ *   ph_log(PH_LOG_INFO, "accepted `P{sockaddr:%p}", (void*)&sock->peername);
+ *   ph_sock_enable(sock, true);
+ * }
+ *
+ * void http_start(char* name, char* address, uint32_t port, struct path* paths)
+ * {
+ *   ph_listener_t* listener = ph_listener_new(name, handle_accept);
+ *   ph_listener_set_acceptor_data(listener, routes);
+ *   // bind and enable listener...
+ * }
+ * ```
+ */
+void ph_listener_set_acceptor_data(ph_listener_t* lstn, void* data);
+
+/** Get the acceptor data for the listener */
+void* ph_listener_get_acceptor_data(ph_listener_t* lstn);
+
 #ifdef __cplusplus
 }
 #endif
@@ -102,4 +135,3 @@ void ph_listener_enable(ph_listener_t *lstn, bool enable);
 
 /* vim:ts=2:sw=2:et:
  */
-
