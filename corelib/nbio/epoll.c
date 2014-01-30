@@ -130,11 +130,21 @@ void ph_nbio_emitter_run(struct ph_nbio_emitter *emitter, ph_thread_t *thread)
       ph_thread_epoch_poll();
       continue;
     }
+
+    if (n == 0) {
+      continue;
+    }
+
+    ph_thread_epoch_begin();
     for (i = 0; i < n; i++) {
       ph_iomask_t mask = 0;
       ph_job_t *job = event[i].data.ptr;
 
-      ph_thread_epoch_begin();
+      if (job->mask == 0) {
+        // Ignore: disabled for now
+        continue;
+      }
+
       switch (event[i].events & (EPOLLIN|EPOLLOUT|EPOLLERR|EPOLLHUP)) {
         case EPOLLIN:
           mask = PH_IOMASK_READ;
@@ -156,10 +166,10 @@ void ph_nbio_emitter_run(struct ph_nbio_emitter *emitter, ph_thread_t *thread)
       if (ph_job_have_deferred_items(thread)) {
         ph_job_pool_apply_deferred_items(thread);
       }
-      ph_thread_epoch_end();
-      ph_job_collector_emitter_call(emitter);
-      ph_thread_epoch_poll();
     }
+    ph_thread_epoch_end();
+    ph_job_collector_emitter_call(emitter);
+    ph_thread_epoch_poll();
   }
 
   free(event);
@@ -193,6 +203,8 @@ ph_result_t ph_nbio_emitter_apply_io_mask(
   }
 
   if (want_mask == 0) {
+    job->mask = 0;
+    job->kmask = 0;
     res = epoll_ctl(emitter->io_fd, EPOLL_CTL_DEL, job->fd, &evt);
     if (res < 0 && errno == ENOENT) {
       res = 0;
