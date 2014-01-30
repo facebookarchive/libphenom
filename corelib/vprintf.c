@@ -576,11 +576,21 @@ ph_vprintf_core(void *print_arg,
 
           if (!memcmp("%p", fmt + 3, 2)) {
             str = GETARG(void*);
+            if (!str) {
+              PRINT("(null)", 6);
+              ret += 6;
+              continue;
+            }
             len = str->len;
             fmt += 5;
           } else if (!memcmp("%d%p", fmt + 3, 4)) {
             len = GETARG(int);
             str = GETARG(void*);
+            if (!str) {
+              PRINT("(null)", 6);
+              ret += 6;
+              continue;
+            }
             len = MIN(len, str->len);
             fmt += 7;
           } else {
