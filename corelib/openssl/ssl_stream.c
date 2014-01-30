@@ -42,11 +42,14 @@ static bool do_ssl_read_or_write(ph_stream_t *stm, bool is_reading,
   const char *file;
   int line;
   SSL *s = stm->cookie;
+  uint64_t total_read = 0;
 
   if (ph_unlikely(s == NULL)) {
     stm->last_err = EBADF;
     return false;
   }
+
+  stm->need_mask = 0;
 
   for (i = 0; i < iovcnt; i++) {
     if (iov[i].iov_len == 0) {
@@ -60,10 +63,8 @@ static bool do_ssl_read_or_write(ph_stream_t *stm, bool is_reading,
     }
 
     if (res > 0) {
-      if (nread) {
-        *nread = res;
-      }
-      return true;
+      total_read += res;
+      continue;
     }
     err = SSL_get_error(s, res);
 
@@ -71,12 +72,12 @@ static bool do_ssl_read_or_write(ph_stream_t *stm, bool is_reading,
       case SSL_ERROR_WANT_READ:
         stm->need_mask |= PH_IOMASK_READ;
         stm->last_err = EAGAIN;
-        return false;
+        break;
 
       case SSL_ERROR_WANT_WRITE:
         stm->need_mask |= PH_IOMASK_WRITE;
         stm->last_err = EAGAIN;
-        return false;
+        break;
 
       default:
         stm->last_err = EIO;
@@ -87,14 +88,18 @@ static bool do_ssl_read_or_write(ph_stream_t *stm, bool is_reading,
           ERR_error_string_n(serr, ebuf, sizeof(ebuf));
           ph_log(PH_LOG_INFO, "SSL err: %s:%d %lu %s", file, line, serr, ebuf);
         }
-        return false;
     }
+    break;
   }
 
-  if (nread) {
-    *nread = 0;
+  if (total_read > 0) {
+    if (nread) {
+      *nread = total_read;
+    }
+    return true;
   }
-  return true;
+
+  return false;
 }
 
 static bool ssl_stm_readv(ph_stream_t *stm, const struct iovec *iov,

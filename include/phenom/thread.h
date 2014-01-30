@@ -185,6 +185,16 @@ bool ph_thread_epoch_poll(void);
  */
 void ph_thread_epoch_barrier(void);
 
+/** Return the emitter affinity value for the currently executing thread
+ *
+ * If the thread is an emitter (one of the nbio threads), return an affinity
+ * value that can be set in job->affinity to cause a job to execute on the
+ * same thread later.
+ *
+ * If the thread is not an emitter, returns 0
+ */
+uint32_t ph_thread_emitter_affinity(void);
+
 void ph_counter_tear_down_thread(ph_thread_t *thr);
 void ph_counter_init_thread(ph_thread_t *thr);
 extern ck_stack_t ph_thread_all_threads;

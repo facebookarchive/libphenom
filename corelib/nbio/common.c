@@ -67,6 +67,14 @@ struct ph_nbio_emitter *ph_nbio_emitter_for_job(ph_job_t *job) {
   return emitter_for_job(job);
 }
 
+uint32_t ph_thread_emitter_affinity(void) {
+  ph_thread_t *me = ph_thread_self();
+  if (!me->is_emitter) {
+    return 0;
+  }
+  return me->is_emitter->emitter_id;
+}
+
 static void process_deferred(ph_thread_t *me, void *impl);
 
 void ph_nbio_emitter_dispatch_immediate(
@@ -74,7 +82,7 @@ void ph_nbio_emitter_dispatch_immediate(
     ph_job_t *job, ph_iomask_t why)
 {
   if (why != PH_IOMASK_TIME &&
-      ph_timerwheel_disable(&emitter->wheel, &job->timer) == PH_BUSY) {
+      ph_timerwheel_remove(&emitter->wheel, &job->timer) == PH_BUSY) {
     // timer is currently dispatching this: it wins
     ph_counter_block_add(emitter->cblock, SLOT_BUSY, 1);
     return;

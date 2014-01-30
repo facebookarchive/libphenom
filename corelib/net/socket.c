@@ -55,6 +55,8 @@ static struct {
 } mt;
 static int ssl_sock_idx;
 
+static uint32_t connect_affinity = 0;
+
 ph_socket_t ph_socket_for_addr(const ph_sockaddr_t *addr, int type, int flags)
 {
   ph_socket_t s;
@@ -112,30 +114,37 @@ static void sock_dtor(ph_job_t *job)
 
   if (sock->sslwbuf) {
     ph_bufq_free(sock->sslwbuf);
+    sock->sslwbuf = NULL;
   }
   if (sock->ssl) {
     SSL_CTX *ctx = sock->ssl->ctx;
 
     if (sock->ssl_stream) {
       ph_stm_close(sock->ssl_stream);
+      sock->ssl_stream = NULL;
     } else {
       SSL_free(sock->ssl);
     }
+    sock->ssl = NULL;
 
     SSL_CTX_free(ctx);
   }
 
   if (sock->wbuf) {
     ph_bufq_free(sock->wbuf);
+    sock->wbuf = NULL;
   }
   if (sock->rbuf) {
     ph_bufq_free(sock->rbuf);
+    sock->rbuf = NULL;
   }
   if (sock->conn) {
     ph_stm_close(sock->conn);
+    sock->conn = NULL;
   }
   if (sock->stream) {
     ph_stm_close(sock->stream);
+    sock->stream = NULL;
   }
 }
 
@@ -199,8 +208,7 @@ static void sock_dispatch(ph_job_t *j, ph_iomask_t why, void *data)
     why |= PH_IOMASK_ERR;
   }
 
-  if (sock->enabled &&
-      (why & (PH_IOMASK_READ|PH_IOMASK_ERR)) == PH_IOMASK_READ) {
+  if (sock->enabled && (why & PH_IOMASK_ERR) == 0) {
     if (!try_read(sock)) {
       why |= PH_IOMASK_ERR;
     }
@@ -235,16 +243,35 @@ static void sock_dispatch(ph_job_t *j, ph_iomask_t why, void *data)
     }
   }
 
-  sock->callback(sock, why, data);
+  if (sock->enabled || why == PH_IOMASK_WAKEUP) {
+dispatch_again:
+    sock->callback(sock, why, data);
+  }
+
+  uint64_t rbufsize = ph_bufq_len(sock->rbuf);
 
   try_ssl_shunt(sock);
 
   if (sock->enabled) {
     if (!try_send(sock)) {
       sock->callback(sock, PH_IOMASK_ERR, data);
+    } else if (sock->ssl_stream && try_read(sock) &&
+        ph_bufq_len(sock->rbuf) > rbufsize) {
+      // SSL writes can also read; while it remains buffered
+      // in the SSL structure, we don't see it in rbuf and won't
+      // get woken up by epoll.  If we hit that case, we perform
+      // this speculative read, and if the rbuf_len changes we
+      // know that we should make another attempt at dispatching
+      // to read the remainder
+      why = PH_IOMASK_READ;
+      goto dispatch_again;
     }
 
     ph_iomask_t mask = sock->conn->need_mask | PH_IOMASK_READ;
+
+    if (sock->ssl_stream) {
+      mask |= sock->ssl_stream->need_mask;
+    }
 
     if (ph_bufq_len(sock->wbuf) ||
         (sock->sslwbuf && ph_bufq_len(sock->sslwbuf))) {
@@ -298,6 +325,7 @@ void ph_socket_connect(ph_socket_t s, const ph_sockaddr_t *addr,
   job->addr = *addr;
   job->func = func;
   job->arg = arg;
+  job->job.emitter_affinity = ck_pr_faa_32(&connect_affinity, 1);
 
   job->start = ph_time_now();
   res = connect(s, &job->addr.sa.sa, ph_sockaddr_socklen(&job->addr));
@@ -306,7 +334,6 @@ void ph_socket_connect(ph_socket_t s, const ph_sockaddr_t *addr,
     // Pending; let's set things up to call us back later
 
     job->job.fd = s;
-    job->job.callback = connect_complete;
     job->job.data = job;
     ph_job_set_nbio_timeout_in(&job->job, PH_IOMASK_WRITE,
         timeout ? *timeout : default_timeout);
