@@ -643,6 +643,7 @@ void ph_job_free(ph_job_t *job)
   if (target_emitter) {
     ph_timerwheel_remove(&target_emitter->wheel, &job->timer);
   }
+  ph_assert(job->epoch_entry.function == NULL, "double ph_job_free");
   ph_thread_epoch_defer(&job->epoch_entry, deferred_job_free);
 }
 
