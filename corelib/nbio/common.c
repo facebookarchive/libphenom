@@ -232,8 +232,7 @@ static void do_wakeup(intptr_t code, void *arg)
   ph_nbio_emitter_dispatch_immediate(
       ph_thread_self()->is_emitter,
       job,
-      PH_IOMASK_WAKEUP
-  );
+      PH_IOMASK_WAKEUP);
 }
 
 ph_result_t ph_job_wakeup(ph_job_t *job)
