@@ -81,6 +81,11 @@ void ph_nbio_emitter_dispatch_immediate(
     struct ph_nbio_emitter *emitter,
     ph_job_t *job, ph_iomask_t why)
 {
+  if (job->epoch_entry.function) {
+    // We're being freed
+    return;
+  }
+
   if (why != PH_IOMASK_TIME &&
       ph_timerwheel_remove(&emitter->wheel, &job->timer) == PH_BUSY) {
     // timer is currently dispatching this: it wins
@@ -224,12 +229,21 @@ static void do_wakeup(intptr_t code, void *arg)
   ph_unused_parameter(code);
 
   ck_pr_dec_32(&job->n_wakeups_pending);
-  job->callback(job, PH_IOMASK_WAKEUP, job->data);
+  ph_nbio_emitter_dispatch_immediate(
+      ph_thread_self()->is_emitter,
+      job,
+      PH_IOMASK_WAKEUP
+  );
 }
 
 ph_result_t ph_job_wakeup(ph_job_t *job)
 {
   ph_result_t res;
+
+  if (job->epoch_entry.function) {
+    return PH_BUSY;
+  }
+
   ck_pr_inc_32(&job->n_wakeups_pending);
   res = ph_nbio_queue_affine_func(job->emitter_affinity, do_wakeup, 0, job);
   if (res != PH_OK) {
@@ -469,6 +483,8 @@ ph_result_t ph_job_set_nbio(ph_job_t *job, ph_iomask_t mask,
   struct ph_nbio_emitter *target_emitter = emitter_for_job(job);
 
   me = ph_thread_self();
+
+  ph_assert(job->epoch_entry.function == NULL, "job is pending free");
 
   job->pool = NULL;
 

@@ -639,11 +639,14 @@ void ph_job_free(ph_job_t *job)
 {
   struct ph_nbio_emitter *target_emitter = ph_nbio_emitter_for_job(job);
 
+  ph_assert(job->epoch_entry.function == NULL, "double ph_job_free");
+
   // emitter can be NULL during TLS teardown
   if (target_emitter) {
     ph_timerwheel_remove(&target_emitter->wheel, &job->timer);
   }
-  ph_assert(job->epoch_entry.function == NULL, "double ph_job_free");
+  // Turn off any pending kernel notification
+  ph_nbio_emitter_apply_io_mask(target_emitter, job, 0);
   ph_thread_epoch_defer(&job->epoch_entry, deferred_job_free);
 }
 
