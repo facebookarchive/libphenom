@@ -193,6 +193,7 @@ static bool try_read(ph_sock_t *sock)
 static void sock_dispatch(ph_job_t *j, ph_iomask_t why, void *data)
 {
   ph_sock_t *sock = (ph_sock_t*)j;
+  bool had_err = why & PH_IOMASK_ERR;
 
   if (j->def && j->epoch_entry.function) {
     // We're being woken up after we've been freed.
@@ -205,8 +206,11 @@ static void sock_dispatch(ph_job_t *j, ph_iomask_t why, void *data)
 
     // Push data into the SSL stream
     if (sock->sslwbuf) {
-      try_ssl_shunt(sock);
-      why |= PH_IOMASK_WRITE;
+      if (try_ssl_shunt(sock)) {
+        why |= PH_IOMASK_WRITE;
+      } else {
+        why |= PH_IOMASK_ERR;
+      }
     }
 
     // If we have data pending write, try to get that sent, and flag
@@ -252,6 +256,9 @@ static void sock_dispatch(ph_job_t *j, ph_iomask_t why, void *data)
   }
 
 dispatch_again:
+  if (why & PH_IOMASK_ERR) {
+    had_err = true;
+  }
   if (sock->enabled || (why & PH_IOMASK_WAKEUP) || (why & PH_IOMASK_ERR)) {
     sock->callback(sock, why, data);
   }
@@ -260,23 +267,34 @@ dispatch_again:
     return;
   }
 
-  uint64_t rbufsize = ph_bufq_len(sock->rbuf);
+  if (!had_err) {
+    uint64_t rbufsize = ph_bufq_len(sock->rbuf);
 
-  try_ssl_shunt(sock);
+    if (!try_ssl_shunt(sock)) {
+      why = PH_IOMASK_ERR;
+      goto dispatch_again;
+    }
 
-  if (!try_send(sock)) {
-    why = PH_IOMASK_ERR;
-    goto dispatch_again;
-  } else if (sock->ssl_stream && try_read(sock) &&
-      ph_bufq_len(sock->rbuf) > rbufsize) {
-    // SSL writes can also read; while it remains buffered
-    // in the SSL structure, we don't see it in rbuf and won't
-    // get woken up by epoll.  If we hit that case, we perform
-    // this speculative read, and if the rbuf_len changes we
-    // know that we should make another attempt at dispatching
-    // to read the remainder
-    why = PH_IOMASK_READ;
-    goto dispatch_again;
+    if (!try_send(sock)) {
+      why = PH_IOMASK_ERR;
+      goto dispatch_again;
+    } else if (sock->ssl_stream) {
+      // SSL writes can also read; while it remains buffered
+      // in the SSL structure, we don't see it in rbuf and won't
+      // get woken up by epoll.  If we hit that case, we perform
+      // this speculative read, and if the rbuf_len changes we
+      // know that we should make another attempt at dispatching
+      // to read the remainder
+      if (!try_read(sock)) {
+        why = PH_IOMASK_ERR;
+        goto dispatch_again;
+      }
+
+      if (ph_bufq_len(sock->rbuf) > rbufsize) {
+        why = PH_IOMASK_READ;
+        goto dispatch_again;
+      }
+    }
   }
 
   ph_iomask_t mask = sock->conn->need_mask | PH_IOMASK_READ;
