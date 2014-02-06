@@ -57,7 +57,7 @@ struct ph_listener {
   char name[64];
 
   // data associated with the listener.
-  void* acceptor_data;
+  void *acceptor_data;
 };
 
 /** Create a new listener */
@@ -100,32 +100,32 @@ void ph_listener_enable(ph_listener_t *lstn, bool enable);
  * ph_listener_new() to the accept callback function.
  *
  * ```
- * static void handle_recv(ph_sock_t* sock, ph_iomask_t why, void* arg) {
- *   struct path* paths = arg;
+ * static void handle_recv(ph_sock_t *sock, ph_iomask_t why, void *arg) {
+ *   struct path *paths = arg;
  *   // handle the request with the list of paths...
  * }
  *
- * static void handle_accept(ph_listener_t* lstn, ph_sock_t* sock)
+ * static void handle_accept(ph_listener_t *lstn, ph_sock_t* sock)
  * {
- *   struct path* paths = ph_listener_get_acceptor_data(lstn);
+ *   struct path *paths = ph_listener_get_acceptor_data(lstn);
  *   sock->job.data = paths;
  *   sock->callback = handle_recv;
  *   ph_log(PH_LOG_INFO, "accepted `P{sockaddr:%p}", (void*)&sock->peername);
  *   ph_sock_enable(sock, true);
  * }
  *
- * void http_start(char* name, char* address, uint32_t port, struct path* paths)
+ * void http_start(char *name, char *address, uint32_t port, struct path *paths)
  * {
- *   ph_listener_t* listener = ph_listener_new(name, handle_accept);
+ *   ph_listener_t *listener = ph_listener_new(name, handle_accept);
  *   ph_listener_set_acceptor_data(listener, routes);
  *   // bind and enable listener...
  * }
  * ```
  */
-void ph_listener_set_acceptor_data(ph_listener_t* lstn, void* data);
+void ph_listener_set_acceptor_data(ph_listener_t *lstn, void *data);
 
 /** Get the acceptor data for the listener */
-void* ph_listener_get_acceptor_data(ph_listener_t* lstn);
+void *ph_listener_get_acceptor_data(ph_listener_t *lstn);
 
 #ifdef __cplusplus
 }
