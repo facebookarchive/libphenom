@@ -377,7 +377,6 @@ void ph_socket_connect(ph_socket_t s, const ph_sockaddr_t *addr,
   ph_job_free(&job->job);
 }
 
-// Should probably be configurable
 #define MAX_SOCK_BUFFER_SIZE 128*1024
 
 static bool sock_stm_close(ph_stream_t *stm)

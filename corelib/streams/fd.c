@@ -16,6 +16,18 @@
 #include "phenom/sysutil.h"
 #include "phenom/stream.h"
 
+static bool should_retry(ph_stream_t *stm)
+{
+  switch (ph_stm_errno(stm)) {
+    case EAGAIN:
+    case EINTR:
+    case EINPROGRESS:
+      return true;
+    default:
+      return false;
+  }
+}
+
 static bool fd_close(ph_stream_t *stm)
 {
   int fd = (intptr_t)stm->cookie;
@@ -37,7 +49,7 @@ static bool fd_readv(ph_stream_t *stm, const struct iovec *iov,
 
   if (r == -1) {
     stm->last_err = errno;
-    if (stm->last_err == EAGAIN) {
+    if (should_retry(stm)) {
       stm->need_mask |= PH_IOMASK_READ;
     }
     return false;
@@ -59,7 +71,7 @@ static bool fd_writev(ph_stream_t *stm, const struct iovec *iov,
 
   if (w == -1) {
     stm->last_err = errno;
-    if (stm->last_err == EAGAIN) {
+    if (should_retry(stm)) {
       stm->need_mask |= PH_IOMASK_WRITE;
     }
     return false;

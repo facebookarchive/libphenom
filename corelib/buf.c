@@ -370,6 +370,7 @@ ph_result_t ph_bufq_append(ph_bufq_t *q, const void *buf, uint64_t len,
   struct ph_bufq_ent *last, *append;
   const char *cbuf = buf;
   uint64_t avail = 0, buflen;
+  uint64_t consumed = 0;
 
   last = PH_STAILQ_LAST(&q->fifo, ph_bufq_ent, ent);
   if (last) {
@@ -383,11 +384,12 @@ ph_result_t ph_bufq_append(ph_bufq_t *q, const void *buf, uint64_t len,
     last->wpos += avail;
     len -= avail;
     cbuf += avail;
+    consumed += avail;
   }
 
   if (len == 0) {
     if (added_bytes) {
-      *added_bytes = avail;
+      *added_bytes = consumed;
     }
     return PH_OK;
   }
@@ -397,18 +399,21 @@ ph_result_t ph_bufq_append(ph_bufq_t *q, const void *buf, uint64_t len,
   append = q_add_new_buf(q, buflen);
 
   if (!append) {
-    // Roll back!
-    if (last && avail) {
-      last->wpos -= avail;
+    if (added_bytes) {
+      *added_bytes = consumed;
+    }
+    if (consumed) {
+      return PH_OK;
     }
     return PH_NOMEM;
   }
 
   ph_buf_copy_mem(append->buf, cbuf, len, 0);
   append->wpos = len;
+  consumed += len;
 
   if (added_bytes) {
-    *added_bytes = avail + len;
+    *added_bytes = consumed;
   }
 
   return PH_OK;
