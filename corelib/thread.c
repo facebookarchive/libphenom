@@ -85,6 +85,7 @@ CK_STACK_CONTAINER(ph_thread_t,
 
 static void thread_fini(void)
 {
+#ifdef PH_PLACATE_VALGRIND
   ck_stack_entry_t *stack_entry;
   ph_thread_t *thr;
 
@@ -93,6 +94,7 @@ static void thread_fini(void)
     ph_counter_tear_down_thread(thr);
     free(thr);
   }
+#endif
 }
 
 static void thread_init(void)

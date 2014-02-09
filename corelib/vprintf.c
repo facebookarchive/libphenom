@@ -122,7 +122,9 @@ static struct ph_ht_val_def val_def = {
 
 static void fini_vprintf(void)
 {
+#ifdef PH_PLACATE_VALGRIND
   ph_ht_destroy(&formatters);
+#endif
 }
 
 static void init_vprintf(void)

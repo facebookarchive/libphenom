@@ -45,6 +45,16 @@ AC_ARG_ENABLE(lenient, [
    lenient=$enableval
 ])
 
+placate_valgrind=no
+AC_ARG_ENABLE(placate-valgrind, [
+  --enable-placate-valgrind  Attempt to release all memory on shutdown
+],[
+   placate_valgrind=$enableval
+])
+if test "$placate_valgrind" == "yes" ; then
+  AC_DEFINE(PH_PLACATE_VALGRIND, [1], [Placate valgrind])
+fi
+
 rtm=no
 AC_ARG_ENABLE(rtm, [
   --enable-rtm Turn on support for Intel TSX extensions

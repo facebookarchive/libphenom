@@ -64,6 +64,7 @@ static const char *vsize_counter_names[] = {
 /** tear things down and make valgrind believe that we didn't leak */
 static void memory_destroy(void)
 {
+#ifdef PH_PLACATE_VALGRIND
   int i;
 
   // One last try to collect anything lingering in SMR.
@@ -83,6 +84,7 @@ static void memory_destroy(void)
   }
 
   free(memtypes);
+#endif
 }
 
 // Can't use ph_panic() from here, as that may allocate

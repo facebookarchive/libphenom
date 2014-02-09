@@ -58,7 +58,9 @@ static struct ph_ht_val_def hookpoint_def = {
 
 static void do_hook_fini(void)
 {
+#ifdef PH_PLACATE_VALGRIND
   ph_ht_destroy(&hook_hash);
+#endif
 }
 
 static void do_hook_init(void)

@@ -200,6 +200,7 @@ static ph_dns_channel_t *create_chan(void)
   return chan;
 }
 
+#ifdef PH_PLACATE_VALGRIND
 static void free_chan(ph_dns_channel_t *chan)
 {
   ares_destroy(chan->chan);
@@ -207,11 +208,14 @@ static void free_chan(ph_dns_channel_t *chan)
   pthread_mutex_destroy(&chan->chanlock);
   ph_mem_free(mt.chan, chan);
 }
+#endif
 
 static void do_ares_fini(void)
 {
+#ifdef PH_PLACATE_VALGRIND
   torn_down = true;
   free_chan(default_channel);
+#endif
 }
 
 static void do_ares_init(void)

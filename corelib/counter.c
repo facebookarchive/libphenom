@@ -107,6 +107,7 @@ void ph_counter_tear_down_thread(ph_thread_t *thr)
 /* Tear things down and make valgrind happy that we didn't leak */
 static void counter_destroy(void)
 {
+#ifdef PH_PLACATE_VALGRIND
   ck_hs_iterator_t iter;
   ph_counter_scope_t *scope;
 
@@ -120,6 +121,7 @@ static void counter_destroy(void)
   }
 
   ck_hs_destroy(&ph_counter_scope_map);
+#endif
 }
 
 static bool scope_map_compare(const void *a, const void *b)
