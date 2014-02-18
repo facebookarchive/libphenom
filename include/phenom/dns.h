@@ -86,11 +86,11 @@ struct ph_dns_addrinfo {
 };
 
 /** Initiate an async getaddrinfo(3) call
- * The call is dispatched by a DNS thread pool.  When it completes,
- * your ph_dns_addrinfo_func function is invoked in the context of that
- * thread.  You own the resultant ph_dns_addrinfo struct and must call
- * ph_dns_addrinfo_free() to release its resources when you are done
- * with them.
+ * The call is dispatched by a DNS thread pool, which is started alongside
+ * the scheduler. When it completes, your ph_dns_addrinfo_func function is
+ * invoked in the context of that thread.  You own the resultant ph_dns_addrinfo
+ * struct and must call ph_dns_addrinfo_free() to release its resources when you
+ * are done with them.
  *
  * Arguments are the same as getaddrinfo(3), with the addition of `func`
  * and `arg`.  `func` is called after getaddrinfo() completes.  `arg`
