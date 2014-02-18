@@ -407,7 +407,7 @@ void ph_nbio_stat(struct ph_nbio_stats *stats);
 ph_result_t ph_sched_run(void);
 
 /** Requests that the run loop be halted.
- * Can be called from any thread */
+ * Can be called from any thread. Once the scheduler is stopped, it cannot be restarted. */
 void ph_sched_stop(void);
 
 typedef void (*ph_nbio_affine_func)(intptr_t code, void *arg);
