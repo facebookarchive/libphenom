@@ -88,6 +88,7 @@ $ sudo make install
 You'll want to set up the main loop using something like this:
 
 ```c
+// Always include phenom/defs.h first to correctly set up the compilation env
 #include "phenom/defs.h"
 #include "phenom/configuration.h"
 #include "phenom/job.h"
