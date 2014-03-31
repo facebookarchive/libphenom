@@ -49,6 +49,7 @@
  */
 
 static bool enable_ssl = false;
+static SSL_CTX *ssl_ctx = NULL;
 
 // Each connected session will have one of these structs associated with it.
 // We don't really do anything useful with it here, it's just to show how
@@ -142,15 +143,12 @@ static void acceptor(ph_listener_t *lstn, ph_sock_t *sock)
   ph_log(PH_LOG_ERR, "accepted `P{sockaddr:%p}", (void*)&sock->peername);
 
   if (enable_ssl) {
-    SSL_CTX *ctx = SSL_CTX_new(SSLv23_server_method());
     SSL *ssl;
 
-    SSL_CTX_set_cipher_list(ctx, "ALL");
-    SSL_CTX_use_RSAPrivateKey_file(ctx, "examples/server.pem", SSL_FILETYPE_PEM);
-    SSL_CTX_use_certificate_file(ctx, "examples/server.pem", SSL_FILETYPE_PEM);
-    SSL_CTX_set_options(ctx, SSL_OP_ALL);
-    ssl = SSL_new(ctx);
+    // Tell the sock that we're using a global SSL_CTX
+    sock->free_ssl_ctx = false;
 
+    ssl = SSL_new(ssl_ctx);
     ph_sock_openssl_enable(sock, ssl, false, done_handshake);
   }
 
@@ -197,6 +195,12 @@ int main(int argc, char **argv)
 
   if (enable_ssl) {
     ph_library_init_openssl();
+
+    ssl_ctx = SSL_CTX_new(SSLv23_server_method());
+    SSL_CTX_set_cipher_list(ssl_ctx, "ALL");
+    SSL_CTX_use_RSAPrivateKey_file(ssl_ctx, "examples/server.pem", SSL_FILETYPE_PEM);
+    SSL_CTX_use_certificate_file(ssl_ctx, "examples/server.pem", SSL_FILETYPE_PEM);
+    SSL_CTX_set_options(ssl_ctx, SSL_OP_ALL);
   }
 
   // Set up the address that we're going to listen on

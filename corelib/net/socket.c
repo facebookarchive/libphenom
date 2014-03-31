@@ -127,7 +127,9 @@ static void sock_dtor(ph_job_t *job)
     }
     sock->ssl = NULL;
 
-    SSL_CTX_free(ctx);
+    if (sock->free_ssl_ctx) {
+      SSL_CTX_free(ctx);
+    }
   }
 
   if (sock->wbuf) {
@@ -482,6 +484,8 @@ ph_sock_t *ph_sock_new_from_socket(ph_socket_t s, const ph_sockaddr_t *sockname,
   if (!sock) {
     return NULL;
   }
+
+  sock->free_ssl_ctx = true;
 
   max_buf = ph_config_query_int("$.socket.max_buffer_size",
               MAX_SOCK_BUFFER_SIZE);

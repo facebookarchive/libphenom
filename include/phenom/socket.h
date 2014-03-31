@@ -237,6 +237,12 @@ struct ph_sock {
   ph_stream_t *ssl_stream;
   ph_sock_openssl_handshake_func handshake_cb;
   ph_bufq_t *sslwbuf;
+  // Whether we should free the associated SSL_CTX on destruction.
+  // This defaults to true for backwards compatibility.
+  // If you're building SSL enabled listeners, you probably want to keep
+  // a global SSL_CTX and set this to false.  For clients, it is often
+  // easier to leave this set to true.
+  bool free_ssl_ctx;
 };
 
 /** Create a new sock object from a socket descriptor
