@@ -62,12 +62,6 @@ AC_ARG_ENABLE(rtm, [
    rtm=$enableval
 ])
 
-if test "$rtm" == "yes" ; then
-    RTM_ENABLE=CK_MD_RTM_ENABLE
-else
-    RTM_ENABLE=CK_MD_RTM_DISABLE
-fi
-
 stack_protect=no
 AC_ARG_ENABLE(stack-protector, [
   --enable-stack-protector  Enable stack protection in the same
@@ -165,6 +159,12 @@ case "$target_os" in
     PC_CFLAGS="$PC_CFLAGS -DMAC_OS_X_VERSION_MIN_REQUIRED=MAC_OS_X_VERSION_10_6"
     ;;
 esac
+
+if ! $PKG_CONFIG --exists --max-version=0.3.2 --print-errors ck ; then
+  AC_MSG_ERROR([ck is required])
+fi
+CFLAGS="$CFLAGS `$PKG_CONFIG --cflags ck`"
+LIBS="$LIBS `$PKG_CONFIG --libs ck`"
 
 AC_PATH_PROG(PHP, php, true)
 AC_SUBST(PHP)
@@ -313,57 +313,6 @@ thread_policy_set \
 timerfd_create \
 )
 
-# Virtual memory address size in bits; CK uses this for
-# pointer-packing tricks
-VMA=unknown
-case "$target_cpu" in
-  x86_64|amd64)
-    MM=CK_MD_TSO
-    CPU=X86_64
-
-    case "$target_os" in
-      darwin)
-        VMA=`sysctl -n machdep.cpu.address_bits.virtual`
-        ;;
-      linux)
-        VMA=`awk '/address sizes/ {print $7;exit}' /proc/cpuinfo`
-        ;;
-    esac
-    ;;
-  i686)
-    MM=CK_MD_TSO
-    CPU=X86
-    ;;
-  *)
-    AC_ERROR([too lazy to port CK for this platform $target_os-$target_cpu])
-    ;;
-esac
-if test "$VMA" == "unknown" ; then
-  VMA_BITS="CK_MD_VMA_BITS_UNKNOWN"
-  VMA_BITS_VALUE=1
-  POINTER_PACK_ENABLE="CK_MD_POINTER_PACK_DISABLE"
-else
-  VMA_BITS="CK_MD_VMA_BITS"
-  VMA_BITS_VALUE="${VMA}ULL"
-  POINTER_PACK_ENABLE="CK_MD_POINTER_PACK_ENABLE"
-fi
-
-case "$CPU" in
-  X86_64)
-    PC_CFLAGS="$PC_CFLAGS -D__x86_64__=1"
-    ;;
-  X86)
-    PC_CFLAGS="$PC_CFLAGS -D__x86__=1"
-    ;;
-esac
-CFLAGS="$CFLAGS $PC_CFLAGS"
-
-AC_SUBST(MM)
-AC_SUBST(VMA_BITS)
-AC_SUBST(VMA_BITS_VALUE)
-AC_SUBST(POINTER_PACK_ENABLE)
-AC_SUBST(RTM_ENABLE)
-
 # Do this after we've looked for functions
 if test -n "$GCC" ; then
   GCC_VERSION=`$CC -dumpversion`
@@ -417,8 +366,7 @@ fi
 AC_SUBST(IRONMANCFLAGS)
 
 AC_CONFIG_HEADER([include/phenom_build_config.h include/phenom/feature_test.h])
-AC_CONFIG_FILES([Makefile thirdparty/ck/include/ck_md.h libphenom.pc])
+AC_CONFIG_FILES([Makefile libphenom.pc])
 AC_OUTPUT
 
 dnl vim:ts=2:sw=2:
-
