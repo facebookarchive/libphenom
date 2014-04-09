@@ -58,7 +58,7 @@ libphenom_la_SOURCES = \
 if GIMLI
 gimli_libphenom_la_LDFLAGS = -module
 gimli_libphenom_la_CPPFLAGS = \
-	-Ithirdparty/ck/include -Iinclude -I$(top_srcdir)\
+	-Iinclude -I$(top_srcdir)\
 	-DPHENOM_IMPL=1
 gimli_libphenom_la_CFLAGS = @IRONMANCFLAGS@
 gimli_libphenom_la_LIBADD = libphenom.la
@@ -79,7 +79,7 @@ noinst_LIBRARIES = libtap.a
 libtap_a_CPPFLAGS = -Iinclude
 libtap_a_SOURCES = thirdparty/tap/tap.c
 
-TEST_CPPFLAGS = -Ithirdparty/tap -Ithirdparty/ck/include -Iinclude -DPHENOM_IMPL
+TEST_CPPFLAGS = -Ithirdparty/tap -Iinclude -DPHENOM_IMPL
 TEST_LDADD = libphenom.la libtap.a
 # don't drive me mad when I'm tab completing
 TEST_SUITE_LOG = tests/suite.log
@@ -116,10 +116,8 @@ install-phenom-hdrs:
 	$(INSTALL_HEADER) include/phenom/*.h $(DESTDIR)$(includedir)/phenom
 	$(INSTALL_HEADER) $(DESTDIR)$(includedir)
 	$(mkdir_p) "$(DESTDIR)$(includedir)/gcc"
-	$(INSTALL_HEADER) thirdparty/ck/include/gcc/*.h $(DESTDIR)$(includedir)/gcc
 	for a in arm ppc ppc64 sparcv9 x86 x86_64 ; do \
 		$(mkdir_p) "$(DESTDIR)$(includedir)/gcc/$$a" ; \
-		$(INSTALL_HEADER) thirdparty/ck/include/gcc/$$a/*.h $(DESTDIR)$(includedir)/gcc/$$a ; \
 	done
 
 clean-docs:
