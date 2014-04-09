@@ -138,7 +138,7 @@ case "$target_os" in
     ;;
 esac
 
-if ! $PKG_CONFIG --exists --max-version=0.3.2 --print-errors ck ; then
+if ! $PKG_CONFIG --exists --atleast-version=0.3.3 --max-version=0.4.1 --print-errors ck ; then
   AC_MSG_ERROR([ck is required])
 fi
 CFLAGS="$CFLAGS `$PKG_CONFIG --cflags ck`"

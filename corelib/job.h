@@ -95,7 +95,8 @@ struct ph_thread_pool {
 
   uint32_t max_queue_len;
 
-  ck_ring_t *rings[MAX_RINGS+1];
+  ck_ring_t rings[MAX_RINGS+1];
+  void *buffers[MAX_RINGS+1];
   intptr_t used_rings;
 
   ck_spinlock_t lock CK_CC_CACHELINE;
@@ -162,4 +163,3 @@ static inline pid_t get_own_tid(void) {
 
 /* vim:ts=2:sw=2:et:
  */
-
