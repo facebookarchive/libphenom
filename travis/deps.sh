@@ -10,7 +10,7 @@ esac
 HERE=$PWD
 
 # There is no CK package available for ubuntu yet
-CK_VER=0.3.2
+CK_VER=0.4.1
 CK_RELEASE=https://github.com/sbahra/ck/archive/$CK_VER.tar.gz
 if test ! -f $CK_VER.tar.gz ; then
   wget $CK_RELEASE

@@ -536,9 +536,9 @@ static inline void do_set_pool(ph_job_t *job, ph_thread_t *me)
     if (should_init_ring(pool, MAX_RINGS)) {
       init_ring(pool, MAX_RINGS);
     }
-    while (ph_unlikely(!ck_ring_enqueue_spmc(&pool->rings[MAX_RINGS],
+    while (!ck_ring_enqueue_spmc(&pool->rings[MAX_RINGS],
                                              pool->buffers[MAX_RINGS],
-                                             job))) {
+                                             job)) {
       ck_spinlock_unlock(&pool->lock);
       ph_counter_block_add(cblock, SLOT_PRODUCER_SLEEP, 1);
       wait_pool(&pool->producer);
