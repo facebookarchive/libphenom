@@ -1,4 +1,4 @@
-AC_INIT([phenom], [0.1], [], [phenom])
+AC_INIT([phenom], [0.2], [], [phenom])
 AC_CONFIG_AUX_DIR([.acaux])
 AC_CONFIG_SRCDIR([LICENSE])
 AC_CANONICAL_TARGET
@@ -125,25 +125,6 @@ pkg_config_libs() {
   esac
   echo "`$PKG_CONFIG --libs $1` $pkg_config_rpath"
 }
-
-ares="yes"
-AC_ARG_WITH(cares, [
-  --with-cares   Enable libc-ares DNS resolver support.
-                 Uses pkg-config to determine compilation flags.
-],[
-  ares=$withval
-])
-if test "x$ares" != "xno" ; then
-  if ! $PKG_CONFIG --exists --print-errors libcares ; then
-    AC_MSG_ERROR([libcares requested but not found])
-  fi
-  LIBS="$LIBS `pkg_config_libs libcares`"
-  CFLAGS="$CFLAGS `$PKG_CONFIG --cflags libcares`"
-  AC_CHECK_FUNCS(ares_parse_mx_reply,[
-    AC_DEFINE(PH_HAVE_ARES_MX, 1, [whether ares has mx parsing support])
-  ])
-  AC_DEFINE(PH_HAVE_ARES, 1, [whether we were built with c-ares support])
-fi
 
 CFLAGS="$CFLAGS `$PKG_CONFIG --cflags openssl`"
 LIBS="$LIBS `$PKG_CONFIG --libs openssl`"

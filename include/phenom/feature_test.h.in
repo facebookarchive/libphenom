@@ -14,9 +14,3 @@
  * limitations under the License.
  */
 
-/* Define to 1 if ARES support was enabled at compile time */
-#undef PH_HAVE_ARES
-
-/* Define to 1 if ARES have MX parsing support */
-#undef PH_HAVE_ARES_MX
-

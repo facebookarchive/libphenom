@@ -641,28 +641,6 @@ static void did_sys_resolve(ph_dns_addrinfo_t *info)
   ph_dns_addrinfo_free(info);
 }
 
-#ifdef HAVE_ARES
-static void resolve_ares(void *arg, int status, int timeouts,
-    struct hostent *hostent)
-{
-  struct resolve_and_connect *rac = arg;
-
-  ph_unused_parameter(timeouts);
-
-  if (status != ARES_SUCCESS) {
-    calc_elapsed(rac);
-    rac->func(NULL, PH_SOCK_CONNECT_ARES_ERR, status,
-        NULL, &rac->elapsed, rac->arg);
-    free_rac(rac);
-    return;
-  }
-
-  ph_sockaddr_set_from_hostent(&rac->addr, hostent);
-  ph_sockaddr_set_port(&rac->addr, rac->port);
-  attempt_connect(rac);
-}
-#endif
-
 void ph_sock_resolve_and_connect(const char *name, uint16_t port,
     struct timeval *timeout,
     int resolver, ph_sock_connect_func func, void *arg)
@@ -673,9 +651,6 @@ void ph_sock_resolve_and_connect(const char *name, uint16_t port,
 
   switch (resolver) {
     case PH_SOCK_CONNECT_RESOLVE_SYSTEM:
-#ifdef HAVE_ARES
-    case PH_SOCK_CONNECT_RESOLVE_ARES:
-#endif
       break;
     default:
       func(NULL, PH_SOCK_CONNECT_GAI_ERR, EAI_NONAME, NULL, &tv, arg);
@@ -717,12 +692,6 @@ void ph_sock_resolve_and_connect(const char *name, uint16_t port,
       func(NULL, PH_SOCK_CONNECT_ERRNO, errno, NULL, &rac->elapsed, arg);
       free_rac(rac);
       break;
-
-#ifdef HAVE_ARES
-    case PH_SOCK_CONNECT_RESOLVE_ARES:
-      ph_dns_channel_gethostbyname(NULL, name, AF_UNSPEC, resolve_ares, rac);
-      break;
-#endif
   }
 }
 

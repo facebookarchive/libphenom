@@ -303,14 +303,11 @@ ph_buf_t *ph_sock_read_record(ph_sock_t *sock, const char *delim,
 ph_buf_t *ph_sock_read_line(ph_sock_t *sock);
 
 #define PH_SOCK_CONNECT_RESOLVE_SYSTEM 0
-#define PH_SOCK_CONNECT_RESOLVE_ARES   1
 
 // Succeeded
 #define PH_SOCK_CONNECT_SUCCESS  0
 // Failed; errcode per gai_strerror
 #define PH_SOCK_CONNECT_GAI_ERR  1
-// Failed; errcode per ares_strerror
-#define PH_SOCK_CONNECT_ARES_ERR 2
 // Failed; errcode per strerror
 #define PH_SOCK_CONNECT_ERRNO    3
 
@@ -319,8 +316,8 @@ ph_buf_t *ph_sock_read_line(ph_sock_t *sock);
  * If successful, `sock` will be non-NULL and `overall_status` will be set
  * to `PH_SOCK_CONNECT_SUCCESS`.
  *
- * On failure `overall_status` will be set to one of `PH_SOCK_CONNECT_GAI_ERR`,
- * `PH_SOCK_CONNECT_ARES_ERR` or `PH_SOCK_CONNECT_ERRNO` to indicate how to
+ * On failure `overall_status` will be set to one of `PH_SOCK_CONNECT_GAI_ERR`
+ * or `PH_SOCK_CONNECT_ERRNO` to indicate how to
  * interpret the `errcode` parameter; they indicate that the errcode can be
  * rendered to human readable form via gai_strerror(), ares_strerror() or strerror()
  * respectively.
@@ -341,8 +338,8 @@ typedef void (*ph_sock_connect_func)(
 /** Given a name and port, resolve and connect a socket object to it
  *
  * This convenience function resolves the name using the specified resolver
- * (`PH_SOCK_CONNECT_RESOLVE_SYSTEM` for getaddrinfo, `PH_SOCK_CONNECT_RESOLVE_ARES`
- * for the ares resolver) and attempts to connect to the first address resolved.
+ * (`PH_SOCK_CONNECT_RESOLVE_SYSTEM` for getaddrinfo)
+ * and attempts to connect to the first address resolved.
  *
  * Success or failure is communicated to your ph_sock_connect_func.
  *
