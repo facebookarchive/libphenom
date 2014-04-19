@@ -55,13 +55,6 @@ if test "$placate_valgrind" == "yes" ; then
   AC_DEFINE(PH_PLACATE_VALGRIND, [1], [Placate valgrind])
 fi
 
-rtm=no
-AC_ARG_ENABLE(rtm, [
-  --enable-rtm Turn on support for Intel TSX extensions
-],[
-   rtm=$enableval
-])
-
 stack_protect=no
 AC_ARG_ENABLE(stack-protector, [
   --enable-stack-protector  Enable stack protection in the same
@@ -120,6 +113,19 @@ if ! $PKG_CONFIG --exists --print-errors openssl ; then
   AC_MSG_ERROR([openssl is required])
 fi
 
+pkg_config_libs() {
+  pkg_config_rpath=""
+  case "$target_os" in
+    solaris*|darwin*)
+      ;;
+    *)
+      dnl GNU LD specific; Solaris wants s/L/R/ but moving fast for now
+      pkg_config_rpath=`$PKG_CONFIG --libs-only-L $1 | sed -e 's/L/Wl,-rpath=/'`
+      ;;
+  esac
+  echo "`$PKG_CONFIG --libs $1` $pkg_config_rpath"
+}
+
 ares="yes"
 AC_ARG_WITH(cares, [
   --with-cares   Enable libc-ares DNS resolver support.
@@ -131,16 +137,7 @@ if test "x$ares" != "xno" ; then
   if ! $PKG_CONFIG --exists --print-errors libcares ; then
     AC_MSG_ERROR([libcares requested but not found])
   fi
-  ares_rpath=""
-  case "$target_os" in
-    solaris*|darwin*)
-      ;;
-    *)
-      dnl GNU LD specific; Solaris wants s/L/R/ but moving fast for now
-      ares_rpath=`$PKG_CONFIG --libs-only-L libcares | sed -e 's/L/Wl,-rpath=/'`
-      ;;
-  esac
-  LIBS="$LIBS `$PKG_CONFIG --libs libcares` $ares_rpath"
+  LIBS="$LIBS `pkg_config_libs libcares`"
   CFLAGS="$CFLAGS `$PKG_CONFIG --cflags libcares`"
   AC_CHECK_FUNCS(ares_parse_mx_reply,[
     AC_DEFINE(PH_HAVE_ARES_MX, 1, [whether ares has mx parsing support])
@@ -164,7 +161,7 @@ if ! $PKG_CONFIG --exists --max-version=0.3.2 --print-errors ck ; then
   AC_MSG_ERROR([ck is required])
 fi
 CFLAGS="$CFLAGS `$PKG_CONFIG --cflags ck`"
-LIBS="$LIBS `$PKG_CONFIG --libs ck`"
+LIBS="$LIBS `pkg_config_libs ck`"
 
 AC_PATH_PROG(PHP, php, true)
 AC_SUBST(PHP)
