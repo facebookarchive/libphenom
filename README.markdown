@@ -23,8 +23,11 @@ libPhenom depends on:
  * `pkg-config` to find dependencies.
  * [c-ares](http://c-ares.haxx.se) for DNS resolution.
  * [Concurrency Kit](http://concurrencykit.org/) for its excellent
-   concurrency primitives and key data structures.  We include CK
-   with phenom.
+   concurrency primitives and key data structures.
+   If you are on OS/X, you can `brew install concurrencykit`.
+   On other platforms, you will You will need to install
+   CK yourself as it is not widely distributed at this time.
+   We expect to be able to find CK using `pkg-config`.
  * **OpenSSL** is required; this should be provided by your OS.
    You will need to install `openssl-devel` or `libssl-dev` or a similarly
    named package.
