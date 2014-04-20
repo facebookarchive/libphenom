@@ -113,11 +113,6 @@ check-lint:
 install-phenom-hdrs:
 	$(mkdir_p) "$(DESTDIR)$(includedir)/phenom"
 	$(INSTALL_HEADER) include/phenom/*.h $(DESTDIR)$(includedir)/phenom
-	$(INSTALL_HEADER) $(DESTDIR)$(includedir)
-	$(mkdir_p) "$(DESTDIR)$(includedir)/gcc"
-	for a in arm ppc ppc64 sparcv9 x86 x86_64 ; do \
-		$(mkdir_p) "$(DESTDIR)$(includedir)/gcc/$$a" ; \
-	done
 
 clean-docs:
 	-rm docs/declmap.js
