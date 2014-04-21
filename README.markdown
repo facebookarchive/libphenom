@@ -21,7 +21,6 @@ a little bit of TLC:
 libPhenom depends on:
 
  * `pkg-config` to find dependencies.
- * [c-ares](http://c-ares.haxx.se) for DNS resolution.
  * [Concurrency Kit](http://concurrencykit.org/) for its excellent
    concurrency primitives and key data structures.
    If you are on OS/X, you can `brew install concurrencykit`.
@@ -129,7 +128,7 @@ And compile it using something like this: (you need optimization enabled)
 $ gcc -O2 main.c `pkg-config libphenom --cflags --libs`
 ```
 
-(this will link against `libphenom` and `libcares`).
+(this will link against `libphenom`).
 
 A more detailed example can be found at https://github.com/facebook/libphenom/blob/master/examples/echo.c
 
