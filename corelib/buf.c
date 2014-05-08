@@ -369,7 +369,7 @@ ph_result_t ph_bufq_append(ph_bufq_t *q, const void *buf, uint64_t len,
 {
   struct ph_bufq_ent *last, *append;
   const char *cbuf = buf;
-  uint64_t avail = 0, buflen;
+  uint64_t avail = 0;
   uint64_t consumed = 0;
 
   last = PH_STAILQ_LAST(&q->fifo, ph_bufq_ent, ent);
@@ -395,8 +395,7 @@ ph_result_t ph_bufq_append(ph_bufq_t *q, const void *buf, uint64_t len,
   }
 
   // We need more storage
-  buflen = select_size(len, NULL);
-  append = q_add_new_buf(q, buflen);
+  append = q_add_new_buf(q, len);
 
   if (!append) {
     if (added_bytes) {

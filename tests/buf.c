@@ -96,15 +96,196 @@ static void test_straddle_edges(void)
   ph_bufq_free(q);
 }
 
+// Build a buffer with contents that vary such that we stand
+// a decent chance of recognizing corruption in this test case
+static char *build_big_buf(uint32_t big_buf_size)
+{
+  char *big_buf;
+  uint32_t x, i, j;
+
+  big_buf = malloc(big_buf_size);
+  i = 0;
+  x = 0;
+  while (i < big_buf_size) {
+    big_buf[i++] = x++;
+
+    for (j = 0; i < big_buf_size && j < 8191; j++) {
+      big_buf[i++] = j;
+    }
+  }
+
+  return big_buf;
+}
+
+struct drain_check {
+  const char *buf;
+  uint32_t size;
+  uint32_t position;
+  uint32_t drain_size;
+  bool broken;
+};
+
+static bool drain_stm_seek(ph_stream_t *stm, int64_t delta, int whence,
+    uint64_t *newpos)
+{
+  ph_unused_parameter(delta);
+  ph_unused_parameter(whence);
+  ph_unused_parameter(newpos);
+  stm->last_err = ESPIPE;
+  return false;
+}
+
+static bool drain_stm_close(ph_stream_t *stm)
+{
+  ph_unused_parameter(stm);
+  return true;
+}
+
+static bool drain_stm_readv(ph_stream_t *stm, const struct iovec *iov,
+    int iovcnt, uint64_t *nread)
+{
+  ph_unused_parameter(iov);
+  ph_unused_parameter(iovcnt);
+  ph_unused_parameter(nread);
+  stm->last_err = ENOSYS;
+  return false;
+}
+
+static bool memcmp_dump(const char *buf, const char *expect, uint32_t len)
+{
+  uint32_t i, j, dlen;
+  char dbuf[64];
+
+  for (i = 0; i < len; i++) {
+    if (buf[i] == expect[i]) {
+      continue;
+    }
+
+    diag("buffers differ starting at byte %" PRIu32 " got %02x expect %02x",
+        i, (uint8_t)buf[i], (uint8_t)expect[i]);
+
+    dlen = MIN(i, 24);
+    for (j = 0; j <= dlen; j++) {
+      ph_snprintf(dbuf + (2*j), sizeof(dbuf), "%02x",
+          (uint8_t)buf[j + (i - dlen)]);
+    }
+    diag("buf holds %s expected last byte to be %02x",
+        dbuf, (uint8_t)expect[i]);
+    return false;
+  }
+
+  return true;
+}
+
+static bool drain_stm_writev(ph_stream_t *stm, const struct iovec *iov,
+    int iovcnt, uint64_t *nwrotep)
+{
+  int i;
+  uint64_t n, total = 0;
+  struct drain_check *check = (struct drain_check*)stm->cookie;
+  uint32_t remain = check->drain_size;
+  bool res;
+
+  if (check->broken) {
+    diag("call to writev on a broken stream");
+    stm->last_err = EFAULT;
+    return false;
+  }
+
+  for (i = 0; i < iovcnt; i++) {
+    if (iov[i].iov_len == 0) {
+      continue;
+    }
+
+    n = MIN(remain, iov[i].iov_len);
+    res = memcmp_dump(iov[i].iov_base, check->buf + check->position, n);
+    ok(res == true, "memcmp at offset %" PRIu32 " for size %" PRIu64,
+        check->position, n);
+
+    if (!res) {
+      diag("recording that stream is broken");
+      check->broken = true;
+      stm->last_err = EFAULT;
+      return false;
+    }
+
+    check->position += n;
+    remain -= n;
+    total += n;
+    if (remain == 0) {
+      break;
+    }
+  }
+
+  if (total) {
+    if (nwrotep) {
+      *nwrotep = total;
+    }
+    return true;
+  }
+  return false;
+}
+
+static struct ph_stream_funcs drain_stm_funcs = {
+  drain_stm_close,
+  drain_stm_readv,
+  drain_stm_writev,
+  drain_stm_seek
+};
+
+static void test_drain_with_size(const char *big_buf, uint32_t big_buf_size,
+    uint32_t drain_size)
+{
+  ph_bufq_t *q = ph_bufq_new(128 * 1024);
+  uint64_t n;
+  ph_result_t res;
+  struct drain_check check;
+  ph_stream_t *stm;
+
+  res = ph_bufq_append(q, big_buf, big_buf_size, &n);
+  is_int(PH_OK, res);
+  is_int(big_buf_size, n);
+
+  // Now drain the data out in chunks
+  check.buf = big_buf;
+  check.size = big_buf_size;
+  check.position = 0;
+  check.drain_size = drain_size;
+  check.broken = false;
+
+  stm = ph_stm_make(&drain_stm_funcs, &check, 0, 0);
+  while (ph_bufq_len(q)) {
+    if (!ph_bufq_stm_write(q, stm, NULL)) {
+      diag("write failed with errno %d %s", ph_stm_errno(stm),
+          strerror(ph_stm_errno(stm)));
+      break;
+    }
+  }
+}
+
+static void test_drain_and_gc(uint32_t big_buf_size)
+{
+  char *big_buf = build_big_buf(big_buf_size);
+
+  test_drain_with_size(big_buf, big_buf_size, 8192);
+}
+
 int main(int argc, char **argv)
 {
   ph_unused_parameter(argc);
   ph_unused_parameter(argv);
 
   ph_library_init();
-  plan_tests(25);
+  plan_tests(196);
 
   test_straddle_edges();
+
+  test_drain_and_gc(8    * 1024);
+  test_drain_and_gc(16   * 1024);
+  test_drain_and_gc(32   * 1024);
+  test_drain_and_gc(64   * 1024);
+  test_drain_and_gc(128  * 1024);
+  test_drain_and_gc(1024 * 1024);
 
   return exit_status();
 }
