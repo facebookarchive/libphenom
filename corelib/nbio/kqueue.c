@@ -185,7 +185,7 @@ ph_result_t ph_nbio_emitter_apply_io_mask(struct ph_nbio_emitter *emitter,
     nev++;
   }
   if (mask & PH_IOMASK_WRITE) {
-    EV_SET(&kev[nev], job->fd, EVFILT_READ, EV_ADD|EV_ONESHOT, 0, 0, job);
+    EV_SET(&kev[nev], job->fd, EVFILT_WRITE, EV_ADD|EV_ONESHOT, 0, 0, job);
     nev++;
   }
   if ((mask & (PH_IOMASK_READ|PH_IOMASK_WRITE)) == 0) {
