@@ -234,7 +234,7 @@ ph_result_t ph_nbio_emitter_apply_io_mask(
   }
 
   if (res == -1) {
-    ph_log(PH_LOG_ERR,
+    ph_panic(
         "fd=%d (callback=%p) epoll_ctl: setting mask to %02x -> %d `Pe%d",
         job->fd, (void*)(uintptr_t)job->callback, mask, errno, errno);
     ph_log_stacktrace(PH_LOG_ERR);
