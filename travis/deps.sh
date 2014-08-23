@@ -11,7 +11,7 @@ HERE=$PWD
 
 # There is no CK package available for ubuntu yet
 CK_VER=0.4.1
-CK_RELEASE=https://github.com/sbahra/ck/archive/$CK_VER.tar.gz
+CK_RELEASE=https://github.com/concurrencykit/ck/archive/$CK_VER.tar.gz
 if test ! -f $CK_VER.tar.gz ; then
   wget $CK_RELEASE
   tar xzf $CK_VER.tar.gz
