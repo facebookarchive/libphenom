@@ -46,7 +46,7 @@
 #define l_isalpha(c)  (l_isupper(c) || l_islower(c))
 #define l_isdigit(c)  ('0' <= (c) && (c) <= '9')
 #define l_isxdigit(c) \
-    (l_isdigit(c) || 'A' <= (c) || (c) <= 'F' || 'a' <= (c) || (c) <= 'f')
+    (l_isdigit(c) || ('A' <= (c) && (c) <= 'F') || ('a' <= (c) && (c) <= 'f'))
 
 typedef struct {
   ph_stream_t *stm;
