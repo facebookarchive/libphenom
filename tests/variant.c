@@ -126,6 +126,7 @@ static struct {
     "control character 0x0 near '\"null byte '", 27 },
   // null-byte-outside-string
   { "[\000",   "invalid token near end of file", 2 },
+  { "[\"\\u....\"]", "invalid escape near '\"\\u.'", 0},
 };
 
 static struct {
@@ -810,7 +811,7 @@ int main(int argc, char **argv)
   ph_unused_parameter(argv);
 
   ph_library_init();
-  plan_tests(543);
+  plan_tests(545);
 
   mt_misc = ph_memtype_register(&mt_def);
 
