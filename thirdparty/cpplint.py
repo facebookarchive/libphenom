@@ -785,6 +785,11 @@ class FileInfo:
         prefix = os.path.commonprefix([root_dir, project_dir])
         return fullname[len(prefix) + 1:]
 
+      # no VCS dir found, assume that the build system stripped it
+      # out and that the cwd is the root
+      prefix = os.path.commonprefix([os.getcwd(), project_dir])
+      return fullname[len(prefix) + 1:]
+
     # Don't know what to do; header guard warnings may be wrong...
     return fullname
 
