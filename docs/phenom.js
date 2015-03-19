@@ -31,7 +31,7 @@ function build_search() {
   });
 
   // docs loaded from declmap.js
-  for (k in docs) {
+  for (var k in docs) {
     var d = docs[k];
 
     // Partition each doc into section divided by headings
@@ -46,7 +46,7 @@ function build_search() {
         var content = [];
 
         for (var i = 0; i < sofar.length; i++) {
-          content.push(sofar[i].text)
+          content.push(sofar[i].text);
         }
 
         titles_by_search_id[sid] = title;
@@ -80,7 +80,7 @@ function build_search() {
     // Execut the query
     source: function (query, process) {
       var terms = idx.search(query);
-      var res = []
+      var res = [];
       for (var i = 0; i < terms.length; i++) {
         res.push(terms[i].ref);
       }
@@ -219,9 +219,9 @@ function show_topic(topic_name) {
 
   var html = marked(topic.content, {
     highlight: function (code, lang) {
-      var counter = lang && lang.match(/^COUNTEREXAMPLE:?(.*)$/)
+      var counter = lang && lang.match(/^COUNTEREXAMPLE:?(.*)$/);
       if (counter && counter.length) {
-        lang = counter[1]
+        lang = counter[1];
       }
       // allow ```none to signal that we shouldn't highlight a block at all
       if (lang != 'none') {
@@ -235,11 +235,11 @@ function show_topic(topic_name) {
   });
 
   // Try to auto-link stuff in the content based on our declmap
-  var keys = []
-  for (k in declmap) {
+  var keys = [];
+  for (var k in declmap) {
     keys.push(k);
   }
-  var munged = []
+  var munged = [];
   var regex = new RegExp('(' + keys.join('|') + ')\\(\\)');
   var m;
   while ((m = regex.exec(html)) !== null) {
@@ -376,7 +376,7 @@ function load_topic_nav() {
   var nav = $('#topic-menu');
   var hnav = $('#header-menu');
 
-  for (k in docs) {
+  for (var k in docs) {
     var d = docs[k];
 
     var li = $('<li/>');
