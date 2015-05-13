@@ -270,13 +270,75 @@ static void test_drain_and_gc(uint32_t big_buf_size)
   test_drain_with_size(big_buf, big_buf_size, 8192);
 }
 
+static void test_record_size_overflow(uint32_t max_size,
+    uint32_t data_chunk_size, uint32_t data_count) {
+  ph_bufq_t *q = ph_bufq_new(0);
+  ph_bufq_set_max_record_size(q, max_size);
+
+  uint64_t data_size = data_chunk_size * data_count;
+  char *data = malloc(data_size);
+
+  // Fill 'data' with bytes.
+  for (uint64_t i = 0; i < data_size; i++) {
+    data[i] = i % 256;
+  }
+
+  char delim[16] = "Our Test Delim";
+  uint64_t delim_size = sizeof(delim);
+
+  // put the delimiter in the last delim_size bytes.
+  memcpy(data + (data_size - delim_size), delim, delim_size);
+
+  // Simulate a protocol loop
+  for (uint64_t i = 0; i < data_size; i += data_chunk_size) {
+    ph_bufq_append(q, data + i, data_chunk_size, NULL);
+
+    // We should be continuously overflowing past this point.
+    bool expect_overflow = ((i + data_chunk_size) > max_size);
+
+    // Expect the buffer on the last iteration.
+    bool expect_buffer = ((i + data_chunk_size) == data_size);
+
+    ph_buf_t *buf = ph_bufq_consume_record(q, delim, delim_size);
+
+    if (expect_overflow) {
+      ok(errno == EOVERFLOW,
+          "errno (%d) not set by consume_record for iteration %lu!",
+          errno, i);
+    } else {
+      ok(errno == 0,
+          "errno (%d) was set by consume_record for iteration %lu!",
+          errno, i);
+    }
+
+    if (expect_buffer) {
+      ok(buf != NULL, "buffer %p returned", (void *) buf);
+
+      // Ensure our buffer actually got truncated.
+      ok(ph_buf_len(buf) < data_size,
+          "buffer size %lu", ph_buf_len(buf));
+
+      // Ensure buffer ends with the delimiter.
+      void *bufptr = ph_buf_mem(buf) + (ph_buf_len(buf) - delim_size);
+
+      int found = memcmp(bufptr, delim, delim_size);
+      ok(found == 0, "delimiter found (%d)", found == 0);
+    } else {
+      ok(buf == NULL, "buffer %p returned", (void *) buf);
+    }
+  }
+
+  free(data);
+  ph_bufq_free(q);
+}
+
 int main(int argc, char **argv)
 {
   ph_unused_parameter(argc);
   ph_unused_parameter(argv);
 
   ph_library_init();
-  plan_tests(196);
+  plan_tests(372);
 
   test_straddle_edges();
 
@@ -286,6 +348,18 @@ int main(int argc, char **argv)
   test_drain_and_gc(64   * 1024);
   test_drain_and_gc(128  * 1024);
   test_drain_and_gc(1024 * 1024);
+
+  // Test with several large chunks.
+  test_record_size_overflow(8  * 1024, 8  * 1024, 4);
+  test_record_size_overflow(16 * 1024, 16 * 1024, 4);
+  test_record_size_overflow(32 * 1024, 32 * 1024, 4);
+  test_record_size_overflow(64 * 1024, 64 * 1024, 4);
+
+  // Now test with lots of smaller buffers to append
+  test_record_size_overflow(8  * 1024, 2  * 1024, 16);
+  test_record_size_overflow(16 * 1024, 4  * 1024, 16);
+  test_record_size_overflow(32 * 1024, 8  * 1024, 16);
+  test_record_size_overflow(64 * 1024, 16 * 1024, 16);
 
   return exit_status();
 }

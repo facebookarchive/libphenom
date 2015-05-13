@@ -44,6 +44,14 @@ struct ph_bufq {
   PH_STAILQ_HEAD(bufqhead, ph_bufq_ent) fifo;
   // Maximum amount of storage to allow
   uint64_t max_size;
+  uint64_t max_record_size;
+
+  bool last_overflow;
+  uint64_t last_search_index;
+  struct ph_bufq_ent *last_search_position;
+
+  char last_delim[16];
+  uint32_t last_delim_len;
 };
 
 static ph_memtype_def_t defs[] = {
@@ -364,6 +372,14 @@ ph_bufq_t *ph_bufq_new(uint64_t max_size)
   return q;
 }
 
+void ph_bufq_set_max_record_size(ph_bufq_t *q, uint64_t size) {
+  q->max_record_size = size;
+}
+
+uint64_t ph_bufq_get_max_record_size(ph_bufq_t *q) {
+  return q->max_record_size;
+}
+
 ph_result_t ph_bufq_append(ph_bufq_t *q, const void *buf, uint64_t len,
     uint64_t *added_bytes)
 {
@@ -555,19 +571,55 @@ static uint32_t partial_match(struct ph_bufq_ent *ent, const char *delim,
   return 0;
 }
 
+static inline void clear_searchstate(ph_bufq_t *q) {
+  q->last_overflow = false;
+  q->last_search_index = 0;
+  q->last_search_position = NULL;
+  q->last_delim_len = 0;
+}
+
+static inline void set_searchstate(ph_bufq_t *q, uint64_t searched,
+    struct ph_bufq_ent *ent, const char *delim, uint32_t delim_len) {
+  if (delim_len > sizeof(q->last_delim)) {
+    clear_searchstate(q);
+    return;
+  }
+
+  q->last_search_index = searched;
+  q->last_search_position = ent;
+  q->last_delim_len = delim_len;
+
+  memcpy(q->last_delim, delim, delim_len);
+}
+
 // Locate the record.
 // We look for the delimiter text; if we find it in the buffer queue, we return
 // the length from the start of the queue to the end of the delimiter.
 // Our caller can then pass this length to consume_bytes or peek_bytes to obtain
 // the appropriate slice.
-// Returns 0 if the delimiter was not found
-static uint64_t find_record(ph_bufq_t *q, const char *delim, uint32_t delim_len)
+// Returns 0 if the delimiter was not found, sets *overflow to true if we
+// overflow max_size while reading.
+static uint64_t find_record(ph_bufq_t *q, const char *delim, uint32_t delim_len,
+    bool *overflow)
 {
   struct ph_bufq_ent *ent, *next;
   uint64_t searched = 0;
   uint32_t slen;
 
-  PH_STAILQ_FOREACH(ent, &q->fifo, ent) {
+  *overflow = false;
+
+  if (delim_len == q->last_delim_len &&
+      delim_len <= sizeof(q->last_delim) &&
+      memcmp(delim, q->last_delim, delim_len) == 0) {
+    ent = q->last_search_position;
+    searched = q->last_search_index;
+  } else {
+    ent = PH_STAILQ_FIRST(&q->fifo);
+
+    clear_searchstate(q);
+  }
+
+  for (; ent; ent = PH_STAILQ_NEXT(ent, ent)) {
     uint8_t *bstart = ph_buf_mem(ent->buf) + ent->rpos;
     uint64_t len = ent->wpos - ent->rpos;
     uint8_t *found;
@@ -576,12 +628,19 @@ static uint64_t find_record(ph_bufq_t *q, const char *delim, uint32_t delim_len)
 
     if (found) {
       searched += (found + delim_len) - bstart;
+
+      clear_searchstate(q);
+
       return searched;
     }
 
     next = PH_STAILQ_NEXT(ent, ent);
     if (next == NULL) {
-      // Not found
+      // Not found, save position for next search.
+      // Note we have to make sure we re-search this buffer next time,
+      // as we may have a straddle when more data is there.
+      set_searchstate(q, searched, ent, delim, delim_len);
+
       return 0;
     }
 
@@ -589,7 +648,6 @@ static uint64_t find_record(ph_bufq_t *q, const char *delim, uint32_t delim_len)
     slen = partial_match(ent, delim, delim_len);
     if (slen) {
       uint32_t dlen = delim_len - slen;
-
       bstart = ph_buf_mem(next->buf) + next->rpos;
 
       if (len < slen) {
@@ -608,15 +666,41 @@ static uint64_t find_record(ph_bufq_t *q, const char *delim, uint32_t delim_len)
 
       if (memcmp(bstart, delim + dlen, slen) == 0) {
         // Found it
+        clear_searchstate(q);
+
         searched += len + slen;
         return searched;
+      }
+    }
+
+    if (q->max_record_size > 0 && delim_len <= sizeof(q->last_delim)) {
+      if (q->last_overflow || ((searched + len) >= q->max_record_size)) {
+        q->last_overflow = true;
+        *overflow = true;
+
+        while (true) {
+          // We have overgrown our max buffer size, let's trim the fat.
+          // We know we have a next buffer section, so we can safely delete
+          struct ph_bufq_ent *first = PH_STAILQ_FIRST(&q->fifo);
+          if (first == ent) {
+            break;
+          }
+
+          searched -= (first->wpos - first->rpos);
+
+          PH_STAILQ_REMOVE_HEAD(&q->fifo, ent);
+          ph_buf_delref(first->buf);
+          ph_mem_free(mt.queue_ent, first);
+        }
       }
     }
 
     searched += len;
   }
 
-  // Not found
+  // No buffers in queue
+  clear_searchstate(q);
+
   return 0;
 }
 
@@ -624,26 +708,32 @@ ph_buf_t *ph_bufq_consume_record(ph_bufq_t *q, const char *delim,
     uint32_t delim_len)
 {
   uint64_t len;
+  bool overflow = 0;
+  ph_buf_t *result = NULL;
 
-  len = find_record(q, delim, delim_len);
-  if (len == 0) {
-    return NULL;
+  len = find_record(q, delim, delim_len, &overflow);
+  if (len) {
+    result = ph_bufq_consume_bytes(q, len);
   }
 
-  return ph_bufq_consume_bytes(q, len);
+  errno = overflow ? EOVERFLOW : 0;
+  return result;
 }
 
 ph_buf_t *ph_bufq_peek_record(ph_bufq_t *q, const char *delim,
     uint32_t delim_len)
 {
   uint64_t len;
+  bool overflow = 0;
+  ph_buf_t *result = NULL;
 
-  len = find_record(q, delim, delim_len);
-  if (len == 0) {
-    return NULL;
+  len = find_record(q, delim, delim_len, &overflow);
+  if (len) {
+    result = ph_bufq_peek_bytes(q, len);
   }
 
-  return ph_bufq_peek_bytes(q, len);
+  errno = overflow ? EOVERFLOW : 0;
+  return result;
 }
 
 bool ph_bufq_stm_write(ph_bufq_t *q, ph_stream_t *stm, uint64_t *nwrotep)

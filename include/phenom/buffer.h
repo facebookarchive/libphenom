@@ -157,6 +157,22 @@ ph_buf_t *ph_buf_concat(uint64_t length, uint32_t num_bufs,
  */
 ph_bufq_t *ph_bufq_new(uint64_t max_size);
 
+/** Set a buffer queue's max record size
+ *
+ * Set the buffer queue's record size to a specified maximum,
+ * after which it will not go over.
+ *
+ * This does not modify the contents of the buffer, only sets future limits.
+ *
+ */
+void ph_bufq_set_max_record_size(ph_bufq_t *buf, uint64_t size);
+
+/** Get a buffer's size
+ *
+ * Gets the maximum size of a record in this buffer queue in bytes.
+ */
+uint64_t ph_bufq_get_max_record_size(ph_bufq_t *buf);
+
 /** Destroy a buffer queue
  *
  * Releases all of its resources
@@ -215,6 +231,18 @@ ph_buf_t *ph_bufq_peek_bytes(ph_bufq_t *q, uint64_t len);
  * that memory region and dequeues it as though ph_bufq_consume_bytes()
  * was called with the appropriate length to the end of the delimiter text.
  *
+ * If max_record_size is set, and the size of the data consumed is larger than
+ * that size, we will begin truncating that data, and set errno to EOVERFLOW
+ * upon returning from the function.
+ *
+ * When data is truncated, it will be truncated from the left side
+ * and will preserve the record delimiter on the right hand side. This
+ * allows the application to remain in sync with the protocol while
+ * maintaining an upper bound on the buffered data size.
+ *
+ * If the delim_len size exceeds 16 bytes, then max_record_size will
+ * not be respected.
+ *
  * The delimiter is included in the returned buffer.
  */
 ph_buf_t *ph_bufq_consume_record(ph_bufq_t *q, const char *delim,
@@ -228,6 +256,18 @@ ph_buf_t *ph_bufq_consume_record(ph_bufq_t *q, const char *delim,
  * If the delimiter text is found, constructs a buffer to reference
  * that memory region and peeks at it as though ph_bufq_peek_bytes()
  * was called with the appropriate length to the end of the delimiter text.
+ *
+ * If max_record_size is set, and the size of the data consumed is larger than
+ * that size, we will begin truncating that data, and set errno to EOVERFLOW
+ * upon returning from the function.
+ *
+ * When data is truncated, it will be truncated from the left side
+ * and will preserve the record delimiter on the right hand side. This
+ * allows the application to remain in sync with the protocol while
+ * maintaining an upper bound on the buffered data size.
+ *
+ * If the delim_len size exceeds 16 bytes, then max_record_size will
+ * not be respected.
  *
  * The delimiter is included in the returned buffer.
  */
