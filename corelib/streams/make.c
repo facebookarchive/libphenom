@@ -103,16 +103,16 @@ static void stm_init(void)
 
   mt_stm = ph_memtype_register(&stm_def);
   if (mt_stm == PH_MEMTYPE_INVALID) {
-    ph_panic("ph_stm_init: unable to register memory types");
+    ph_panic("stm_init: unable to register memory types");
   }
 
   err = pthread_mutexattr_init(&mtx_attr);
   if (err) {
-    ph_panic("ph_stm_init: mutexattr_init: `Pe%d", err);
+    ph_panic("stm_init: mutexattr_init: `Pe%d", err);
   }
   err = pthread_mutexattr_settype(&mtx_attr, PTHREAD_MUTEX_ERRORCHECK);
   if (err) {
-    ph_panic("ph_stm_init: mutexattr ERRORCHECK: `Pe%d", err);
+    ph_panic("stm_init: mutexattr ERRORCHECK: `Pe%d", err);
   }
 }
 PH_LIBRARY_INIT_PRI(stm_init, 0, 7)

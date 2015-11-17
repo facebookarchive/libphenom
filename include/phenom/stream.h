@@ -261,9 +261,6 @@ ph_stream_t *ph_stm_make(const struct ph_stream_funcs *funcs,
  */
 void ph_stm_destroy(ph_stream_t *stm);
 
-/** initialize the stream layer */
-ph_result_t ph_stm_init(void);
-
 /* functions that operate on a file descriptor */
 extern struct ph_stream_funcs ph_stm_funcs_fd;
 
