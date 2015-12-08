@@ -17,6 +17,7 @@
 #include "phenom/sysutil.h"
 #include "phenom/string.h"
 #include "phenom/buffer.h"
+#include "phenom/printf.h"
 #include "tap.h"
 
 static void test_straddle_edges(void)
