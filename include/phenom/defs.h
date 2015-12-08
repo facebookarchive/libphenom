@@ -374,7 +374,7 @@ void ph_static_assert(bool constexpr, identifier_message);
      typedef struct { \
        int ph_defs_paste1(static_assertion_failed_, msg) : \
        !!(expr); \
-     } ph_defs_gen_symbol(static_assertion_failed_)
+     } ph_defs_gen_symbol(static_assertion_failed_) CK_CC_UNUSED
 # endif
 
 /** Log a PH_LOG_PANIC level message, then abort()
