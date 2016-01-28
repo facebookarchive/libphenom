@@ -71,7 +71,7 @@ static void destroy_thread(void *ptr)
 {
   ph_thread_t *thr = ptr;
 
-  ck_epoch_unregister(&misc_epoch, &thr->epoch_record);
+  ck_epoch_unregister(&thr->epoch_record);
 
 #ifdef HAVE___THREAD
   __ph_thread_self = NULL;
@@ -149,7 +149,7 @@ static ph_thread_t *ph_thread_init_myself(bool booting)
   // a non-phenom thread, it is possible that there are still deferred
   // items to reap in this record, so get them now.
   if (er && !booting) {
-    ck_epoch_barrier(&misc_epoch, &me->epoch_record);
+    ck_epoch_barrier(&me->epoch_record);
   }
 
   return me;
@@ -172,7 +172,7 @@ static void *ph_thread_boot(void *arg)
   ck_pr_fence_store();
 
   retval = data.func(data.arg);
-  ck_epoch_barrier(&misc_epoch, &me->epoch_record);
+  ck_epoch_barrier(&me->epoch_record);
 
   return retval;
 }
@@ -348,34 +348,33 @@ bool ph_thread_set_affinity(ph_thread_t *me, int affinity)
 void ph_thread_epoch_begin(void)
 {
   ph_thread_t *me = ph_thread_self();
-  ck_epoch_begin(&misc_epoch, &me->epoch_record);
+  ck_epoch_begin(&me->epoch_record, NULL);
 }
 
 void ph_thread_epoch_end(void)
 {
   ph_thread_t *me = ph_thread_self();
-  ck_epoch_end(&misc_epoch, &me->epoch_record);
+  ck_epoch_end(&me->epoch_record, NULL);
 }
 
 void ph_thread_epoch_defer(ck_epoch_entry_t *entry, ck_epoch_cb_t *func)
 {
   ph_thread_t *me = ph_thread_self();
-  ck_epoch_call(&misc_epoch, &me->epoch_record, entry, func);
+  ck_epoch_call(&me->epoch_record, entry, func);
 }
 
 bool ph_thread_epoch_poll(void)
 {
   ph_thread_t *me = ph_thread_self();
-  return ck_epoch_poll(&misc_epoch, &me->epoch_record);
+  return ck_epoch_poll(&me->epoch_record);
 }
 
 void ph_thread_epoch_barrier(void)
 {
   ph_thread_t *me = ph_thread_self();
-  ck_epoch_barrier(&misc_epoch, &me->epoch_record);
+  ck_epoch_barrier(&me->epoch_record);
 }
 
 
 /* vim:ts=2:sw=2:et:
  */
-
