@@ -140,7 +140,7 @@ esac
 
 # If you're bumping the CK max-version here, you must also bump it in
 # travis/deps.sh otherwise you will break the CI build
-if ! $PKG_CONFIG --exists --atleast-version=0.3.3 --max-version=0.4.1 --print-errors ck ; then
+if ! $PKG_CONFIG --exists --atleast-version=0.5.0 --max-version=0.5.1 --print-errors ck ; then
   AC_MSG_ERROR([ck is required])
 fi
 CFLAGS="$CFLAGS `$PKG_CONFIG --cflags ck`"
