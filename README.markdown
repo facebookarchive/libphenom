@@ -1,3 +1,11 @@
+**NOTE: THIS PROJECT HAS BEEN DEPRECATED AND IS NO LONGER ACTIVELY MAINTAINED**
+
+As of 2019-03-08, this project will no longer be maintained and will be archived. Thank you to all the contributors and users of `libphenom` for their work over the years.
+
+If you are looking for a comparable library (albeit in C++) that has many of the same features and more, you should check out the actively-maintained [folly](https://github.com/facebook/folly) library.
+
+The rest of the README is preserved as-is for historical purposes:
+
 # libPhenom
 
 libPhenom is an eventing framework for building high performance and high
